@@ -27,7 +27,7 @@ apps/server/
     middleware/auth.ts
   tests/
     routes/skills.test.ts
-    middleware/auth.test.test.ts
+    middleware/auth.test.ts
 ```
 
 ### Rules
