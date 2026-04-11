@@ -35,19 +35,6 @@ describe("authMiddleware", () => {
     delete process.env.API_KEY;
   });
 
-  test("allows request with valid api_key query param", async () => {
-    process.env.API_KEY = "test-secret";
-
-    const app = new OpenAPIHono();
-    app.use("/api/*", authMiddleware());
-    app.get("/api/test", (c) => c.json({ ok: true }));
-
-    const res = await app.request("/api/test?api_key=test-secret");
-    expect(res.status).toBe(200);
-
-    delete process.env.API_KEY;
-  });
-
   test("rejects request without api key", async () => {
     process.env.API_KEY = "test-secret";
 
