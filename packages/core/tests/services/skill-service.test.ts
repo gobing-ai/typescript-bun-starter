@@ -110,6 +110,7 @@ describe("SkillService", () => {
     if (!result.ok) return;
     expect(result.data.name).toBe("updated");
     expect(result.data.description).toBe("new desc");
+    expect(result.data.version).toBe(created.data.version + 1);
     expect(result.data.updatedAt.getTime()).toBeGreaterThanOrEqual(
       created.data.updatedAt.getTime(),
     );
