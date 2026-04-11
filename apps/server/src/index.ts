@@ -39,6 +39,6 @@ app.get("/swagger", swaggerUI({ url: "/doc" }));
 app.get("/", (c) => c.json({ status: "ok" }));
 
 export default {
-  port: Number(process.env.PORT) || 3000,
+  port: Number.isFinite(Number(process.env.PORT)) ? Number(process.env.PORT) : 3000,
   fetch: app.fetch,
 };
