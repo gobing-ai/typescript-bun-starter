@@ -1,28 +1,12 @@
-import { Database } from "bun:sqlite";
 import { beforeAll, describe, expect, test } from "bun:test";
 import { Writable } from "node:stream";
 import { Cli } from "clipanion";
 import { SkillCreateCommand } from "../../src/commands/skill-create";
 import { SkillDeleteCommand } from "../../src/commands/skill-delete";
-
-const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS skills (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    version INTEGER NOT NULL DEFAULT 1,
-    config TEXT,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  )
-`;
+import { setupCliTestDb } from "../test-setup";
 
 beforeAll(() => {
-  const dbPath = process.env.DATABASE_URL || "data/app.db";
-  const sqlite = new Database(dbPath, { create: true });
-  sqlite.run(CREATE_TABLE_SQL);
-  sqlite.run("DELETE FROM skills");
-  sqlite.close();
+  setupCliTestDb();
 });
 
 function makeCli() {
@@ -86,7 +70,6 @@ describe("SkillDeleteCommand", () => {
   test("--json deletes a skill and outputs confirmation", async () => {
     const cli = makeCli();
 
-    // Create a skill
     const createChunks: string[] = [];
     const createCommand = processCreate(
       cli,
@@ -96,7 +79,6 @@ describe("SkillDeleteCommand", () => {
     await createCommand.execute();
     const created = JSON.parse(createChunks.join(""));
 
-    // Delete it
     const delChunks: string[] = [];
     const delCommand = processDelete(cli, ["skill", "delete", "--id", created.id, "--json"], {
       stdout: delChunks,
@@ -127,7 +109,6 @@ describe("SkillDeleteCommand", () => {
   test("human mode deletes and prints confirmation", async () => {
     const cli = makeCli();
 
-    // Create a skill
     const createChunks: string[] = [];
     const createCommand = processCreate(
       cli,
@@ -137,7 +118,6 @@ describe("SkillDeleteCommand", () => {
     await createCommand.execute();
     const created = JSON.parse(createChunks.join(""));
 
-    // Delete in human mode
     const delChunks: string[] = [];
     const delCommand = processDelete(cli, ["skill", "delete", "--id", created.id], {
       stdout: delChunks,
