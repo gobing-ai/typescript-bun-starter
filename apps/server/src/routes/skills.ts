@@ -1,14 +1,11 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import type { Skill } from "@project/core";
+import type { Database, Skill } from "@project/core";
 import {
   SkillService,
   skillInsertSchema,
   skillSelectSchema,
   skillUpdateSchema,
 } from "@project/core";
-
-const app = new OpenAPIHono();
-const service = new SkillService();
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -144,52 +141,59 @@ const deleteRoute = createRoute({
 });
 
 // ---------------------------------------------------------------------------
-// Handlers
+// Factory + Handlers
 // ---------------------------------------------------------------------------
 
-app.openapi(listRoute, async (c) => {
-  const result = await service.list();
-  if (!result.ok) {
-    return c.json({ error: result.error.message }, 500);
-  }
-  return c.json({ data: result.data }, 200);
-});
+export function createSkillRoutes(db?: Database) {
+  const app = new OpenAPIHono();
+  const service = db ? new SkillService(db) : new SkillService();
 
-app.openapi(getRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const result = await service.getById(id);
-  if (!result.ok) {
-    return c.json({ error: result.error.message }, 404);
-  }
-  return c.json({ data: result.data }, 200);
-});
+  app.openapi(listRoute, async (c) => {
+    const result = await service.list();
+    if (!result.ok) {
+      return c.json({ error: result.error.message }, 500);
+    }
+    return c.json({ data: result.data }, 200);
+  });
 
-app.openapi(postRoute, async (c) => {
-  const input = c.req.valid("json");
-  const result = await service.create(input);
-  if (!result.ok) {
-    return c.json({ error: result.error.message }, 400);
-  }
-  return c.json({ data: result.data as Skill }, 201);
-});
+  app.openapi(getRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const result = await service.getById(id);
+    if (!result.ok) {
+      return c.json({ error: result.error.message }, 404);
+    }
+    return c.json({ data: result.data }, 200);
+  });
 
-app.openapi(patchRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const input = c.req.valid("json");
-  const result = await service.update(id, input);
-  if (!result.ok) {
-    return c.json({ error: result.error.message }, 404);
-  }
-  return c.json({ data: result.data }, 200);
-});
+  app.openapi(postRoute, async (c) => {
+    const input = c.req.valid("json");
+    const result = await service.create(input);
+    if (!result.ok) {
+      return c.json({ error: result.error.message }, 400);
+    }
+    return c.json({ data: result.data as Skill }, 201);
+  });
 
-app.openapi(deleteRoute, async (c) => {
-  const { id } = c.req.valid("param");
-  const result = await service.delete(id);
-  if (!result.ok) {
-    return c.json({ error: result.error.message }, 404);
-  }
-  return c.json({ data: null }, 200);
-});
+  app.openapi(patchRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const input = c.req.valid("json");
+    const result = await service.update(id, input);
+    if (!result.ok) {
+      return c.json({ error: result.error.message }, 404);
+    }
+    return c.json({ data: result.data }, 200);
+  });
 
-export default app;
+  app.openapi(deleteRoute, async (c) => {
+    const { id } = c.req.valid("param");
+    const result = await service.delete(id);
+    if (!result.ok) {
+      return c.json({ error: result.error.message }, 404);
+    }
+    return c.json({ data: null }, 200);
+  });
+
+  return app;
+}
+
+export default createSkillRoutes();
