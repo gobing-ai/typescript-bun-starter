@@ -1,27 +1,11 @@
-import { Database } from "bun:sqlite";
 import { beforeAll, describe, expect, test } from "bun:test";
 import { Writable } from "node:stream";
 import { Cli } from "clipanion";
 import { SkillCreateCommand } from "../../src/commands/skill-create";
-
-const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS skills (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    version INTEGER NOT NULL DEFAULT 1,
-    config TEXT,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  )
-`;
+import { setupCliTestDb } from "../test-setup";
 
 beforeAll(() => {
-  const dbPath = process.env.DATABASE_URL || "data/app.db";
-  const sqlite = new Database(dbPath, { create: true });
-  sqlite.run(CREATE_TABLE_SQL);
-  sqlite.run("DELETE FROM skills");
-  sqlite.close();
+  setupCliTestDb();
 });
 
 function makeCli() {
