@@ -25,7 +25,6 @@ const NO_TEST_REQUIRED = new Set([
   "packages/core/src/db/schema.ts", // pure Drizzle table definition
   "packages/core/src/db/client.ts", // convenience export (2 lines)
   "packages/core/src/db/adapters/d1.ts", // D1 adapter (needs Workers runtime)
-  "packages/core/src/types/index.ts", // type re-exports only
   "packages/core/src/types/result.ts", // type-only definition
   "packages/core/src/schemas/skill.ts", // Zod schema definitions
   "packages/core/src/index.ts", // barrel exports
