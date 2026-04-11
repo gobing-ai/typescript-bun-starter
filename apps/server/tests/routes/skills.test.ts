@@ -99,6 +99,40 @@ describe("Skills API — GET /skills/{id}", () => {
   });
 });
 
+describe("Skills API — PATCH /skills/{id}", () => {
+  test("updates a skill and returns 200", async () => {
+    const app = makeApp();
+
+    const createRes = await app.request("/api/skills", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "patchable" }),
+    });
+    const created = (await createRes.json()) as { data: { id: string; version: number } };
+
+    const res = await app.request(`/api/skills/${created.data.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "patched-name" }),
+    });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as { data: { name: string; version: number } };
+    expect(body.data.name).toBe("patched-name");
+    expect(body.data.version).toBe(created.data.version + 1);
+  });
+
+  test("returns 404 for missing id", async () => {
+    const app = makeApp();
+    const res = await app.request("/api/skills/nonexistent", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "nope" }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("Skills API — DELETE /skills/{id}", () => {
   test("deletes a skill and returns 200", async () => {
     const app = makeApp();
