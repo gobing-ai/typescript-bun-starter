@@ -35,9 +35,7 @@ export class SkillListCommand extends Command {
       }
       for (const skill of result.data) {
         const desc = skill.description ? `  ${skill.description}` : "";
-        this.context.stdout.write(
-          `  ${skill.name}  (${skill.id})  v${skill.version}${desc}\n`,
-        );
+        this.context.stdout.write(`  ${skill.name}  (${skill.id})  v${skill.version}${desc}\n`);
       }
     }
     return 0;
