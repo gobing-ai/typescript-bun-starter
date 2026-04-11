@@ -1,28 +1,12 @@
-import { Database } from "bun:sqlite";
 import { beforeAll, describe, expect, test } from "bun:test";
 import { Writable } from "node:stream";
 import { Cli } from "clipanion";
 import { SkillCreateCommand } from "../../src/commands/skill-create";
 import { SkillGetCommand } from "../../src/commands/skill-get";
-
-const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS skills (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    version INTEGER NOT NULL DEFAULT 1,
-    config TEXT,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  )
-`;
+import { setupCliTestDb } from "../test-setup";
 
 beforeAll(() => {
-  const dbPath = process.env.DATABASE_URL || "data/app.db";
-  const sqlite = new Database(dbPath, { create: true });
-  sqlite.run(CREATE_TABLE_SQL);
-  sqlite.run("DELETE FROM skills");
-  sqlite.close();
+  setupCliTestDb();
 });
 
 function makeCli() {
@@ -86,7 +70,6 @@ describe("SkillGetCommand", () => {
   test("--json with valid --id returns skill JSON", async () => {
     const cli = makeCli();
 
-    // Create a skill first
     const createChunks: string[] = [];
     const createCommand = processCreate(
       cli,
@@ -96,7 +79,6 @@ describe("SkillGetCommand", () => {
     await createCommand.execute();
     const created = JSON.parse(createChunks.join(""));
 
-    // Get it
     const getChunks: string[] = [];
     const getCommand = processGet(cli, ["skill", "get", "--id", created.id, "--json"], {
       stdout: getChunks,
@@ -128,7 +110,6 @@ describe("SkillGetCommand", () => {
   test("human mode with valid --id prints skill details", async () => {
     const cli = makeCli();
 
-    // Create a skill
     const createChunks: string[] = [];
     const createCommand = processCreate(
       cli,
@@ -138,7 +119,6 @@ describe("SkillGetCommand", () => {
     await createCommand.execute();
     const created = JSON.parse(createChunks.join(""));
 
-    // Get in human mode
     const getChunks: string[] = [];
     const getCommand = processGet(cli, ["skill", "get", "--id", created.id], {
       stdout: getChunks,
