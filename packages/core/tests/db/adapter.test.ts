@@ -23,13 +23,15 @@ describe("createDbAdapter", () => {
     const stmt = {
       bind: (..._args: unknown[]) => stmt,
       first: async <T>(): Promise<T | null> => null,
-      all: async <T>(): Promise<{ results: T[]; success: boolean }> => ({
+      all: async <T>(): Promise<{ results: T[]; success: boolean; meta: Record<string, unknown> }> => ({
         results: [],
         success: true,
+        meta: {},
       }),
-      run: async <T>(): Promise<{ results: T[]; success: boolean }> => ({
+      run: async <T>(): Promise<{ results: T[]; success: boolean; meta: Record<string, unknown> }> => ({
         results: [],
         success: true,
+        meta: {},
       }),
       raw: async <T>(): Promise<T[]> => [],
     };
@@ -41,7 +43,8 @@ describe("createDbAdapter", () => {
         count: 0,
         duration: 0,
       }),
-      batch: async <T>(): Promise<{ results: T[]; success: boolean }[]> => [],
+      batch: async <T>(): Promise<{ results: T[]; success: boolean; meta: Record<string, unknown> }[]> => [],
+      withSession: () => mockBinding,
     };
 
     const config: DbAdapterConfig = {
