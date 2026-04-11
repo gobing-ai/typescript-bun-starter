@@ -49,11 +49,19 @@ describe("BunSqliteAdapter", () => {
   });
 
   test("sets WAL pragma on file-based db", () => {
-    const adapter = new BunSqliteAdapter("data/test-wal.db");
-    const raw = extractRawSqlite(adapter);
-    const result = raw.query("PRAGMA journal_mode").get() as Record<string, string>;
-    expect(result.journal_mode).toBe("wal");
-    adapter.close();
+    const tmpPath = `${import.meta.dir}/.tmp-wal-test-${Date.now()}.db`;
+    const adapter = new BunSqliteAdapter(tmpPath);
+    try {
+      const raw = extractRawSqlite(adapter);
+      const result = raw.query("PRAGMA journal_mode").get() as Record<string, string>;
+      expect(result.journal_mode).toBe("wal");
+    } finally {
+      adapter.close();
+      // Clean up temp files
+      for (const suffix of ["", "-wal", "-shm"]) {
+        try { require("node:fs").unlinkSync(`${tmpPath}${suffix}`); } catch {}
+      }
+    }
   });
 
   test("sets foreign_keys pragma", () => {
