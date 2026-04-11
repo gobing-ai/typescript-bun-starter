@@ -9,6 +9,15 @@ export class SkillListCommand extends Command {
 
   static paths = [["skill", "list"]];
 
+  static usage = Command.Usage({
+    category: "Skills",
+    description: "List all skills",
+    examples: [
+      ["List skills", "tbs skill list"],
+      ["JSON output", "tbs skill list --json"],
+    ],
+  });
+
   json = Option.Boolean("--json", false, {
     description: "Output as JSON (agent mode)",
   });
