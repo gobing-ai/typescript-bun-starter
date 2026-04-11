@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Skill } from "@project/core";
-import { SkillService, skillInsertSchema, skillSelectSchema } from "@project/core";
+import { SkillService, skillInsertSchema, skillSelectSchema, skillUpdateSchema } from "@project/core";
 
 const app = new OpenAPIHono();
 const service = new SkillService();
@@ -62,7 +62,7 @@ const getRoute = createRoute({
   },
 });
 
-const createRoute_ = createRoute({
+const postRoute = createRoute({
   method: "post",
   path: "/skills",
   tags: ["Skills"],
@@ -84,6 +84,33 @@ const createRoute_ = createRoute({
     400: {
       content: { "application/json": { schema: ErrorSchema } },
       description: "Validation error",
+    },
+  },
+});
+
+const patchRoute = createRoute({
+  method: "patch",
+  path: "/skills/{id}",
+  tags: ["Skills"],
+  request: {
+    params: ParamsSchema,
+    body: {
+      content: { "application/json": { schema: skillUpdateSchema } },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ data: skillSelectSchema }),
+        },
+      },
+      description: "Skill updated",
+    },
+    404: {
+      content: { "application/json": { schema: ErrorSchema } },
+      description: "Skill not found",
     },
   },
 });
@@ -132,13 +159,23 @@ app.openapi(getRoute, async (c) => {
   return c.json({ data: result.data }, 200);
 });
 
-app.openapi(createRoute_, async (c) => {
+app.openapi(postRoute, async (c) => {
   const input = c.req.valid("json");
   const result = await service.create(input);
   if (!result.ok) {
     return c.json({ error: result.error.message }, 400);
   }
   return c.json({ data: result.data as Skill }, 201);
+});
+
+app.openapi(patchRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const input = c.req.valid("json");
+  const result = await service.update(id, input);
+  if (!result.ok) {
+    return c.json({ error: result.error.message }, 404);
+  }
+  return c.json({ data: result.data }, 200);
 });
 
 app.openapi(deleteRoute, async (c) => {
