@@ -1,13 +1,13 @@
 import { eq, sql } from "drizzle-orm";
 import type { Database } from "../db/adapter";
-import { db as defaultDb } from "../db/client";
+import { getDb } from "../db/client";
 import { skills } from "../db/schema";
 import { logger } from "../logger";
 import type { NewSkill, Skill, SkillUpdate } from "../schemas/skill";
 import type { Result } from "../types/result";
 
 export class SkillService {
-  constructor(private db: Database = defaultDb) {}
+  constructor(private db: Database = getDb()) {}
 
   async create(input: NewSkill): Promise<Result<Skill>> {
     try {
@@ -57,11 +57,17 @@ export class SkillService {
     }
   }
 
-  async update(id: string, input: Partial<SkillUpdate>): Promise<Result<Skill>> {
+  async update(id: string, input: SkillUpdate): Promise<Result<Skill>> {
     try {
+      // Strip undefined keys so Drizzle doesn't null out columns
+      const changes: Record<string, unknown> = {};
+      if (input.name !== undefined) changes.name = input.name;
+      if (input.description !== undefined) changes.description = input.description;
+      if (input.config !== undefined) changes.config = input.config;
+
       const rows = await this.db
         .update(skills)
-        .set({ ...input, version: sql`${skills.version} + 1`, updatedAt: new Date() })
+        .set({ ...changes, version: sql`${skills.version} + 1`, updatedAt: new Date() })
         .where(eq(skills.id, id))
         .returning();
       const row = rows[0];
