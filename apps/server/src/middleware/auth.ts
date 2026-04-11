@@ -9,9 +9,7 @@ export function authMiddleware(): MiddlewareHandler {
       return next();
     }
 
-    const headerKey = c.req.header("X-API-Key");
-    const queryKey = c.req.query("api_key");
-    const providedKey = headerKey || queryKey;
+    const providedKey = c.req.header("X-API-Key");
 
     if (!providedKey || !timingSafeEqual(providedKey, expectedKey)) {
       return c.json({ error: "Unauthorized" }, 401);
