@@ -14,8 +14,8 @@
       "Bash(echo:*)",
       "Bash(grep export:*)",
       "Bash(bunx biome:*)",
-      "Bash(./dist/tbs skill:*)",
-      "Bash(bun tsc:*)"
+      "Bash(bun tsc:*)",
+      "Bash(dist/tbs:*)"
     ]
   }
 }
