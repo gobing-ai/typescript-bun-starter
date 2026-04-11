@@ -1,3 +1,4 @@
+import { existsSync, mkdirSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import { type BunSQLiteDatabase, drizzle } from "drizzle-orm/bun-sqlite";
 import type { Database as AppDatabase, DbAdapter } from "../adapter";
@@ -12,9 +13,17 @@ export class BunSqliteAdapter implements DbAdapter {
   private drizzleDb: BunSQLiteDatabase<typeof schema>;
 
   constructor(url?: string) {
-    this.sqlite = new Database(url ?? process.env.DATABASE_URL ?? "data/app.db", {
-      create: true,
-    });
+    const dbPath = url ?? process.env.DATABASE_URL ?? "data/app.db";
+
+    // Ensure parent directory exists for file-based databases
+    if (dbPath !== ":memory:") {
+      const dir = dbPath.substring(0, dbPath.lastIndexOf("/"));
+      if (dir && !existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+    }
+
+    this.sqlite = new Database(dbPath, { create: true });
 
     this.sqlite.run(PRAGMA_WAL);
     this.sqlite.run(PRAGMA_SYNC);
