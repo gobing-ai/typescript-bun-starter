@@ -9,6 +9,15 @@ export class SkillGetCommand extends Command {
 
   static paths = [["skill", "get"]];
 
+  static usage = Command.Usage({
+    category: "Skills",
+    description: "Get a skill by ID",
+    examples: [
+      ["Get a skill", "tbs skill get --id abc-123"],
+      ["JSON output", "tbs skill get --id abc-123 --json"],
+    ],
+  });
+
   json = Option.Boolean("--json", false, {
     description: "Output as JSON (agent mode)",
   });
