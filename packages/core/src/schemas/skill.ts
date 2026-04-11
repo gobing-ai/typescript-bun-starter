@@ -10,8 +10,8 @@ export const skillSelectSchema = z
       .unknown()
       .nullable()
       .openapi({ example: { timeout: 5000 } }),
-    createdAt: z.date().openapi({ example: "2026-04-10T00:00:00.000Z" }),
-    updatedAt: z.date().openapi({ example: "2026-04-10T00:00:00.000Z" }),
+    createdAt: z.coerce.date().openapi({ example: "2026-04-10T00:00:00.000Z" }),
+    updatedAt: z.coerce.date().openapi({ example: "2026-04-10T00:00:00.000Z" }),
   })
   .openapi("Skill");
 
