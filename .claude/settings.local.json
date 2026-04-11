@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:hono.dev)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:orm.drizzle.team)",
+      "WebFetch(domain:biomejs.dev)",
+      "WebFetch(domain:logtape.org)",
+      "WebFetch(domain:mael.dev)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(bun run:*)",
+      "Bash(bun test:*)",
+      "Bash(bun add:*)",
+      "Bash(echo:*)",
+      "Bash(grep export:*)",
+      "Bash(bunx biome:*)",
+      "Bash(./dist/cli skill:*)"
+    ]
+  }
+}
