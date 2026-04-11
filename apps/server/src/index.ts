@@ -16,6 +16,11 @@ await configure({
       lowestLevel: "info",
       sinks: ["console"],
     },
+    {
+      category: ["logtape", "meta"],
+      lowestLevel: "warning",
+      sinks: [],
+    },
   ],
 });
 
