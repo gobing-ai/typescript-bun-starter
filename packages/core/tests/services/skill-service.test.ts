@@ -1,32 +1,16 @@
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import * as schema from "../../src/db/schema";
 import { SkillService } from "../../src/services/skill-service";
-
-const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS skills (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    version INTEGER NOT NULL DEFAULT 1,
-    config TEXT,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  )
-`;
+import { createTestDb } from "../test-db";
 
 describe("SkillService", () => {
   let service: SkillService;
   let sqlite: Database;
 
   beforeAll(() => {
-    sqlite = new Database(":memory:");
-    sqlite.run("PRAGMA journal_mode = WAL");
-    sqlite.run("PRAGMA foreign_keys = ON");
-    sqlite.run(CREATE_TABLE_SQL);
-    const db = drizzle(sqlite, { schema });
-    service = new SkillService(db);
+    const testDb = createTestDb();
+    sqlite = testDb.sqlite;
+    service = new SkillService(testDb.db);
   });
 
   afterAll(() => {
