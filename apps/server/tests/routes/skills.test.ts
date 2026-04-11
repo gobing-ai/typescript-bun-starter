@@ -1,30 +1,19 @@
-import { Database } from "bun:sqlite";
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import skillRoutes from "../../src/routes/skills";
+import { createTestDb } from "@project/core/tests/test-db";
+import { createSkillRoutes } from "../../src/routes/skills";
 
-// The skillRoutes module creates a SkillService with the default db.
-// Ensure the table exists in that database before tests run.
-
-const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS skills (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    version INTEGER NOT NULL DEFAULT 1,
-    config TEXT,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  )
-`;
-
-const DB_PATH = process.env.DATABASE_URL || "data/app.db";
+let cleanup: () => void;
+let skillRoutes: ReturnType<typeof createSkillRoutes>;
 
 beforeAll(() => {
-  const sqlite = new Database(DB_PATH, { create: true });
-  sqlite.run(CREATE_TABLE_SQL);
-  sqlite.run("DELETE FROM skills");
-  sqlite.close();
+  const { sqlite, db } = createTestDb();
+  cleanup = () => sqlite.close();
+  skillRoutes = createSkillRoutes(db);
+});
+
+afterAll(() => {
+  cleanup();
 });
 
 function makeApp() {
