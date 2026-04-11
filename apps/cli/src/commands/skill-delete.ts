@@ -9,6 +9,15 @@ export class SkillDeleteCommand extends Command {
 
   static paths = [["skill", "delete"]];
 
+  static usage = Command.Usage({
+    category: "Skills",
+    description: "Delete a skill by ID",
+    examples: [
+      ["Delete a skill", "tbs skill delete --id abc-123"],
+      ["JSON output", "tbs skill delete --id abc-123 --json"],
+    ],
+  });
+
   json = Option.Boolean("--json", false, {
     description: "Output as JSON (agent mode)",
   });
