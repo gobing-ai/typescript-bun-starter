@@ -1,6 +1,11 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Skill } from "@project/core";
-import { SkillService, skillInsertSchema, skillSelectSchema, skillUpdateSchema } from "@project/core";
+import {
+  SkillService,
+  skillInsertSchema,
+  skillSelectSchema,
+  skillUpdateSchema,
+} from "@project/core";
 
 const app = new OpenAPIHono();
 const service = new SkillService();
