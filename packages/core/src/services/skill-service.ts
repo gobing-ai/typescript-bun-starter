@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Database } from "../db/adapter";
 import { db as defaultDb } from "../db/client";
 import { skills } from "../db/schema";
@@ -61,7 +61,7 @@ export class SkillService {
     try {
       const rows = await this.db
         .update(skills)
-        .set({ ...input, updatedAt: new Date() })
+        .set({ ...input, version: sql`${skills.version} + 1`, updatedAt: new Date() })
         .where(eq(skills.id, id))
         .returning();
       const row = rows[0];
