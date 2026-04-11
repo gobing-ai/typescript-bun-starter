@@ -3,7 +3,7 @@
 export type { Database, DbAdapter, DbAdapterConfig } from "./db/adapter";
 export { createDbAdapter } from "./db/adapter";
 // Database
-export { db, defaultAdapter } from "./db/client";
+export { getDb, getDefaultAdapter } from "./db/client";
 // Logger
 export { logger } from "./logger";
 export type { NewSkill, Skill, SkillUpdate } from "./schemas/skill";
