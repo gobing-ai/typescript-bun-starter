@@ -1,5 +1,17 @@
-import { BunSqliteAdapter } from "./adapters/bun-sqlite";
+import type { Database, DbAdapter } from "./adapter";
 
-const defaultAdapter = new BunSqliteAdapter();
-export const db = defaultAdapter.getDb();
-export { defaultAdapter };
+let _adapter: DbAdapter | undefined;
+
+export function getDefaultAdapter(): DbAdapter {
+  if (!_adapter) {
+    // Lazy: only connect when first needed
+    const { BunSqliteAdapter } =
+      require("./adapters/bun-sqlite") as typeof import("./adapters/bun-sqlite");
+    _adapter = new BunSqliteAdapter();
+  }
+  return _adapter;
+}
+
+export function getDb(): Database {
+  return getDefaultAdapter().getDb();
+}
