@@ -13,10 +13,25 @@ export function authMiddleware(): MiddlewareHandler {
     const queryKey = c.req.query("api_key");
     const providedKey = headerKey || queryKey;
 
-    if (!providedKey || providedKey !== expectedKey) {
+    if (!providedKey || !timingSafeEqual(providedKey, expectedKey)) {
       return c.json({ error: "Unauthorized" }, 401);
     }
 
     return next();
   };
+}
+
+/** Constant-time string comparison to prevent timing attacks. */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    // Still do a comparison to keep timing consistent
+    b = a;
+  }
+
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+
+  return result === 0;
 }
