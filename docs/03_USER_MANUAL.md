@@ -469,7 +469,7 @@ Compile to a standalone binary:
 
 ```bash
 bun run build:cli
-# Output: dist/cli (or dist/cli.exe on Windows)
+# Output: dist/tbs (or dist/tbs.exe on Windows)
 ```
 
 Cross-compile for other platforms:
