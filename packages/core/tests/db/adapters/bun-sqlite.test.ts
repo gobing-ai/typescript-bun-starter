@@ -59,7 +59,9 @@ describe("BunSqliteAdapter", () => {
       adapter.close();
       // Clean up temp files
       for (const suffix of ["", "-wal", "-shm"]) {
-        try { require("node:fs").unlinkSync(`${tmpPath}${suffix}`); } catch {}
+        try {
+          require("node:fs").unlinkSync(`${tmpPath}${suffix}`);
+        } catch {}
       }
     }
   });
