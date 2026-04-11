@@ -152,7 +152,10 @@ for (const srcDir of SRC_DIRS) {
 }
 
 // Files that appear in coverage (have at least some lines instrumented)
-const coveredSet = new Set(coveredFiles.map((e) => e.file));
+// Normalize to relative paths for consistent comparison
+const coveredSet = new Set(
+  coveredFiles.map((e) => (e.file.startsWith("/") ? relative(projectRoot, e.file) : e.file)),
+);
 
 const missingTests: string[] = [];
 
