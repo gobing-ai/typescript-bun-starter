@@ -276,8 +276,8 @@ The server entry must support both local dev (bun:sqlite) and Workers deployment
 
 ```bash
 bun run build:cli
-./dist/cli skill list --json    # Should output JSON
-ls -lh dist/cli                 # Should be under 90MB
+./dist/tbs skill list --json    # Should output JSON
+ls -lh dist/tbs                 # Should be under 90MB
 ```
 
 #### 6.3 Clean state verification
