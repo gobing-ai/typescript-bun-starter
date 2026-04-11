@@ -9,7 +9,7 @@
   "scripts": {
     "check": "biome check . && bun run typecheck && bun run test:coverage",
     "test": "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage && bun run scripts/check-coverage.ts",
-    "test:coverage": "bun test --coverage --reporter=dots",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage --reporter=dots && bun run scripts/check-coverage.ts",
     "format": "biome format --write .",
     "lint-fix": "biome lint --write .",
     "typecheck": "tsc --noEmit",
