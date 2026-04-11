@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync } from "node:fs";
 import { Database } from "bun:sqlite";
+import { existsSync, mkdirSync } from "node:fs";
 import { type BunSQLiteDatabase, drizzle } from "drizzle-orm/bun-sqlite";
 import type { Database as AppDatabase, DbAdapter } from "../adapter";
 import * as schema from "../schema";
