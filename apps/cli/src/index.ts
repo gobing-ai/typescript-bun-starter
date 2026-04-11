@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { configure, getConsoleSink } from "@logtape/logtape";
-import { Cli } from "clipanion";
+import { Builtins, Cli } from "clipanion";
 
 import { SkillCreateCommand } from "./commands/skill-create";
 import { SkillDeleteCommand } from "./commands/skill-delete";
@@ -14,6 +14,11 @@ await configure({
       lowestLevel: "info",
       sinks: ["console"],
     },
+    {
+      category: ["logtape", "meta"],
+      lowestLevel: "warning",
+      sinks: [],
+    },
   ],
   sinks: { console: getConsoleSink() },
 });
@@ -24,6 +29,8 @@ const cli = new Cli({
   binaryVersion: "0.1.0",
 });
 
+cli.register(Builtins.HelpCommand);
+cli.register(Builtins.VersionCommand);
 cli.register(SkillListCommand);
 cli.register(SkillCreateCommand);
 cli.register(SkillGetCommand);
