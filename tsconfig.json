@@ -14,5 +14,7 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true
-  }
+  },
+  "include": ["packages/*/src", "apps/*/src", "scripts"],
+  "exclude": ["node_modules", "dist", "coverage", "drizzle"]
 }
