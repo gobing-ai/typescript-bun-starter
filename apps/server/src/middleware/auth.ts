@@ -2,7 +2,7 @@ import type { MiddlewareHandler } from "hono";
 
 export function authMiddleware(): MiddlewareHandler {
   return async (c, next) => {
-    const expectedKey = process.env.API_KEY;
+    const expectedKey = process.env.API_KEY ?? (c.env as Record<string, string>)?.API_KEY;
 
     // Dev mode: skip auth when API_KEY is not configured
     if (!expectedKey) {
