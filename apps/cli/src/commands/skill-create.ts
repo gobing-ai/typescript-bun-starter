@@ -10,6 +10,19 @@ export class SkillCreateCommand extends Command {
 
   static paths = [["skill", "create"]];
 
+  static usage = Command.Usage({
+    category: "Skills",
+    description: "Create a new skill",
+    examples: [
+      ["Create a skill", "tbs skill create --name web-search"],
+      [
+        "Create with description",
+        'tbs skill create --name web-search --description "Search the web"',
+      ],
+      ["JSON output", "tbs skill create --name web-search --json"],
+    ],
+  });
+
   json = Option.Boolean("--json", false, {
     description: "Output as JSON (agent mode)",
   });
