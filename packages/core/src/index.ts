@@ -18,6 +18,7 @@ export {
 } from "./errors";
 // Logger
 export { logger } from "./logger";
+export { getLoggerConfig } from "./logging";
 export type { NewSkill, Skill, SkillUpdate } from "./schemas/skill";
 // Schemas
 export {

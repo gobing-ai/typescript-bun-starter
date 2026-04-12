@@ -1,0 +1,26 @@
+telemetry = false
+
+[install]
+# Optimize package installation for monorepo speed
+smol = true
+exact = true
+
+[test]
+# Exclude directories from test discovery
+# pathIgnorePatterns = ["**/node_modules/**", "**/vendors/**", "**/dist/**"]
+# Limit test discovery to plugins/ only (excludes vendors/, node_modules/, etc.)
+# Note: pathIgnorePatterns is documented but not effective as of Bun 1.3.10
+# root = ""
+passWithNoTests = true
+
+# Bun quirk: exits with code 1 whenever coverage is enabled (even with 100% pass).
+# This is a known bun.js behavior: bun exits 1 when coverage mode is active,
+# regardless of test results. Until bun fixes this, do NOT set coverage=true
+# in config — use --coverage on CLI only for coverage reporting.
+# See: https://github.com/oven-sh/bun/issues/XXXX
+
+# coverage = true           # DO NOT enable here — forces coverage on every run
+# NOTE: coverageExclude does NOT work for dynamically imported files in Bun 1.3.11.
+# Worker threads spawned by import() have their coverage tracked globally and
+# coverageExclude patterns don't apply to them. This is a known Bun limitation.
+coverageThreshold = 0.9

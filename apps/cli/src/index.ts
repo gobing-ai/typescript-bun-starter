@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Writable } from "node:stream";
 import { configure, getConsoleSink, getStreamSink } from "@logtape/logtape";
+import { getLoggerConfig } from "@project/core";
 import { Builtins, Cli } from "clipanion";
 
 import { SkillCreateCommand } from "./commands/skill-create";
@@ -14,18 +15,7 @@ import { CLI_CONFIG } from "./config";
 const isJsonMode = process.argv.includes("--json");
 
 await configure({
-  loggers: [
-    {
-      category: "tbs",
-      lowestLevel: "info",
-      sinks: ["console"],
-    },
-    {
-      category: ["logtape", "meta"],
-      lowestLevel: "warning",
-      sinks: [],
-    },
-  ],
+  ...getLoggerConfig(process.env),
   sinks: {
     // In JSON mode, send all logs to stderr via stream sink.
     // In human mode, use default console sink (stdout).
