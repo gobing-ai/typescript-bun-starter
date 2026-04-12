@@ -144,7 +144,7 @@ Root `package.json`:
     "@biomejs/biome": "^2.0.0",
     "@types/bun": "^1.3.12",
     "better-sqlite3": "^12.8.0",
-    "drizzle-kit": "latest",
+    "drizzle-kit": "^0.30.0",
     "typescript": "^5.7.0"
   }
 }
@@ -323,17 +323,38 @@ export class D1Adapter implements DbAdapter {
 }
 ```
 
-#### 4.2.5 Default Client (Convenience Export)
+#### 4.2.5 Default Client (Bun-Only Convenience)
 
-For local development and CLI usage, a default `bun:sqlite` client is exported for convenience:
+For local development and CLI usage, a default `bun:sqlite` client is lazily initialised on first access. **This is a Bun-only convenience** — production server entry points should call `createDbAdapter()` with an explicit config instead.
 
 ```typescript
 // packages/core/src/db/client.ts
-import { BunSqliteAdapter } from "./adapters/bun-sqlite";
+import type { Database, DbAdapter } from "./adapter";
 
-const defaultAdapter = new BunSqliteAdapter();
-export const db = defaultAdapter.getDb();
-export { defaultAdapter };
+let _adapter: DbAdapter | undefined;
+
+/**
+ * Lazily initialise the default Bun SQLite adapter.
+ * @internal — prefer explicit adapter construction via createDbAdapter().
+ */
+export function getDefaultAdapter(): DbAdapter {
+  if (!_adapter) {
+    const { BunSqliteAdapter } =
+      require("./adapters/bun-sqlite") as typeof import("./adapters/bun-sqlite");
+    _adapter = new BunSqliteAdapter();
+  }
+  return _adapter;
+}
+
+/** Get the default Database instance (Bun SQLite). */
+export function getDb(): Database {
+  return getDefaultAdapter().getDb();
+}
+
+/** Reset the singleton adapter. Used by tests. @internal */
+export function _resetAdapter(): void {
+  _adapter = undefined;
+}
 ```
 
 #### 4.2.6 Usage in Services (Dependency Injection)
@@ -343,10 +364,10 @@ Services accept a `Database` instance via constructor, defaulting to the conveni
 ```typescript
 // packages/core/src/services/skill-service.ts
 import type { Database } from "../db/adapter";
-import { db as defaultDb } from "../db/client";
+import { getDb } from "../db/client";
 
 export class SkillService {
-  constructor(private db: Database = defaultDb) {}
+  constructor(private db: Database = getDb()) {}
 
   async list(): Promise<Result<Skill[]>> {
     const rows = await this.db.select().from(skills);
@@ -357,10 +378,12 @@ export class SkillService {
 
 All service methods are **async** to remain compatible with D1's async-only API. No synchronous `.all()` or `.get()` calls.
 
+**Validation is enforced in the service layer** — inputs are parsed through Zod schemas with additional guards (e.g. whitespace-only rejection) before reaching the database. Failures return typed `AppError` subclasses (`ValidationError`, `NotFoundError`, `InternalError`).
+
 This enables:
-- **CLI / local API**: `new SkillService()` -- uses default `bun:sqlite`
-- **Cloudflare Worker**: `new SkillService(d1Adapter.getDb())` -- uses D1 binding
-- **Tests**: `new SkillService(testDb)` -- uses in-memory SQLite
+- **CLI / local API**: `new SkillService()` — uses default `bun:sqlite`
+- **Server (explicit)**: `new SkillService(adapter.getDb())` — server constructs its own adapter
+- **Tests**: `new SkillService(testDb)` — uses in-memory SQLite
 
 #### 4.2.7 Wiring in Cloudflare Workers
 
@@ -552,19 +575,22 @@ export class SkillCreateCommand extends Command {
 ```typescript
 // apps/cli/src/index.ts
 #!/usr/bin/env bun
-import { configure, getConsoleSink } from "@logtape/logtape";
+import { configure, getConsoleSink, getStreamSink } from "@logtape/logtape";
+import { Writable } from "node:stream";
 import { Cli } from "clipanion";
 
-import { SkillCreateCommand } from "./commands/skill-create";
-import { SkillDeleteCommand } from "./commands/skill-delete";
-import { SkillGetCommand } from "./commands/skill-get";
-import { SkillListCommand } from "./commands/skill-list";
+// Detect JSON agent mode — logs go to stderr in JSON mode to keep stdout clean
+const isJsonMode = process.argv.includes("--json");
 
 await configure({
   loggers: [
     { category: "tbs", lowestLevel: "info", sinks: ["console"] },
   ],
-  sinks: { console: getConsoleSink() },
+  sinks: {
+    console: isJsonMode
+      ? getStreamSink(Writable.toWeb(process.stderr))
+      : getConsoleSink(),
+  },
 });
 
 const cli = new Cli({
@@ -629,46 +655,40 @@ export default app;
 
 ```typescript
 // apps/server/src/index.ts
+import { Writable } from "node:stream";
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { configure, getConsoleSink } from "@logtape/logtape";
+import { configure, getStreamSink } from "@logtape/logtape";
+import { createDbAdapter } from "@project/core";
 import { authMiddleware } from "./middleware/auth";
 import { errorHandler } from "./middleware/error";
-import skillRoutes from "./routes/skills";
+import { createSkillRoutes } from "./routes/skills";
 
+// Configure LogTape — always to stderr so stdout is never polluted
 await configure({
-  sinks: { console: getConsoleSink() },
+  sinks: { console: getStreamSink(Writable.toWeb(process.stderr)) },
   loggers: [
     { category: "tbs", lowestLevel: "info", sinks: ["console"] },
   ],
 });
 
-const app = new OpenAPIHono();
+// Construct adapter explicitly — server owns its runtime choice
+const adapter = await createDbAdapter({
+  driver: "bun-sqlite",
+  url: process.env.DATABASE_URL,
+});
 
-// Global middleware
+const app = new OpenAPIHono();
 app.onError(errorHandler());
 app.use("/api/*", authMiddleware());
 
-// Mount routes
-app.route("/api", skillRoutes);
+// Inject the adapter's DB — no hidden Bun singleton
+app.route("/api", createSkillRoutes(adapter.getDb()));
 
-// OpenAPI documentation
-app.doc("/doc", {
-  openapi: "3.0.0",
-  info: { title: "TypeScript Bun Starter API", version: "0.1.0" },
-});
-app.get("/swagger", swaggerUI({ url: "/doc" }));
-
-// Health check
-app.get("/", (c) => c.json({ status: "ok" }));
-
-export default {
-  port: Number(process.env.PORT) || 3000,
-  fetch: app.fetch,
-};
+// ...OpenAPI docs, health check, export
 ```
 
-**Auth Middleware** (plain function, not `createMiddleware`):
+**Auth Middleware** (plain function, not `createMiddleware`). Only supports `X-API-Key` header authentication:
 
 ```typescript
 // apps/server/src/middleware/auth.ts
@@ -683,11 +703,9 @@ export function authMiddleware(): MiddlewareHandler {
       return next();
     }
 
-    const headerKey = c.req.header("X-API-Key");
-    const queryKey = c.req.query("api_key");
-    const providedKey = headerKey || queryKey;
+    const providedKey = c.req.header("X-API-Key");
 
-    if (!providedKey || providedKey !== expectedKey) {
+    if (!providedKey || !timingSafeEqual(providedKey, expectedKey)) {
       return c.json({ error: "Unauthorized" }, 401);
     }
 
@@ -696,28 +714,43 @@ export function authMiddleware(): MiddlewareHandler {
 }
 ```
 
-**Error Handler**:
+**Error Handler** (sanitizes internal error details from 5xx responses):
 
 ```typescript
 // apps/server/src/middleware/error.ts
-import { logger } from "@project/core";
+import { isAppError, logger } from "@project/core";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 export function errorHandler() {
   return (err: Error, c: Context) => {
+    const status = resolveStatus(err);
+    // Sanitize: non-AppError 5xx errors get a generic message
+    const safeMessage = status >= 500 && !isAppError(err) ? "Internal Server Error" : err.message;
+
     logger.error("Unhandled error: {message}", {
       message: err.message,
       stack: err.stack,
     });
 
-    const status =
-      "status" in err && typeof err.status === "number"
-        ? (err.status as ContentfulStatusCode)
-        : (500 as ContentfulStatusCode);
-
-    return c.json({ error: err.message || "Internal Server Error" }, status);
+    return c.json(
+      { error: safeMessage || "Internal Server Error" },
+      status as ContentfulStatusCode,
+    );
   };
+}
+
+function resolveStatus(err: Error): number {
+  if (isAppError(err)) {
+    switch (err.code) {
+      case "NOT_FOUND": return 404;
+      case "VALIDATION": return 400;
+      case "CONFLICT": return 409;
+      case "INTERNAL": return 500;
+    }
+  }
+  if ("status" in err && typeof err.status === "number") return err.status;
+  return 500;
 }
 ```
 
@@ -746,13 +779,31 @@ import { getLogger } from "@logtape/logtape";
 export const logger = getLogger(["tbs"]);
 ```
 
-Configuration happens only in entry points (CLI `index.ts`, server `index.ts`):
+Configuration happens only in entry points (CLI `index.ts`, server `index.ts`). Both send logs to stderr so stdout stays clean for JSON output:
 
 ```typescript
-import { configure, getConsoleSink } from "@logtape/logtape";
+// Server — always stderr
+import { configure, getStreamSink } from "@logtape/logtape";
+import { Writable } from "node:stream";
 
 await configure({
-  sinks: { console: getConsoleSink() },
+  sinks: { console: getStreamSink(Writable.toWeb(process.stderr)) },
+  loggers: [
+    { category: "tbs", lowestLevel: "info", sinks: ["console"] },
+  ],
+});
+
+// CLI — stderr in --json mode, console otherwise
+import { getConsoleSink, getStreamSink } from "@logtape/logtape";
+
+const isJsonMode = process.argv.includes("--json");
+
+await configure({
+  sinks: {
+    console: isJsonMode
+      ? getStreamSink(Writable.toWeb(process.stderr))
+      : getConsoleSink(),
+  },
   loggers: [
     { category: "tbs", lowestLevel: "info", sinks: ["console"] },
   ],
@@ -761,16 +812,34 @@ await configure({
 
 ### 6.2 Error Handling
 
-**Strategy**: Typed result pattern -- services return `Result<T, E>` instead of throwing.
+**Strategy**: Typed result pattern — services return `Result<T, E>` with typed `AppError` subclasses instead of throwing.
 
 ```typescript
 // packages/core/src/types/result.ts
-export type Result<T, E = Error> = { ok: true; data: T } | { ok: false; error: E };
+import type { AppError } from "../errors";
+export type Result<T, E = AppError | Error> = { ok: true; data: T } | { ok: false; error: E };
+```
+
+**Typed Error Model**:
+
+```typescript
+// packages/core/src/errors.ts
+export type ErrorCode = "NOT_FOUND" | "VALIDATION" | "CONFLICT" | "INTERNAL";
+
+export class AppError extends Error {
+  readonly code: ErrorCode;
+  constructor(code: ErrorCode, message: string) { super(message); this.code = code; }
+}
+
+export class NotFoundError extends AppError { /* 404 */ }
+export class ValidationError extends AppError { /* 400 */ }
+export class ConflictError extends AppError { /* 409 */ }
+export class InternalError extends AppError { /* 500 */ }
 ```
 
 - **CLI**: Renders error to stderr or JSON `{ "error": "..." }` to stdout in agent mode.
-- **API**: Route handlers map `Result.error` to appropriate HTTP status codes. Global error handler catches unexpected throws.
-- **Unexpected errors**: Caught at boundary, logged, returned as 500 / exit code 1.
+- **API**: Route handlers map `AppError.code` to HTTP status codes. Global error handler sanitizes non-AppError 5xx errors.
+- **Unexpected errors**: Caught at boundary, logged internally, returned as generic "Internal Server Error" to clients.
 
 ### 6.3 Configuration
 

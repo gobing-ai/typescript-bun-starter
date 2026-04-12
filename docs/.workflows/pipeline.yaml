@@ -72,7 +72,7 @@ phases:
     timeout: 1h
     after: [implement]
     payload:
-      coverage_threshold: 80
+      coverage_threshold: 90
 
   review:
     skill: rd3:code-review-common
@@ -126,11 +126,11 @@ presets:
 
   standard:
     phases: [intake, decompose, implement, test, review, verify-bdd, verify-func, docs]
-    defaults: { coverage_threshold: 80 }
+    defaults: { coverage_threshold: 90 }
 
   complex:
     phases: [intake, arch, design, decompose, implement, test, review, verify-bdd, verify-func, docs]
-    defaults: { coverage_threshold: 80 }
+    defaults: { coverage_threshold: 90 }
 
   research:
     phases: [intake, arch, design, decompose, implement, test, review, verify-bdd, verify-func, docs]

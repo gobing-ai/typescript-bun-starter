@@ -1,11 +1,16 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 import { Writable } from "node:stream";
 import { Cli } from "clipanion";
 import { SkillCreateCommand } from "../../src/commands/skill-create";
+import { setPromptClientForTest } from "../../src/ui/prompts";
 import { setupCliTestDb } from "../test-setup";
 
 beforeAll(() => {
   setupCliTestDb();
+});
+
+afterEach(() => {
+  setPromptClientForTest();
 });
 
 function makeCli() {
@@ -31,6 +36,29 @@ function processWithMock(cli: Cli, args: string[], opts: { stdout?: string[]; st
 }
 
 describe("SkillCreateCommand", () => {
+  test("human mode prompts for missing name and description", async () => {
+    setPromptClientForTest({
+      async promptText(message) {
+        if (message === "Skill name") return "prompted-skill";
+        if (message === "Description") return "prompted description";
+        return null;
+      },
+      async confirm() {
+        return true;
+      },
+    });
+
+    const cli = makeCli();
+    const chunks: string[] = [];
+    const command = processWithMock(cli, ["skill", "create"], {
+      stdout: chunks,
+    });
+
+    const exitCode = await command.execute();
+    expect(exitCode).toBe(0);
+    expect(chunks.join("")).toContain("Created skill: prompted-skill");
+  });
+
   test("registers at skill create path", () => {
     const cli = makeCli();
     const command = cli.process(["skill", "create"]);
@@ -65,16 +93,34 @@ describe("SkillCreateCommand", () => {
   });
 
   test("human mode without --name writes error to stderr and returns 1", async () => {
+    setPromptClientForTest({
+      async promptText() {
+        return null;
+      },
+      async confirm() {
+        return true;
+      },
+    });
+
     const cli = makeCli();
     const errChunks: string[] = [];
     const command = processWithMock(cli, ["skill", "create"], { stderr: errChunks });
 
     const exitCode = await command.execute();
     expect(exitCode).toBe(1);
-    expect(errChunks.join("")).toContain("--name is required");
+    expect(errChunks.join("")).toContain("skill name is required");
   });
 
   test("human mode with --name prints confirmation", async () => {
+    setPromptClientForTest({
+      async promptText() {
+        return null;
+      },
+      async confirm() {
+        return true;
+      },
+    });
+
     const cli = makeCli();
     const chunks: string[] = [];
     const command = processWithMock(cli, ["skill", "create", "--name", "human-test"], {
@@ -100,5 +146,19 @@ describe("SkillCreateCommand", () => {
 
     const output = JSON.parse(chunks.join(""));
     expect(output.description).toBe("A test desc");
+  });
+
+  test("--json with whitespace-only name returns validation error JSON", async () => {
+    const cli = makeCli();
+    const chunks: string[] = [];
+    const command = processWithMock(cli, ["skill", "create", "--name", "   ", "--json"], {
+      stdout: chunks,
+    });
+
+    const exitCode = await command.execute();
+    expect(exitCode).toBe(1);
+
+    const output = JSON.parse(chunks.join(""));
+    expect(output.error).toContain("blank");
   });
 });

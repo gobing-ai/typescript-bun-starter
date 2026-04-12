@@ -64,11 +64,12 @@ Create a new skill.
 
 ```bash
 tbs skill create --name <name> [--description <desc>] [--json]
+tbs skill create                    # prompts for missing values in human mode
 ```
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--name` | Yes | Skill name (1-100 characters) |
+| `--name` | No in human mode / Yes in `--json` mode | Skill name (1-100 characters) |
 | `--description` | No | Skill description |
 | `--json` | No | Output as JSON (for scripts and AI agents) |
 
@@ -77,6 +78,8 @@ tbs skill create --name <name> [--description <desc>] [--json]
 ```
 Created skill: my-skill (abc-123-def-456)
 ```
+
+If `--name` or `--description` is omitted in human mode, the CLI prompts for it interactively.
 
 **JSON mode output (`--json`):**
 
@@ -92,11 +95,11 @@ Created skill: my-skill (abc-123-def-456)
 }
 ```
 
-**Error (missing name):**
+**Error (missing name in `--json` mode):**
 
 ```
 # Human mode (stderr):
-Error: --name is required
+Error: skill name is required
 
 # JSON mode (stdout):
 {"error":"--name is required"}
@@ -196,17 +199,24 @@ Delete a skill by ID.
 
 ```bash
 tbs skill delete --id <id> [--json]
+tbs skill delete                    # prompts for ID and confirmation in human mode
 ```
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--id` | Yes | Skill ID |
+| `--id` | No in human mode / Yes in `--json` mode | Skill ID |
 | `--json` | No | Output as JSON |
 
 **Human mode output:**
 
 ```
 Deleted skill: abc-123
+```
+
+In human mode, the CLI asks for confirmation before deleting. Cancelled deletions print:
+
+```
+Deletion cancelled.
 ```
 
 **JSON mode output (`--json`):**
@@ -280,10 +290,9 @@ API_KEY=sk-your-secret-key
 
 Provide the API key via one of two methods:
 
-| Method | Header/Param | Example |
-|--------|-------------|---------|
+| Method | Header | Example |
+|--------|--------|---------|
 | HTTP header | `X-API-Key` | `curl -H "X-API-Key: sk-your-secret-key" http://localhost:3000/api/skills` |
-| Query parameter | `api_key` | `curl http://localhost:3000/api/skills?api_key=sk-your-secret-key` |
 
 ### 3.3 Endpoints
 
@@ -529,7 +538,7 @@ For edge deployment using Cloudflare D1:
 
 ### `Error: --name is required`
 
-The `--name` flag is required for `skill create`. Provide it:
+This only applies in `--json` mode. In human mode, `skill create` prompts for the missing name. For JSON/script usage, provide it explicitly:
 
 ```bash
 tbs skill create --name "my-skill"
@@ -545,8 +554,8 @@ The `API_KEY` environment variable is set but you did not provide a valid key. E
 - Pass the key: `curl -H "X-API-Key: your-key" ...`
 - Or unset `API_KEY` for local development (auth is disabled when not set).
 
-### Databtbs not found / empty
+### Database not found / empty
 
-The databtbs is created automatically on first use. If skills are missing, check:
+The database is created automatically on first use. If skills are missing, check:
 - `DATABASE_URL` points to the correct file
 - Run `bun run db:push` to ensure the schema is up to date

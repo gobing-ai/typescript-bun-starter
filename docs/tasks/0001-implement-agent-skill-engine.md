@@ -1,7 +1,7 @@
 ---
 id: "0001"
 title: "Implement TypeScript Bun Starter Project"
-status: pending
+status: Done
 priority: high
 created: "2026-04-10"
 ref:
@@ -196,7 +196,7 @@ See Arch Spec section 5.1 and Dev Spec section 3.2 Step 5 for full code patterns
 | File | Purpose |
 |------|---------|
 | `apps/server/src/middleware/error.ts` | Global error handler middleware. Maps `Result.error` to HTTP status codes. Catches unexpected errors, logs, returns 500 |
-| `apps/server/src/middleware/auth.ts` | API key middleware for `/api/*` routes. Checks `X-API-Key` header or `api_key` query param against `API_KEY` env var. Returns 401 if invalid. See Arch Spec section 5.2 |
+| `apps/server/src/middleware/auth.ts` | API key middleware for `/api/*` routes. Checks `X-API-Key` header against `API_KEY` env var using timing-safe comparison. Returns 401 if invalid. Skipped when `API_KEY` env not set (dev mode). See Arch Spec section 5.2 |
 
 #### 4.3 Skill routes
 

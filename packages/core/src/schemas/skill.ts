@@ -1,4 +1,7 @@
 import { z } from "@hono/zod-openapi";
+import { CORE_CONFIG } from "../config";
+
+const { nameMinLength, nameMaxLength } = CORE_CONFIG.skill;
 
 export const skillSelectSchema = z
   .object({
@@ -17,7 +20,7 @@ export const skillSelectSchema = z
 
 export const skillInsertSchema = z
   .object({
-    name: z.string().min(1).max(100).openapi({ example: "web-search" }),
+    name: z.string().min(nameMinLength).max(nameMaxLength).openapi({ example: "web-search" }),
     description: z.string().optional().openapi({ example: "Search the web" }),
     config: z
       .unknown()
@@ -28,7 +31,12 @@ export const skillInsertSchema = z
 
 export const skillUpdateSchema = z
   .object({
-    name: z.string().min(1).max(100).optional().openapi({ example: "web-search" }),
+    name: z
+      .string()
+      .min(nameMinLength)
+      .max(nameMaxLength)
+      .optional()
+      .openapi({ example: "web-search" }),
     description: z.string().optional().openapi({ example: "Updated description" }),
     config: z
       .unknown()

@@ -1,6 +1,7 @@
 import type { NewSkill } from "@project/core";
 import { SkillService } from "@project/core";
 import { Command, Option } from "clipanion";
+import { getPromptClient } from "../ui/prompts";
 
 export class SkillCreateCommand extends Command {
   // biome-ignore lint/complexity/noUselessConstructor: V8 function coverage requires explicit constructor
@@ -38,18 +39,25 @@ export class SkillCreateCommand extends Command {
   });
 
   async execute() {
-    if (!this.name) {
+    const prompts = getPromptClient();
+    const name = this.name ?? (!this.json ? await prompts.promptText("Skill name") : null);
+
+    if (!name) {
       if (this.json) {
         this.context.stdout.write(`${JSON.stringify({ error: "--name is required" })}\n`);
       } else {
-        this.context.stderr.write("Error: --name is required\n");
+        this.context.stderr.write("Error: skill name is required\n");
       }
       return 1;
     }
 
+    const description =
+      this.description ??
+      (!this.json ? await prompts.promptText("Description", { optional: true }) : null);
+
     const input: NewSkill = {
-      name: this.name,
-      ...(this.description ? { description: this.description } : {}),
+      name,
+      ...(description ? { description } : {}),
     };
 
     const service = new SkillService();

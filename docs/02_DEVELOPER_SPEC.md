@@ -139,14 +139,14 @@ Services accept a `Database` instance via constructor injection. Import the type
 // packages/core/src/services/task-service.ts
 import { eq } from "drizzle-orm";
 import type { Database } from "../db/adapter";
-import { db as defaultDb } from "../db/client";
+import { getDb } from "../db/client";
 import { tasks } from "../db/schema";
 import { logger } from "../logger";
 import type { Result } from "../types/result";
 import type { Task, NewTask } from "../schemas/task";
 
 export class TaskService {
-  constructor(private db: Database = defaultDb) {}
+  constructor(private db: Database = getDb()) {}
 
   async create(input: NewTask): Promise<Result<Task>> {
     try {
@@ -785,7 +785,7 @@ Services accept a `Database` instance via constructor. Import the type from `ada
 
 ```typescript
 import type { Database } from "../db/adapter";
-import { db as defaultDb } from "../db/client";
+import { getDb } from "../db/client";
 ```
 
 This enables three scenarios:
@@ -882,7 +882,7 @@ For the initial version, no prefix needed -- just `/api/tasks`.
 
 | Area | Requirement |
 |------|-------------|
-| API Auth | API key via `X-API-Key` header or `api_key` query param; auth skipped when `API_KEY` env not set |
+| API Auth | API key via `X-API-Key` header; auth skipped when `API_KEY` env not set. Timing-safe comparison prevents timing attacks |
 | Secrets | Never commit `.env` files; use `.env.example` for templates |
 | SQL Injection | Drizzle ORM parameterizes all queries by default |
 | Input Validation | All inputs validated through Zod schemas before reaching services |

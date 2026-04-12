@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { isAppError } from "../../src/errors";
 import { SkillService } from "../../src/services/skill-service";
 import { createTestDb } from "../test-db";
 
@@ -123,6 +124,76 @@ describe("SkillService", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.message).toContain("Skill not found");
+  });
+
+  // ---- Validation tests ----
+
+  test("create — rejects whitespace-only name", async () => {
+    const result = await service.create({ name: "   " });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(isAppError(result.error)).toBe(true);
+    expect(result.error.message).toContain("blank");
+  });
+
+  test("create — rejects empty name", async () => {
+    const result = await service.create({ name: "" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(isAppError(result.error)).toBe(true);
+  });
+
+  test("create — trims whitespace from name", async () => {
+    const result = await service.create({ name: "  trimmed  " });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.name).toBe("trimmed");
+  });
+
+  test("create — rejects name exceeding 100 chars", async () => {
+    const longName = "a".repeat(101);
+    const result = await service.create({ name: longName });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(isAppError(result.error)).toBe(true);
+  });
+
+  test("update — rejects whitespace-only name", async () => {
+    const created = await service.create({ name: "valid-name" });
+    if (!created.ok) return;
+
+    const result = await service.update(created.data.id, { name: "   " });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(isAppError(result.error)).toBe(true);
+  });
+
+  test("update — trims whitespace from name", async () => {
+    const created = await service.create({ name: "trim-update" });
+    if (!created.ok) return;
+
+    const result = await service.update(created.data.id, { name: "  new name  " });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.name).toBe("new name");
+  });
+
+  test("getById — returns NotFoundError for missing id", async () => {
+    const result = await service.getById("nonexistent-id");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(isAppError(result.error)).toBe(true);
+    if (!isAppError(result.error)) return;
+    expect(result.error.code).toBe("NOT_FOUND");
+  });
+
+  test("delete — returns NotFoundError for missing id", async () => {
+    const result = await service.delete("nonexistent-id");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(isAppError(result.error)).toBe(true);
+    if (!isAppError(result.error)) return;
+    expect(result.error.code).toBe("NOT_FOUND");
   });
 
   test("full CRUD lifecycle", async () => {

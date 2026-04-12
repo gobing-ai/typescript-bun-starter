@@ -1,19 +1,48 @@
-import { logger } from "@project/core";
+import { isAppError, logger } from "@project/core";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
+/**
+ * Global error handler.
+ *
+ * - AppErrors with known codes get their mapped status + the error message.
+ * - Unknown/unexpected errors get 500 with a sanitized message — the real
+ *   details are logged internally but never sent to the client.
+ */
 export function errorHandler() {
   return (err: Error, c: Context) => {
+    const status = resolveStatus(err);
+    const safeMessage = status >= 500 && !isAppError(err) ? "Internal Server Error" : err.message;
+
     logger.error("Unhandled error: {message}", {
       message: err.message,
       stack: err.stack,
     });
 
-    const status =
-      "status" in err && typeof err.status === "number"
-        ? (err.status as ContentfulStatusCode)
-        : (500 as ContentfulStatusCode);
-
-    return c.json({ error: err.message || "Internal Server Error" }, status);
+    return c.json(
+      { error: safeMessage || "Internal Server Error" },
+      status as ContentfulStatusCode,
+    );
   };
+}
+
+function resolveStatus(err: Error): number {
+  // AppErrors carry their own status mapping
+  if (isAppError(err)) {
+    switch (err.code) {
+      case "NOT_FOUND":
+        return 404;
+      case "VALIDATION":
+        return 400;
+      case "CONFLICT":
+        return 409;
+      case "INTERNAL":
+        return 500;
+    }
+  }
+  // HTTPError from Hono middleware (e.g. OpenAPI validation)
+  if ("status" in err && typeof err.status === "number") {
+    return err.status;
+  }
+  return 500;
 }

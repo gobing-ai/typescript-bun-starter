@@ -23,7 +23,7 @@ const THRESHOLD = 90;
 const NO_TEST_REQUIRED = new Set([
   // packages/core
   "packages/core/src/db/schema.ts", // pure Drizzle table definition
-  "packages/core/src/db/client.ts", // convenience export (2 lines)
+  "packages/core/src/db/client.ts", // lazy singleton adapter (Bun-only convenience)
   "packages/core/src/db/adapters/d1.ts", // D1 adapter (needs Workers runtime)
   "packages/core/src/types/result.ts", // type-only definition
   "packages/core/src/schemas/skill.ts", // Zod schema definitions
@@ -31,8 +31,10 @@ const NO_TEST_REQUIRED = new Set([
   "packages/core/src/logger.ts", // single getLogger call
   // apps/cli
   "apps/cli/src/index.ts", // entry point (CLI wiring + LogTape config)
+  "apps/cli/src/config.ts", // pure as-const constants
   // apps/server
   "apps/server/src/index.ts", // entry point (Hono wiring + LogTape config)
+  "apps/server/src/config.ts", // pure as-const constants
 ]);
 
 // Directories to scan for source files (relative to project root).

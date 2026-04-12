@@ -32,6 +32,32 @@ describe("Skills API — GET /skills", () => {
     expect(body.data).toBeDefined();
     expect(Array.isArray(body.data)).toBe(true);
   });
+
+  test("can resolve the database from request context", async () => {
+    const { sqlite, db } = createTestDb();
+
+    const app = new OpenAPIHono<{ Variables: { db: typeof db } }>();
+    app.use("*", async (c, next) => {
+      c.set("db", db);
+      await next();
+    });
+    app.route(
+      "/api",
+      createSkillRoutes({
+        getDb: (c) => c.var.db,
+      }),
+    );
+
+    const res = await app.request("/api/skills", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "context-db-skill" }),
+    });
+
+    expect(res.status).toBe(201);
+
+    sqlite.close();
+  });
 });
 
 describe("Skills API — POST /skills", () => {
@@ -60,6 +86,19 @@ describe("Skills API — POST /skills", () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);
+  });
+
+  test("returns 400 for whitespace-only name", async () => {
+    const app = makeApp();
+    const res = await app.request("/api/skills", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "   " }),
+    });
+    expect(res.status).toBe(400);
+
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain("blank");
   });
 });
 
@@ -109,6 +148,24 @@ describe("Skills API — PATCH /skills/{id}", () => {
     const body = (await res.json()) as { data: { name: string; version: number } };
     expect(body.data.name).toBe("patched-name");
     expect(body.data.version).toBe(created.data.version + 1);
+  });
+
+  test("returns 400 for whitespace-only name on update", async () => {
+    const app = makeApp();
+
+    const createRes = await app.request("/api/skills", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "valid-patch" }),
+    });
+    const created = (await createRes.json()) as { data: { id: string } };
+
+    const res = await app.request(`/api/skills/${created.data.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "   " }),
+    });
+    expect(res.status).toBe(400);
   });
 
   test("returns 404 for missing id", async () => {
