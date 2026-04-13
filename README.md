@@ -70,7 +70,6 @@ If you only need a CLI tool, ignore `apps/server/` entirely.
 import { Command, Option } from "clipanion";
 
 export class MyCommand extends Command {
-  // biome-ignore lint/complexity/noUselessConstructor: V8 function coverage requires explicit constructor
   constructor() { super(); }
 
   static paths = [["my", "command"]];
