@@ -22,7 +22,7 @@
     "dev:server": "bun --hot run apps/server/src/index.ts",
     "build:cli": "bun build --compile apps/cli/src/index.ts --outfile dist/tbs",
     "tree": "tree . -a -I 'node_modules|.git|coverage'",
-    "pub2npmjs": "npm publish --access public",
+    "pub2npmjs": "npm whoami >/dev/null 2>&1 || { echo 'Error: not logged in to npm. Run `npm login` first.'; exit 1; } && npm publish --access public",
     "clean-demo": "bun run scripts/clean-demo.ts"
   },
   "devDependencies": {
