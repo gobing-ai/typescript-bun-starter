@@ -3,7 +3,6 @@ import { Command, Option } from "clipanion";
 import { getPromptClient } from "../ui/prompts";
 
 export class SkillDeleteCommand extends Command {
-  // biome-ignore lint/complexity/noUselessConstructor: V8 function coverage requires explicit constructor
   constructor() {
     super();
   }
