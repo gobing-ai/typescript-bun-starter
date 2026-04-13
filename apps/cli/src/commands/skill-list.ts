@@ -2,7 +2,6 @@ import { SkillService } from "@project/core";
 import { Command, Option } from "clipanion";
 
 export class SkillListCommand extends Command {
-  // biome-ignore lint/complexity/noUselessConstructor: V8 function coverage requires explicit constructor
   constructor() {
     super();
   }
