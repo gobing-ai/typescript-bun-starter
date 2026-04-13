@@ -14,12 +14,28 @@ The project ships with a working "skills" CRUD example across all three tiers. R
 ## Quick Start
 
 ```bash
-git clone <this-repo> my-project && cd my-project
+# via degit (recommended — clean copy, no git history)
+bunx degit gobing-ai/typescript-bun-starter my-project && cd my-project
 bun install
 bun run check        # lint + typecheck + test (all should pass)
+
+# or clone from GitHub
+git clone https://github.com/gobing-ai/typescript-bun-starter.git my-project && cd my-project
+bun install
+bun run check
 ```
 
-### Try the CLI
+> **npm package:** [`@gobing-ai/typescript-bun-starter`](https://www.npmjs.com/package/@gobing-ai/typescript-bun-starter)
+
+### Clean Demo Code
+
+The starter ships with a "skills" CRUD demo across all three tiers. Remove it to get a clean skeleton:
+
+```bash
+bun run clean-demo
+```
+
+### Try the CLI Demo
 
 ```bash
 bun run dev:cli -- skill create --name "my-skill" --json
@@ -28,7 +44,7 @@ bun run dev:cli -- skill get --id <id> --json
 bun run dev:cli -- skill delete --id <id> --json
 ```
 
-### Try the API
+### Try the API Demo
 
 ```bash
 bun run dev:server
@@ -136,7 +152,7 @@ Add Hono JSX views in `apps/server/src/views/` and enable JSX in `apps/server/ts
 
 ## Adding a New Domain
 
-Follow the pattern established by the "skills" example:
+Follow the pattern established by the "skills" example (or run `bun run clean-demo` first, then build from scratch):
 
 1. **Schema** -- `packages/core/src/db/schema.ts` (add table)
 2. **Validation** -- `packages/core/src/schemas/my-domain.ts` (Zod + `.openapi()`)
@@ -145,8 +161,6 @@ Follow the pattern established by the "skills" example:
 5. **CLI** -- `apps/cli/src/commands/my-*.ts` (4 commands: create, list, get, delete)
 6. **API** -- `apps/server/src/routes/my-domain.ts` (OpenAPI routes)
 7. **Tests** -- `tests/` at package root (in-memory SQLite for unit tests)
-
-Then remove the "skills" example code.
 
 ## Commands
 
@@ -161,6 +175,8 @@ bun run db:generate    # generate migration files
 bun run dev:cli        # run CLI in dev mode
 bun run dev:server     # run API with hot reload
 bun run build:cli      # compile CLI to standalone binary
+bun run clean-demo     # remove "skills" demo code, leaving clean skeleton
+bun run pub2npmjs      # publish to npm
 ```
 
 ## Tech Stack

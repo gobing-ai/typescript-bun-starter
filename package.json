@@ -1,6 +1,6 @@
 {
   "name": "@gobing-ai/typescript-bun-starter",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publishConfig": {
     "access": "public"
   },
@@ -22,7 +22,8 @@
     "dev:server": "bun --hot run apps/server/src/index.ts",
     "build:cli": "bun build --compile apps/cli/src/index.ts --outfile dist/tbs",
     "tree": "tree . -a -I 'node_modules|.git|coverage'",
-    "pub2npmjs": "npm publish --access public"
+    "pub2npmjs": "npm publish --access public",
+    "clean-demo": "bun run scripts/clean-demo.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
