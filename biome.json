@@ -57,7 +57,12 @@
       "includes": ["apps/web/src/**/*.astro"],
       "linter": {
         "rules": {
+          "style": {
+            "useConst": "off",
+            "useImportType": "off"
+          },
           "correctness": {
+            "noUnusedImports": "off",
             "noUnusedVariables": "off"
           }
         }
