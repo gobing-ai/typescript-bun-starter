@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`apps/cli` is the command-line transport layer for `@project/core`.
+`apps/cli` is the command-line transport layer for `@starter/core`.
 
 ## Structure
 
@@ -12,7 +12,7 @@
 
 ## Rules
 
-- Keep commands thin and delegate business logic to `@project/core`.
+- Keep commands thin and delegate business logic to `@starter/core`.
 - Support machine-readable output when the command surface already exposes `--json`.
 - Do not embed SQL, schema definitions, or domain policy in command files.
 - Shared CLI wiring belongs in `src/index.ts` or `src/config.ts`, not duplicated per command.
