@@ -1,5 +1,5 @@
-import type { NewSkill } from '@project/core';
-import { SkillService } from '@project/core';
+import type { NewSkill } from '@starter/core';
+import { SkillService } from '@starter/core';
 import { Command, Option } from 'clipanion';
 import { getPromptClient } from '../ui/prompts';
 
