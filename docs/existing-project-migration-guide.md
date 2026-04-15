@@ -183,7 +183,7 @@ tree packages apps -a -I 'node_modules|coverage|dist'
 rg "service|repository|schema|validator|zod|drizzle" src packages apps -n
 
 # Find app-to-app coupling that should be removed
-rg 'from "@project/[^"]+"' apps -n
+rg 'from "@starter/[^"]+"' apps -n
 rg 'from "\\.\\./.*apps/' apps packages -n
 
 # Find direct DB usage that should be funneled through adapters/core
