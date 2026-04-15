@@ -1,0 +1,75 @@
+{
+    "version": 1,
+    "requiredRootScripts": ["check", "check:contracts", "test", "typecheck", "format", "lint-fix"],
+    "requiredWorkspaces": {
+        "packages/core": "@project/core"
+    },
+    "optionalWorkspaces": {
+        "apps/cli": "@project/cli",
+        "apps/server": "@project/server",
+        "apps/web": "@project/web"
+    },
+    "workspaceDependencyRules": {
+        "@project/core": [],
+        "@project/cli": ["@project/core"],
+        "@project/server": ["@project/core"],
+        "@project/web": ["@project/core"]
+    },
+    "fileNamingRules": [
+        {
+            "pathPrefix": "packages/core/src/",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*|index|config|errors|logger|logging)\\.(?:d\\.)?ts$",
+            "description": "core source files must be kebab-case .ts or .d.ts"
+        },
+        {
+            "pathPrefix": "packages/core/tests/",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*\\.test|test-db)\\.ts$",
+            "description": "core tests must be kebab-case and end with .test.ts; test-db.ts is allowed"
+        },
+        {
+            "pathPrefix": "apps/cli/src/",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*|index|config)\\.ts$",
+            "description": "cli source files must be kebab-case .ts"
+        },
+        {
+            "pathPrefix": "apps/cli/tests/",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*|test-setup)\\.test\\.ts$|^test-setup\\.ts$",
+            "description": "cli tests must be kebab-case and end with .test.ts; test-setup.ts is allowed"
+        },
+        {
+            "pathPrefix": "apps/server/src/",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*|index|config)\\.ts$",
+            "description": "server source files must be kebab-case .ts"
+        },
+        {
+            "pathPrefix": "apps/server/tests/",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.test\\.ts$",
+            "description": "server test files must be kebab-case and end with .test.ts"
+        },
+        {
+            "pathPrefix": "apps/web/src/components/",
+            "pattern": "^[A-Z][A-Za-z0-9]*\\.(?:tsx|astro)$",
+            "description": "web components must use PascalCase"
+        },
+        {
+            "pathPrefix": "apps/web/src/layouts/",
+            "pattern": "^[A-Z][A-Za-z0-9]*\\.astro$",
+            "description": "web layouts must use PascalCase"
+        },
+        {
+            "pathPrefix": "apps/web/src/pages/",
+            "pattern": "^(?:index|404|[a-z0-9]+(?:-[a-z0-9]+)*|\\[[A-Za-z0-9._-]+\\])\\.astro$",
+            "description": "web page files must use route-style lowercase names"
+        },
+        {
+            "pathPrefix": "apps/web/src/lib/",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*|env)\\.(?:d\\.)?(?:ts|tsx)$",
+            "description": "web lib files must be kebab-case"
+        },
+        {
+            "pathPrefix": "apps/web/tests/",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.test\\.(?:ts|tsx)$",
+            "description": "web tests must be kebab-case and end with .test.ts or .test.tsx"
+        }
+    ]
+}
