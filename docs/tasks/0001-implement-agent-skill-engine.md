@@ -63,16 +63,16 @@ Create at project root:
 Each workspace needs a `package.json` with correct `name` and dependencies:
 
 **`packages/core/package.json`**:
-- name: `@project/core`
+- name: `@starter/core`
 - dependencies: `drizzle-orm`, `zod`, `@hono/zod-openapi`, `@logtape/logtape`
 
 **`apps/cli/package.json`**:
-- name: `@project/cli`
-- dependencies: `@project/core` (`workspace:*`), `clipanion`, `@clack/prompts`
+- name: `@starter/cli`
+- dependencies: `@starter/core` (`workspace:*`), `clipanion`, `@clack/prompts`
 
 **`apps/server/package.json`**:
-- name: `@project/server`
-- dependencies: `@project/core` (`workspace:*`), `hono`, `@hono/zod-openapi`, `@hono/swagger-ui`
+- name: `@starter/server`
+- dependencies: `@starter/core` (`workspace:*`), `hono`, `@hono/zod-openapi`, `@hono/swagger-ui`
 
 Each workspace also needs a `tsconfig.json` extending the root. See Dev Spec section 12.2.
 
@@ -136,7 +136,7 @@ Create the adapter architecture from Arch Spec section 4.2:
 |------|---------|
 | `packages/core/src/index.ts` | Re-export everything public: adapter types/factory, schemas, services, logger, db client, result type |
 
-**Completion gate**: `bun run typecheck` passes for `packages/core`. All exports resolve correctly from `@project/core`.
+**Completion gate**: `bun run typecheck` passes for `packages/core`. All exports resolve correctly from `@starter/core`.
 
 ---
 
@@ -213,7 +213,7 @@ Route pattern:
 
 The server entry must support both local dev (bun:sqlite) and Workers deployment (D1):
 
-- **Default (bun run dev:server)**: Uses `@project/core`'s default client export
+- **Default (bun run dev:server)**: Uses `@starter/core`'s default client export
 - **Workers**: Receives `D1Database` binding from Hono context, creates adapter via `createDbAdapter()`
 
 **Completion gate**: `bun run dev:server` starts, `GET /doc` returns valid OpenAPI JSON, `POST /api/skills` creates a skill, `GET /api/skills` lists skills.
