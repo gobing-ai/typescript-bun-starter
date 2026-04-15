@@ -51,7 +51,7 @@ Provide a production-ready project starter that streamlines development of AI ag
 +-- bun.lock
 |
 +-- packages/
-|   +-- core/                 # @project/core -- business logic + data
+|   +-- core/                 # @starter/core -- business logic + data
 |       +-- package.json
 |       +-- tsconfig.json
 |       +-- src/
@@ -79,7 +79,7 @@ Provide a production-ready project starter that streamlines development of AI ag
 |                   +-- bun-sqlite.test.ts
 |
 +-- apps/
-|   +-- cli/                  # @project/cli -- command-line interface
+|   +-- cli/                  # @starter/cli -- command-line interface
 |   |   +-- package.json
 |   |   +-- tsconfig.json
 |   |   +-- src/
@@ -96,7 +96,7 @@ Provide a production-ready project starter that streamlines development of AI ag
 |   |           +-- skill-get.test.ts
 |   |           +-- skill-delete.test.ts
 |   |
-|   +-- server/               # @project/server -- API + optional Web UI
+|   +-- server/               # @starter/server -- API + optional Web UI
 |       +-- package.json
 |       +-- tsconfig.json
 |       +-- src/
@@ -155,9 +155,9 @@ Root `package.json`:
 ### 3.3 Package Dependencies
 
 ```
-@project/cli ----depends-on----> @project/core
-@project/server --depends-on----> @project/core
-@project/core --depends-on----> bun:sqlite (built-in, local adapter)
+@starter/cli ----depends-on----> @starter/core
+@starter/server --depends-on----> @starter/core
+@starter/core --depends-on----> bun:sqlite (built-in, local adapter)
                             ---> drizzle-orm/d1 (D1 adapter, optional)
 ```
 
@@ -165,9 +165,9 @@ Cross-package references use `workspace:*` protocol:
 
 ```json
 {
-  "name": "@project/cli",
+  "name": "@starter/cli",
   "dependencies": {
-    "@project/core": "workspace:*"
+    "@starter/core": "workspace:*"
   }
 }
 ```
@@ -390,7 +390,7 @@ This enables:
 ```typescript
 // apps/server/src/index.ts (Workers entry)
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { createDbAdapter } from "@project/core";
+import { createDbAdapter } from "@starter/core";
 
 interface Env {
   DB: D1Database;
@@ -507,8 +507,8 @@ Both adapters share the same Drizzle schema, so generated migrations are compati
 ```typescript
 // apps/cli/src/commands/skill-create.ts
 import { Command, Option } from "clipanion";
-import { SkillService } from "@project/core";
-import type { NewSkill } from "@project/core";
+import { SkillService } from "@starter/core";
+import type { NewSkill } from "@starter/core";
 
 export class SkillCreateCommand extends Command {
   // Explicit constructor required for V8 function coverage reporting
@@ -616,8 +616,8 @@ cli.runExit(process.argv.slice(2));
 ```typescript
 // apps/server/src/routes/skills.ts
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import type { Skill } from "@project/core";
-import { SkillService, skillInsertSchema, skillSelectSchema } from "@project/core";
+import type { Skill } from "@starter/core";
+import { SkillService, skillInsertSchema, skillSelectSchema } from "@starter/core";
 
 const app = new OpenAPIHono();
 const service = new SkillService();
@@ -659,7 +659,7 @@ import { Writable } from "node:stream";
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { configure, getStreamSink } from "@logtape/logtape";
-import { createDbAdapter } from "@project/core";
+import { createDbAdapter } from "@starter/core";
 import { authMiddleware } from "./middleware/auth";
 import { errorHandler } from "./middleware/error";
 import { createSkillRoutes } from "./routes/skills";
@@ -718,7 +718,7 @@ export function authMiddleware(): MiddlewareHandler {
 
 ```typescript
 // apps/server/src/middleware/error.ts
-import { isAppError, logger } from "@project/core";
+import { isAppError, logger } from "@starter/core";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
