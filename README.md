@@ -5,6 +5,8 @@ A production-ready monorepo starter for building **CLI**, **CLI + API**, or
 
 ## What You Get
 
+- **`packages/contracts`** -- Shared transport-safe contracts, API envelopes, error mappers,
+  and cross-tier DTOs
 - **`packages/core`** -- Shared business logic, database layer (Drizzle ORM + SQLite/D1),
   validation (Zod), logging helpers, and services
 - **`apps/cli`** -- Type-safe CLI via Clipanion with dual-mode output (human + `--json`)
