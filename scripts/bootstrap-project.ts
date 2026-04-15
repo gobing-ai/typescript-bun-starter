@@ -174,6 +174,7 @@ function collectWorkspaceMap(contract: ContractFile): Record<string, string> {
 
 function buildNextWorkspaceMap(scope: string): Record<string, string> {
     return {
+        'packages/contracts': `${scope}/contracts`,
         'packages/core': `${scope}/core`,
         'apps/cli': `${scope}/cli`,
         'apps/server': `${scope}/server`,
@@ -187,10 +188,12 @@ function buildReplacementMap(
     currentWorkspaceMap: Record<string, string>,
     nextWorkspaceMap: Record<string, string>,
 ): Array<[string, string]> {
+    const currentContractsPackage = requiredRecordValue(currentWorkspaceMap, 'packages/contracts');
     const currentCorePackage = requiredRecordValue(currentWorkspaceMap, 'packages/core');
     const currentCliPackage = requiredRecordValue(currentWorkspaceMap, 'apps/cli');
     const currentServerPackage = requiredRecordValue(currentWorkspaceMap, 'apps/server');
     const currentWebPackage = requiredRecordValue(currentWorkspaceMap, 'apps/web');
+    const nextContractsPackage = requiredRecordValue(nextWorkspaceMap, 'packages/contracts');
     const nextCorePackage = requiredRecordValue(nextWorkspaceMap, 'packages/core');
     const nextCliPackage = requiredRecordValue(nextWorkspaceMap, 'apps/cli');
     const nextServerPackage = requiredRecordValue(nextWorkspaceMap, 'apps/server');
@@ -206,6 +209,7 @@ function buildReplacementMap(
         [currentIdentity.apiTitle, nextIdentity.apiTitle],
         [currentIdentity.webDescription, nextIdentity.webDescription],
         [currentIdentity.projectSlug, nextIdentity.projectSlug],
+        [currentContractsPackage, nextContractsPackage],
         [currentCorePackage, nextCorePackage],
         [currentCliPackage, nextCliPackage],
         [currentServerPackage, nextServerPackage],
@@ -218,18 +222,21 @@ function buildUpdatedContractContent(
     nextIdentity: ProjectIdentity,
     nextWorkspaceMap: Record<string, string>,
 ): string {
+    const nextContractsPackage = requiredRecordValue(nextWorkspaceMap, 'packages/contracts');
     const nextCorePackage = requiredRecordValue(nextWorkspaceMap, 'packages/core');
     const nextCliPackage = requiredRecordValue(nextWorkspaceMap, 'apps/cli');
     const nextServerPackage = requiredRecordValue(nextWorkspaceMap, 'apps/server');
     const nextWebPackage = requiredRecordValue(nextWorkspaceMap, 'apps/web');
     const nextWorkspaceDependencyRules: Record<string, string[]> = {
-        [nextCorePackage]: [],
-        [nextCliPackage]: [nextCorePackage],
-        [nextServerPackage]: [nextCorePackage],
-        [nextWebPackage]: [nextCorePackage],
+        [nextContractsPackage]: [],
+        [nextCorePackage]: [nextContractsPackage],
+        [nextCliPackage]: [nextContractsPackage, nextCorePackage],
+        [nextServerPackage]: [nextContractsPackage, nextCorePackage],
+        [nextWebPackage]: [nextContractsPackage, nextCorePackage],
     };
 
     contract.projectIdentity = nextIdentity;
+    contract.requiredWorkspaces['packages/contracts'] = nextContractsPackage;
     contract.requiredWorkspaces['packages/core'] = nextCorePackage;
     contract.optionalWorkspaces['apps/cli'] = nextCliPackage;
     contract.optionalWorkspaces['apps/server'] = nextServerPackage;
