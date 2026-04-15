@@ -47,7 +47,7 @@ For most existing projects, the best default is **core-first extraction**.
 - It preserves working product surfaces.
 - It moves shared business logic into a stable center first.
 - It reduces duplication across CLI, server, and web tiers.
-- It aligns directly with this starter's repo contract: `packages/core` owns domain and data, app tiers stay thin.
+- It aligns directly with this starter's repo contract: `packages/contracts` owns transport-safe contracts, `packages/core` owns domain and data, and app tiers stay thin.
 
 ### 4.2 Migration strategies
 
@@ -64,7 +64,8 @@ Use when the existing project is mature and mostly healthy.
 Use when the project works but architecture has drifted.
 
 - Introduce or normalize `packages/core`.
-- Move schemas, services, DB access, shared types, and logging there.
+- Introduce `packages/contracts` when transport-safe DTOs and API envelopes need a dedicated home.
+- Move domain schemas, services, DB access, and logging into `packages/core`; move cross-tier transport contracts into `packages/contracts`.
 - Keep API, CLI, and web layers functioning while they are gradually thinned.
 
 #### C. Fresh starter plus port-in
@@ -160,7 +161,8 @@ rg '"check"|"test"|"typecheck"|"format"|"lint-fix"' package.json -n
 
 Map the existing project into the starter model:
 
-- `packages/core` for domain, schemas, DB, shared types, logger
+- `packages/contracts` for transport-safe shared types, DTOs, and API envelopes
+- `packages/core` for domain, schemas, DB, and logger
 - `apps/cli` for command transport
 - `apps/server` for HTTP transport
 - `apps/web` for UI transport
