@@ -211,6 +211,7 @@ bun run pub2npmjs      # publish to npm
 
 - [Architecture Spec](docs/01_ARCHITECTURE_SPEC.md) -- full system design and ADRs
 - [Developer Spec](docs/02_DEVELOPER_SPEC.md) -- implementation patterns and conventions
+- [Existing Project Migration Guide](docs/existing-project-migration-guide.md) -- AI-assisted migration model for adopting starter capabilities into existing repos
 - [User Manual](docs/03_USER_MANUAL.md) -- CLI and API reference
 
 ## License
