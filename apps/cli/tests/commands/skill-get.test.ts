@@ -114,7 +114,9 @@ describe("SkillGetCommand", () => {
     const createCommand = processCreate(
       cli,
       ["skill", "create", "--name", "human-get-test", "--json"],
-      { stdout: createChunks },
+      {
+        stdout: createChunks,
+      },
     );
     await createCommand.execute();
     const created = JSON.parse(createChunks.join(""));
