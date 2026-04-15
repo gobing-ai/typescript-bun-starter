@@ -1,7 +1,7 @@
 /**
  * Core package configuration.
  *
- * These are compile-time constants and runtime defaults for @project/core.
+ * These are compile-time constants and runtime defaults for @starter/core.
  * Environment-dependent values (DATABASE_URL) are resolved at the adapter level.
  */
 export const CORE_CONFIG = {
