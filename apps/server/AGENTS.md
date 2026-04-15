@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`apps/server` is the HTTP and OpenAPI transport layer for `@project/core`.
+`apps/server` is the HTTP and OpenAPI transport layer for `@starter/core`.
 
 ## Structure
 
@@ -12,7 +12,7 @@
 
 ## Rules
 
-- Route files stay thin: parse input, call `@project/core`, map domain results to HTTP.
-- Reuse schemas from `@project/core` for request and response contracts.
+- Route files stay thin: parse input, call `@starter/core`, map domain results to HTTP.
+- Reuse schemas from `@starter/core` for request and response contracts.
 - Keep middleware generic and composable.
 - Do not place domain logic, SQL, or schema ownership in route handlers.
