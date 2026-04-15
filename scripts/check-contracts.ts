@@ -29,6 +29,10 @@ const PACKAGE_JSON_PATH = join(ROOT, 'package.json');
 const ROOT_PACKAGE_JSON = readJson<PackageJson>(PACKAGE_JSON_PATH);
 const IGNORED_DIR_NAMES = new Set(['.astro', '.git', '.wrangler', 'coverage', 'cov', 'dist', 'node_modules']);
 const WORKSPACE_DEPENDENCY_RULES = contract.workspaceDependencyRules as Record<string, string[]>;
+const WORKSPACE_PACKAGE_NAMES = [
+    ...Object.values(contract.requiredWorkspaces),
+    ...Object.values(contract.optionalWorkspaces),
+].sort((left, right) => right.length - left.length);
 
 const FAILURES: Failure[] = [];
 
@@ -96,7 +100,7 @@ function checkWorkspace(workspaceDir: string, expectedName: string, required: bo
     const allowedLocalDeps = new Set([expectedName, ...(WORKSPACE_DEPENDENCY_RULES[expectedName] ?? [])]);
 
     for (const [depName, depVersion] of Object.entries(collectDependencyMap(packageJson))) {
-        if (!depName.startsWith('@project/')) {
+        if (!WORKSPACE_PACKAGE_NAMES.includes(depName)) {
             continue;
         }
 
@@ -128,11 +132,11 @@ function checkSourceImports(workspaceDir: string, workspaceName: string, allowed
 
         const relPath = relative(ROOT, absPath);
         for (const specifier of extractImportSpecifiers(readFileSync(absPath, 'utf8'))) {
-            if (!specifier.startsWith('@project/')) {
+            const packageName = getWorkspacePackageName(specifier);
+            if (!packageName) {
                 continue;
             }
 
-            const packageName = getWorkspacePackageName(specifier);
             if (packageName === workspaceName) {
                 continue;
             }
@@ -205,9 +209,13 @@ function collectDependencyMap(packageJson: PackageJson): Record<string, string> 
     };
 }
 
-function getWorkspacePackageName(specifier: string): string {
-    const match = specifier.match(/^(@project\/[^/]+)/);
-    return match?.[1] ?? specifier;
+function getWorkspacePackageName(specifier: string): string | null {
+    for (const packageName of WORKSPACE_PACKAGE_NAMES) {
+        if (specifier === packageName || specifier.startsWith(`${packageName}/`)) {
+            return packageName;
+        }
+    }
+    return null;
 }
 
 function collectFiles(dir: string): string[] {
