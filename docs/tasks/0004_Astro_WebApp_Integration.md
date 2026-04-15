@@ -47,8 +47,8 @@ The TypeScript Bun Starter currently supports CLI + API tiers (Tier 1-2). Users 
    - Same port (3000), unified server in production
 
 4. **Monorepo Integration**
-   - Share `packages/core` (types, schemas) with Astro web-app
-   - Shared Zod schemas for type-safe API calls
+   - Share `packages/contracts` for transport-safe API types and validation helpers with the Astro web-app
+   - Use `packages/core` only when the web tier genuinely needs domain-level exports
    - Consistent TypeScript strict mode
 
 5. **Cloudflare Pages Deployment**
@@ -61,7 +61,7 @@ The TypeScript Bun Starter currently supports CLI + API tiers (Tier 1-2). Users 
 - **US-1**: Developer can scaffold a new web-app with `bun run add:web`
 - **US-2**: Dashboard pages render statically with React islands for interactivity
 - **US-3**: Marketing landing pages load fast (minimal JS, SSG)
-- **US-4**: Web-app calls API using shared types from `packages/core`
+- **US-4**: Web-app calls API using shared types from `packages/contracts`
 - **US-5**: Production build deploys to Cloudflare Pages
 
 #### Out of Scope
@@ -172,7 +172,7 @@ typescript-bun-starter/
 
 #### Step 6: Add API client utilities (Low effort)
 - [ ] Create `apps/web/src/lib/api-client.ts`
-- [ ] Import shared schemas from `packages/core`
+- [ ] Import shared transport schemas/types from `packages/contracts`
 - [ ] Add typed fetch wrappers
 
 #### Step 7: Update root configs (Low effort)
@@ -218,7 +218,7 @@ typescript-bun-starter/
 | AC-3 | **Given** the Hono server is running, **when** a user visits port 3000, **then** static Astro pages MUST be served and client-side routing MUST work |
 | AC-4 | **Given** a user visits `/dashboard`, **when** the page loads, **then** the React Counter island MUST be interactive within 100ms of hydration |
 | AC-5 | **Given** a user visits `/`, **when** the landing page loads, **then** it MUST render with Tailwind styles and base-ui components, with **< 50KB JS** gzipped |
-| AC-6 | **Given** the web-app makes an API call, **when** the response arrives, **then** TypeScript types from `packages/core` MUST validate the response without errors |
+| AC-6 | **Given** the web-app makes an API call, **when** the response arrives, **then** TypeScript types from `packages/contracts` MUST validate the response without errors |
 | AC-7 | **Given** `bun run check` is executed, **when** linting and typechecking complete, **then** there MUST be zero errors |
 | AC-8 | **Given** the project is deployed to Cloudflare Pages, **when** a preview build runs, **then** it MUST complete successfully with zero warnings |
 
@@ -229,7 +229,7 @@ typescript-bun-starter/
 - [ ] `bun run dev:server` serves static Astro pages on port 3000
 - [ ] Dashboard page loads with React island interactivity
 - [ ] Landing page renders with Tailwind + base-ui components
-- [ ] API calls from web-app use shared `packages/core` types
+- [ ] API calls from web-app use shared `packages/contracts` types
 - [ ] `bun run check` passes (lint, typecheck, test)
 - [ ] Cloudflare Pages preview builds successfully
 - [ ] Landing page JS bundle < 50KB gzipped
