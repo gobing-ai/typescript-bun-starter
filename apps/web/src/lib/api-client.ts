@@ -1,25 +1,9 @@
+import type { ApiResponse, HealthResponse } from '@starter/contracts';
+
 /**
  * API client for the web application.
- * Uses shared types from @project/core for type-safe API calls.
+ * Uses shared types from @starter/contracts for type-safe API calls.
  */
-
-export interface ApiResponse<T> {
-    data?: T;
-    error?: string;
-    status: number;
-}
-
-export interface HealthResponse {
-    status: 'ok' | 'error';
-    timestamp: string;
-    version?: string;
-}
-
-export interface ApiError {
-    code: string;
-    message: string;
-    details?: unknown;
-}
 
 function unwrapResponseData<T>(payload: unknown): T | undefined {
     if (payload && typeof payload === 'object' && 'data' in payload) {
