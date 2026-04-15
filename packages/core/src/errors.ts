@@ -5,9 +5,18 @@
  * can map to exit codes or HTTP statuses without instanceof gymnastics.
  *
  * Keeping this minimal — only error families the starter actually needs.
+ *
+ * Note: ErrorCode is defined in @starter/contracts. We re-export it here
+ * so core consumers can import from a single package.
  */
 
-export type ErrorCode = 'NOT_FOUND' | 'VALIDATION' | 'CONFLICT' | 'INTERNAL';
+import { ErrorCode } from '@starter/contracts';
+
+// Re-export ErrorCode for consumers who import from @starter/core
+export { ErrorCode };
+
+// Define AppError in core (the error class lives here, not in contracts
+// since contracts should stay runtime-light)
 
 export class AppError extends Error {
     readonly code: ErrorCode;
@@ -22,7 +31,7 @@ export class AppError extends Error {
 /** Resource not found. Maps to CLI exit 1 / HTTP 404. */
 export class NotFoundError extends AppError {
     constructor(message: string) {
-        super('NOT_FOUND', message);
+        super(ErrorCode.NotFound, message);
         this.name = 'NotFoundError';
     }
 }
@@ -30,7 +39,7 @@ export class NotFoundError extends AppError {
 /** Input validation failure. Maps to CLI exit 1 / HTTP 400. */
 export class ValidationError extends AppError {
     constructor(message: string) {
-        super('VALIDATION', message);
+        super(ErrorCode.Validation, message);
         this.name = 'ValidationError';
     }
 }
@@ -38,7 +47,7 @@ export class ValidationError extends AppError {
 /** Unique-constraint or state conflict. Maps to CLI exit 1 / HTTP 409. */
 export class ConflictError extends AppError {
     constructor(message: string) {
-        super('CONFLICT', message);
+        super(ErrorCode.Conflict, message);
         this.name = 'ConflictError';
     }
 }
@@ -49,7 +58,7 @@ export class InternalError extends AppError {
         message: string,
         readonly cause?: unknown,
     ) {
-        super('INTERNAL', message);
+        super(ErrorCode.Internal, message);
         this.name = 'InternalError';
     }
 }

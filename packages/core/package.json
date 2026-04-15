@@ -9,6 +9,7 @@
         "@cloudflare/workers-types": "^4.20260410.1",
         "@hono/zod-openapi": "^1.2.0",
         "@logtape/logtape": "^2.0.0",
+        "@starter/contracts": "workspace:*",
         "drizzle-orm": "^0.45.0",
         "zod": "^4.3.0"
     }

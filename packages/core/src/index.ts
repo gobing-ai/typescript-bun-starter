@@ -6,11 +6,10 @@ export type { Database, DbAdapter, DbAdapterConfig } from './db/adapter';
 export { createDbAdapter } from './db/adapter';
 // Database
 export { _resetAdapter, getDb, getDefaultAdapter } from './db/client';
-export type { ErrorCode } from './errors';
-// Errors
 export {
     AppError,
     ConflictError,
+    ErrorCode,
     InternalError,
     isAppError,
     NotFoundError,
