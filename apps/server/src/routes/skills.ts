@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import { errorCodeToHttpStatus } from '@starter/contracts';
 import type { Database, Skill } from '@starter/core';
 import { isAppError, SkillService, skillInsertSchema, skillSelectSchema, skillUpdateSchema } from '@starter/core';
 import type { Context } from 'hono';
@@ -11,6 +12,8 @@ const ParamsSchema = z.object({
     id: z.string().openapi({ param: { name: 'id', in: 'path' }, example: 'abc-123' }),
 });
 
+// ErrorSchema is Zod-specific (Hono transport layer) so it stays local.
+// The shared TransportError interface is in @starter/contracts for type consumers.
 const ErrorSchema = z.object({ error: z.string() });
 
 // ---------------------------------------------------------------------------
@@ -53,6 +56,10 @@ const getRoute = createRoute({
             },
             description: 'Get a skill by ID',
         },
+        400: {
+            content: { 'application/json': { schema: ErrorSchema } },
+            description: 'Bad request',
+        },
         404: {
             content: { 'application/json': { schema: ErrorSchema } },
             description: 'Skill not found',
@@ -87,6 +94,14 @@ const postRoute = createRoute({
             content: { 'application/json': { schema: ErrorSchema } },
             description: 'Validation error',
         },
+        404: {
+            content: { 'application/json': { schema: ErrorSchema } },
+            description: 'Not found',
+        },
+        409: {
+            content: { 'application/json': { schema: ErrorSchema } },
+            description: 'Conflict',
+        },
         500: {
             content: { 'application/json': { schema: ErrorSchema } },
             description: 'Internal server error',
@@ -116,11 +131,15 @@ const patchRoute = createRoute({
         },
         400: {
             content: { 'application/json': { schema: ErrorSchema } },
-            description: 'Validation error',
+            description: 'Bad request',
         },
         404: {
             content: { 'application/json': { schema: ErrorSchema } },
             description: 'Skill not found',
+        },
+        409: {
+            content: { 'application/json': { schema: ErrorSchema } },
+            description: 'Conflict',
         },
         500: {
             content: { 'application/json': { schema: ErrorSchema } },
@@ -145,9 +164,17 @@ const deleteRoute = createRoute({
             },
             description: 'Skill deleted',
         },
+        400: {
+            content: { 'application/json': { schema: ErrorSchema } },
+            description: 'Bad request',
+        },
         404: {
             content: { 'application/json': { schema: ErrorSchema } },
             description: 'Skill not found',
+        },
+        409: {
+            content: { 'application/json': { schema: ErrorSchema } },
+            description: 'Conflict',
         },
         500: {
             content: { 'application/json': { schema: ErrorSchema } },
@@ -157,14 +184,20 @@ const deleteRoute = createRoute({
 });
 
 // ---------------------------------------------------------------------------
-// Error code → HTTP status mapping
+// Error code → HTTP status mapping (delegated to shared contracts)
 // ---------------------------------------------------------------------------
 
-function appErrorStatus(error: Error): 400 | 404 | 500 {
-    if (isAppError(error)) {
-        if (error.code === 'NOT_FOUND') return 404;
-        if (error.code === 'VALIDATION' || error.code === 'CONFLICT') return 400;
-        if (error.code === 'INTERNAL') return 500;
+/**
+ * Maps domain errors to HTTP status using shared contracts.
+ * Uses ErrorCode enum for type-safe comparison.
+ */
+function mapErrorToStatus(err: Error): 400 | 404 | 500 {
+    if (isAppError(err)) {
+        return errorCodeToHttpStatus(err.code) as 400 | 404 | 500;
+    }
+    // HTTPError from Hono middleware (e.g. OpenAPI validation)
+    if ('status' in err && typeof err.status === 'number') {
+        return err.status as 400 | 404 | 500;
     }
     return 500;
 }
@@ -201,10 +234,8 @@ export function createSkillRoutes(options?: CreateSkillRoutesOptions | Database)
         const { id } = c.req.valid('param');
         const result = await service.getById(id);
         if (!result.ok) {
-            // Not-found → 404, everything else → 500
-            const status = appErrorStatus(result.error);
-            if (status === 404) return c.json({ error: result.error.message }, 404);
-            return c.json({ error: result.error.message }, 500);
+            const status = mapErrorToStatus(result.error);
+            return c.json({ error: result.error.message }, status);
         }
         return c.json({ data: result.data }, 200);
     });
@@ -214,10 +245,8 @@ export function createSkillRoutes(options?: CreateSkillRoutesOptions | Database)
         const input = c.req.valid('json');
         const result = await service.create(input);
         if (!result.ok) {
-            // Validation → 400, everything else → 500
-            const status = appErrorStatus(result.error);
-            if (status === 400) return c.json({ error: result.error.message }, 400);
-            return c.json({ error: result.error.message }, 500);
+            const status = mapErrorToStatus(result.error);
+            return c.json({ error: result.error.message }, status);
         }
         return c.json({ data: result.data as Skill }, 201);
     });
@@ -228,10 +257,8 @@ export function createSkillRoutes(options?: CreateSkillRoutesOptions | Database)
         const input = c.req.valid('json');
         const result = await service.update(id, input);
         if (!result.ok) {
-            const status = appErrorStatus(result.error);
-            if (status === 400) return c.json({ error: result.error.message }, 400);
-            if (status === 404) return c.json({ error: result.error.message }, 404);
-            return c.json({ error: result.error.message }, 500);
+            const status = mapErrorToStatus(result.error);
+            return c.json({ error: result.error.message }, status);
         }
         return c.json({ data: result.data }, 200);
     });
@@ -241,9 +268,8 @@ export function createSkillRoutes(options?: CreateSkillRoutesOptions | Database)
         const { id } = c.req.valid('param');
         const result = await service.delete(id);
         if (!result.ok) {
-            const status = appErrorStatus(result.error);
-            if (status === 404) return c.json({ error: result.error.message }, 404);
-            return c.json({ error: result.error.message }, 500);
+            const status = mapErrorToStatus(result.error);
+            return c.json({ error: result.error.message }, status);
         }
         return c.json({ data: null }, 200);
     });
