@@ -19,7 +19,7 @@ import { join, relative, resolve } from "node:path";
 const COVERAGE_FILE = resolve(import.meta.dir, "..", "coverage", "lcov.info");
 const THRESHOLD = 90;
 
-/** Source files that are exempt from the "must have a test" check. */
+/** Source files that are exempt from both test and coverage checks. */
 const NO_TEST_REQUIRED = new Set([
   // packages/core
   "packages/core/src/db/schema.ts", // pure Drizzle table definition
@@ -130,6 +130,12 @@ for (const entry of coveredFiles) {
     entry.file.includes("/drizzle/") ||
     entry.file.includes("scripts/")
   ) {
+    continue;
+  }
+
+  // Skip files that are exempt from testing (entry points, config files, etc.)
+  const normalizedFile = entry.file.replace(/^\//, "").replace(/\\+/g, "/");
+  if (NO_TEST_REQUIRED.has(normalizedFile)) {
     continue;
   }
 
