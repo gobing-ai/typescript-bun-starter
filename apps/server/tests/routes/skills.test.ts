@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { createTestDb } from '@project/core/tests/test-db';
+import { createTestDb } from '@starter/core/tests/test-db';
 import { createSkillRoutes } from '../../src/routes/skills';
 
 let cleanup: () => void;
