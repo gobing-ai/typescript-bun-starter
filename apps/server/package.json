@@ -1,5 +1,5 @@
 {
-    "name": "@project/server",
+    "name": "@starter/server",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -7,7 +7,7 @@
         "@hono/swagger-ui": "^0.6.0",
         "@hono/zod-openapi": "^1.2.0",
         "@logtape/logtape": "^2.0.5",
-        "@project/core": "workspace:*",
+        "@starter/core": "workspace:*",
         "hono": "^4.12.0"
     }
 }
