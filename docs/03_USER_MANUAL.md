@@ -11,6 +11,7 @@
 ```bash
 git clone <repo-url> && cd typescript-bun-starter
 bun install
+bun run bootstrap -- --name my-project --scope @acme --title "My Project"
 ```
 
 **From compiled binary:**
@@ -23,6 +24,15 @@ chmod +x tbs
 ```
 
 ### 1.2 First Commands
+
+Before you start adding domain logic, bootstrap the spawned project identity:
+
+```bash
+bun run bootstrap -- --name my-project --scope @acme --title "My Project"
+```
+
+This rewrites package names, internal imports, generated instruction files, CLI
+metadata, and starter-facing copy from the default starter identity.
 
 ```bash
 # Create a skill
