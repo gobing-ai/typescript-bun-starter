@@ -9,7 +9,8 @@
         "apps/*"
     ],
     "scripts": {
-        "check": "biome check . && bun run typecheck && bun run test:coverage",
+        "check": "biome check . && bun run check:contracts && bun run typecheck && bun run test:coverage",
+        "check:contracts": "bun run scripts/check-contracts.ts",
         "test": "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage && bun run scripts/check-coverage.ts",
         "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage --reporter=dots && bun run scripts/check-coverage.ts",
         "format": "biome format --write .",
