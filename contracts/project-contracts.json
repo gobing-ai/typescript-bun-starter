@@ -23,18 +23,20 @@
         "lint-fix"
     ],
     "requiredWorkspaces": {
-        "packages/core": "@project/core"
+        "packages/contracts": "@starter/contracts",
+        "packages/core": "@starter/core"
     },
     "optionalWorkspaces": {
-        "apps/cli": "@project/cli",
-        "apps/server": "@project/server",
-        "apps/web": "@project/web"
+        "apps/cli": "@starter/cli",
+        "apps/server": "@starter/server",
+        "apps/web": "@starter/web"
     },
     "workspaceDependencyRules": {
-        "@project/core": [],
-        "@project/cli": ["@project/core"],
-        "@project/server": ["@project/core"],
-        "@project/web": ["@project/core"]
+        "@starter/contracts": [],
+        "@starter/core": ["@starter/contracts"],
+        "@starter/cli": ["@starter/contracts", "@starter/core"],
+        "@starter/server": ["@starter/contracts", "@starter/core"],
+        "@starter/web": ["@starter/contracts", "@starter/core"]
     },
     "instructionPolicy": {
         "editableSources": ["contracts/project-contracts.json", "scripts/generate-instructions.ts"],
@@ -47,7 +49,7 @@
         ],
         "scopeAndPrecedence": [
             "This file applies to the entire repository unless a deeper AGENTS.md overrides part of it.",
-            "Nested AGENTS.md files under packages/core, apps/cli, apps/server, and apps/web are authoritative for those subtrees.",
+            "Nested AGENTS.md files under packages/contracts, packages/core, apps/cli, apps/server, and apps/web are authoritative for those subtrees.",
             "Treat docs/01_ARCHITECTURE_SPEC.md and docs/02_DEVELOPER_SPEC.md as canonical references for examples and rationale, not as substitutes for this contract."
         ],
         "verification": {
@@ -55,8 +57,9 @@
             "description": "bun run check is the definition-of-done gate for this starter. It must cover linting, contract checks, generated-instruction sync, type checking, tests, and coverage."
         },
         "repositoryContract": [
-            "packages/core is the shared domain and data layer.",
-            "apps/cli, apps/server, and apps/web are optional interface tiers built on top of {{workspaceCorePackage}}.",
+            "packages/contracts owns shared cross-tier contracts and transport-safe DTOs.",
+            "packages/core is the shared domain and data layer built on top of {{workspaceContractsPackage}} when contracts are needed.",
+            "apps/cli, apps/server, and apps/web are optional interface tiers built on top of {{workspaceContractsPackage}} and {{workspaceCorePackage}}.",
             "Existing workspace package names must follow {{workspacePackagePattern}}.",
             "Cross-workspace dependencies must use the workspace:* protocol.",
             "App workspaces must not import from other app workspaces.",
@@ -97,6 +100,11 @@
         ]
     },
     "fileNamingRules": [
+        {
+            "pathPrefix": "packages/contracts/src/",
+            "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*|index)\\.(?:d\\.)?ts$",
+            "description": "contracts source files must be kebab-case .ts or .d.ts"
+        },
         {
             "pathPrefix": "packages/core/src/",
             "pattern": "^(?:[a-z0-9]+(?:-[a-z0-9]+)*|index|config|errors|logger|logging)\\.(?:d\\.)?ts$",
