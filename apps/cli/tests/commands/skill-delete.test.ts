@@ -1,223 +1,207 @@
-import { afterEach, beforeAll, describe, expect, test } from "bun:test";
-import { Writable } from "node:stream";
-import { Cli } from "clipanion";
-import { SkillCreateCommand } from "../../src/commands/skill-create";
-import { SkillDeleteCommand } from "../../src/commands/skill-delete";
-import { setPromptClientForTest } from "../../src/ui/prompts";
-import { setupCliTestDb } from "../test-setup";
+import { afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { Writable } from 'node:stream';
+import { Cli } from 'clipanion';
+import { SkillCreateCommand } from '../../src/commands/skill-create';
+import { SkillDeleteCommand } from '../../src/commands/skill-delete';
+import { setPromptClientForTest } from '../../src/ui/prompts';
+import { setupCliTestDb } from '../test-setup';
 
 beforeAll(() => {
-  setupCliTestDb();
+    setupCliTestDb();
 });
 
 afterEach(() => {
-  setPromptClientForTest();
+    setPromptClientForTest();
 });
 
 function makeCli() {
-  const cli = new Cli({ binaryName: "tbs" });
-  cli.register(SkillDeleteCommand);
-  cli.register(SkillCreateCommand);
-  return cli;
+    const cli = new Cli({ binaryName: 'tbs' });
+    cli.register(SkillDeleteCommand);
+    cli.register(SkillCreateCommand);
+    return cli;
 }
 
 function createMockWritable(collector: string[]) {
-  return new Writable({
-    write(chunk, _encoding, callback) {
-      collector.push(chunk.toString());
-      callback();
-    },
-  });
+    return new Writable({
+        write(chunk, _encoding, callback) {
+            collector.push(chunk.toString());
+            callback();
+        },
+    });
 }
 
 function processDelete(cli: Cli, args: string[], opts: { stdout?: string[]; stderr?: string[] }) {
-  return cli.process(args, {
-    stdout: opts.stdout ? createMockWritable(opts.stdout) : undefined,
-    stderr: opts.stderr ? createMockWritable(opts.stderr) : undefined,
-  }) as SkillDeleteCommand;
+    return cli.process(args, {
+        stdout: opts.stdout ? createMockWritable(opts.stdout) : undefined,
+        stderr: opts.stderr ? createMockWritable(opts.stderr) : undefined,
+    }) as SkillDeleteCommand;
 }
 
 function processCreate(cli: Cli, args: string[], opts: { stdout?: string[] }) {
-  return cli.process(args, {
-    stdout: opts.stdout ? createMockWritable(opts.stdout) : undefined,
-  }) as SkillCreateCommand;
+    return cli.process(args, {
+        stdout: opts.stdout ? createMockWritable(opts.stdout) : undefined,
+    }) as SkillCreateCommand;
 }
 
-describe("SkillDeleteCommand", () => {
-  test("human mode prompts for missing id and confirms deletion", async () => {
-    const cli = makeCli();
+describe('SkillDeleteCommand', () => {
+    test('human mode prompts for missing id and confirms deletion', async () => {
+        const cli = makeCli();
 
-    const createChunks: string[] = [];
-    const createCommand = processCreate(
-      cli,
-      ["skill", "create", "--name", "prompt-delete-test", "--json"],
-      {
-        stdout: createChunks,
-      },
-    );
-    await createCommand.execute();
-    const created = JSON.parse(createChunks.join("")) as { id: string };
+        const createChunks: string[] = [];
+        const createCommand = processCreate(cli, ['skill', 'create', '--name', 'prompt-delete-test', '--json'], {
+            stdout: createChunks,
+        });
+        await createCommand.execute();
+        const created = JSON.parse(createChunks.join('')) as { id: string };
 
-    setPromptClientForTest({
-      async promptText() {
-        return created.id;
-      },
-      async confirm() {
-        return true;
-      },
+        setPromptClientForTest({
+            async promptText() {
+                return created.id;
+            },
+            async confirm() {
+                return true;
+            },
+        });
+
+        const delChunks: string[] = [];
+        const delCommand = processDelete(cli, ['skill', 'delete'], {
+            stdout: delChunks,
+        });
+
+        const exitCode = await delCommand.execute();
+        expect(exitCode).toBe(0);
+        expect(delChunks.join('')).toContain(`Deleted skill: ${created.id}`);
     });
 
-    const delChunks: string[] = [];
-    const delCommand = processDelete(cli, ["skill", "delete"], {
-      stdout: delChunks,
+    test('human mode confirmation can cancel deletion', async () => {
+        const cli = makeCli();
+
+        const createChunks: string[] = [];
+        const createCommand = processCreate(cli, ['skill', 'create', '--name', 'cancel-delete-test', '--json'], {
+            stdout: createChunks,
+        });
+        await createCommand.execute();
+        const created = JSON.parse(createChunks.join('')) as { id: string };
+
+        setPromptClientForTest({
+            async promptText() {
+                return created.id;
+            },
+            async confirm() {
+                return false;
+            },
+        });
+
+        const delChunks: string[] = [];
+        const delCommand = processDelete(cli, ['skill', 'delete'], {
+            stdout: delChunks,
+        });
+
+        const exitCode = await delCommand.execute();
+        expect(exitCode).toBe(0);
+        expect(delChunks.join('')).toContain('Deletion cancelled.');
     });
 
-    const exitCode = await delCommand.execute();
-    expect(exitCode).toBe(0);
-    expect(delChunks.join("")).toContain(`Deleted skill: ${created.id}`);
-  });
-
-  test("human mode confirmation can cancel deletion", async () => {
-    const cli = makeCli();
-
-    const createChunks: string[] = [];
-    const createCommand = processCreate(
-      cli,
-      ["skill", "create", "--name", "cancel-delete-test", "--json"],
-      {
-        stdout: createChunks,
-      },
-    );
-    await createCommand.execute();
-    const created = JSON.parse(createChunks.join("")) as { id: string };
-
-    setPromptClientForTest({
-      async promptText() {
-        return created.id;
-      },
-      async confirm() {
-        return false;
-      },
+    test('registers at skill delete path', () => {
+        const cli = makeCli();
+        const command = cli.process(['skill', 'delete']);
+        expect(command).toBeInstanceOf(SkillDeleteCommand);
     });
 
-    const delChunks: string[] = [];
-    const delCommand = processDelete(cli, ["skill", "delete"], {
-      stdout: delChunks,
+    test('--json without --id outputs error and returns 1', async () => {
+        const cli = makeCli();
+        const chunks: string[] = [];
+        const command = processDelete(cli, ['skill', 'delete', '--json'], { stdout: chunks });
+
+        const exitCode = await command.execute();
+        expect(exitCode).toBe(1);
+
+        const output = JSON.parse(chunks.join(''));
+        expect(output.error).toContain('--id is required');
     });
 
-    const exitCode = await delCommand.execute();
-    expect(exitCode).toBe(0);
-    expect(delChunks.join("")).toContain("Deletion cancelled.");
-  });
+    test('human mode without --id writes error to stderr', async () => {
+        setPromptClientForTest({
+            async promptText() {
+                return null;
+            },
+            async confirm() {
+                return true;
+            },
+        });
 
-  test("registers at skill delete path", () => {
-    const cli = makeCli();
-    const command = cli.process(["skill", "delete"]);
-    expect(command).toBeInstanceOf(SkillDeleteCommand);
-  });
+        const cli = makeCli();
+        const errChunks: string[] = [];
+        const command = processDelete(cli, ['skill', 'delete'], { stderr: errChunks });
 
-  test("--json without --id outputs error and returns 1", async () => {
-    const cli = makeCli();
-    const chunks: string[] = [];
-    const command = processDelete(cli, ["skill", "delete", "--json"], { stdout: chunks });
-
-    const exitCode = await command.execute();
-    expect(exitCode).toBe(1);
-
-    const output = JSON.parse(chunks.join(""));
-    expect(output.error).toContain("--id is required");
-  });
-
-  test("human mode without --id writes error to stderr", async () => {
-    setPromptClientForTest({
-      async promptText() {
-        return null;
-      },
-      async confirm() {
-        return true;
-      },
+        const exitCode = await command.execute();
+        expect(exitCode).toBe(1);
+        expect(errChunks.join('')).toContain('skill id is required');
     });
 
-    const cli = makeCli();
-    const errChunks: string[] = [];
-    const command = processDelete(cli, ["skill", "delete"], { stderr: errChunks });
+    test('--json deletes a skill and outputs confirmation', async () => {
+        const cli = makeCli();
 
-    const exitCode = await command.execute();
-    expect(exitCode).toBe(1);
-    expect(errChunks.join("")).toContain("skill id is required");
-  });
+        const createChunks: string[] = [];
+        const createCommand = processCreate(cli, ['skill', 'create', '--name', 'delete-test', '--json'], {
+            stdout: createChunks,
+        });
+        await createCommand.execute();
+        const created = JSON.parse(createChunks.join(''));
 
-  test("--json deletes a skill and outputs confirmation", async () => {
-    const cli = makeCli();
+        const delChunks: string[] = [];
+        const delCommand = processDelete(cli, ['skill', 'delete', '--id', created.id, '--json'], {
+            stdout: delChunks,
+        });
 
-    const createChunks: string[] = [];
-    const createCommand = processCreate(
-      cli,
-      ["skill", "create", "--name", "delete-test", "--json"],
-      {
-        stdout: createChunks,
-      },
-    );
-    await createCommand.execute();
-    const created = JSON.parse(createChunks.join(""));
+        const exitCode = await delCommand.execute();
+        expect(exitCode).toBe(0);
 
-    const delChunks: string[] = [];
-    const delCommand = processDelete(cli, ["skill", "delete", "--id", created.id, "--json"], {
-      stdout: delChunks,
+        const output = JSON.parse(delChunks.join(''));
+        expect(output.deleted).toBe(true);
+        expect(output.id).toBe(created.id);
     });
 
-    const exitCode = await delCommand.execute();
-    expect(exitCode).toBe(0);
+    test('--json with nonexistent id returns error', async () => {
+        const cli = makeCli();
+        const chunks: string[] = [];
+        const command = processDelete(cli, ['skill', 'delete', '--id', 'nonexistent', '--json'], {
+            stdout: chunks,
+        });
 
-    const output = JSON.parse(delChunks.join(""));
-    expect(output.deleted).toBe(true);
-    expect(output.id).toBe(created.id);
-  });
+        const exitCode = await command.execute();
+        expect(exitCode).toBe(1);
 
-  test("--json with nonexistent id returns error", async () => {
-    const cli = makeCli();
-    const chunks: string[] = [];
-    const command = processDelete(cli, ["skill", "delete", "--id", "nonexistent", "--json"], {
-      stdout: chunks,
+        const output = JSON.parse(chunks.join(''));
+        expect(output.error).toContain('Skill not found');
     });
 
-    const exitCode = await command.execute();
-    expect(exitCode).toBe(1);
+    test('human mode deletes and prints confirmation', async () => {
+        const cli = makeCli();
 
-    const output = JSON.parse(chunks.join(""));
-    expect(output.error).toContain("Skill not found");
-  });
+        const createChunks: string[] = [];
+        const createCommand = processCreate(cli, ['skill', 'create', '--name', 'human-del-test', '--json'], {
+            stdout: createChunks,
+        });
+        await createCommand.execute();
+        const created = JSON.parse(createChunks.join(''));
 
-  test("human mode deletes and prints confirmation", async () => {
-    const cli = makeCli();
+        const delChunks: string[] = [];
+        setPromptClientForTest({
+            async promptText() {
+                return created.id;
+            },
+            async confirm() {
+                return true;
+            },
+        });
 
-    const createChunks: string[] = [];
-    const createCommand = processCreate(
-      cli,
-      ["skill", "create", "--name", "human-del-test", "--json"],
-      {
-        stdout: createChunks,
-      },
-    );
-    await createCommand.execute();
-    const created = JSON.parse(createChunks.join(""));
+        const delCommand = processDelete(cli, ['skill', 'delete', '--id', created.id], {
+            stdout: delChunks,
+        });
 
-    const delChunks: string[] = [];
-    setPromptClientForTest({
-      async promptText() {
-        return created.id;
-      },
-      async confirm() {
-        return true;
-      },
+        const exitCode = await delCommand.execute();
+        expect(exitCode).toBe(0);
+        expect(delChunks.join('')).toContain('Deleted skill');
     });
-
-    const delCommand = processDelete(cli, ["skill", "delete", "--id", created.id], {
-      stdout: delChunks,
-    });
-
-    const exitCode = await delCommand.execute();
-    expect(exitCode).toBe(0);
-    expect(delChunks.join("")).toContain("Deleted skill");
-  });
 });

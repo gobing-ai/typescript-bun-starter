@@ -1,4 +1,4 @@
-import type { Database, DbAdapter } from "./adapter";
+import type { Database, DbAdapter } from './adapter';
 
 let _adapter: DbAdapter | undefined;
 
@@ -12,15 +12,14 @@ let _adapter: DbAdapter | undefined;
  * @internal — prefer explicit adapter construction via `createDbAdapter()`.
  */
 export function getDefaultAdapter(): DbAdapter {
-  if (!_adapter) {
-    // Synchronous require() keeps getDefaultAdapter() non-async, avoiding
-    // an async cascade through all callers (CLI commands, test setup, etc).
-    // This code path is Bun-only — the require() will never run in D1/Workers.
-    const { BunSqliteAdapter } =
-      require("./adapters/bun-sqlite") as typeof import("./adapters/bun-sqlite");
-    _adapter = new BunSqliteAdapter();
-  }
-  return _adapter;
+    if (!_adapter) {
+        // Synchronous require() keeps getDefaultAdapter() non-async, avoiding
+        // an async cascade through all callers (CLI commands, test setup, etc).
+        // This code path is Bun-only — the require() will never run in D1/Workers.
+        const { BunSqliteAdapter } = require('./adapters/bun-sqlite') as typeof import('./adapters/bun-sqlite');
+        _adapter = new BunSqliteAdapter();
+    }
+    return _adapter;
 }
 
 /**
@@ -31,7 +30,7 @@ export function getDefaultAdapter(): DbAdapter {
  * into `SkillService` explicitly.
  */
 export function getDb(): Database {
-  return getDefaultAdapter().getDb();
+    return getDefaultAdapter().getDb();
 }
 
 /**
@@ -39,5 +38,5 @@ export function getDb(): Database {
  * @internal
  */
 export function _resetAdapter(): void {
-  _adapter = undefined;
+    _adapter = undefined;
 }

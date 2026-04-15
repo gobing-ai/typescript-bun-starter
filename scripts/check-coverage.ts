@@ -9,36 +9,36 @@
  *
  * Exits with code 1 if any file fails coverage or is missing tests.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const COVERAGE_FILE = resolve(import.meta.dir, "..", "coverage", "lcov.info");
+const COVERAGE_FILE = resolve(import.meta.dir, '..', 'coverage', 'lcov.info');
 const THRESHOLD = 90;
 
 /** Source files that are exempt from both test and coverage checks. */
 const NO_TEST_REQUIRED = new Set([
-  // packages/core
-  "packages/core/src/db/schema.ts", // pure Drizzle table definition
-  "packages/core/src/db/client.ts", // lazy singleton adapter (Bun-only convenience)
-  "packages/core/src/db/adapters/d1.ts", // D1 adapter (needs Workers runtime)
-  "packages/core/src/types/result.ts", // type-only definition
-  "packages/core/src/schemas/skill.ts", // Zod schema definitions
-  "packages/core/src/index.ts", // barrel exports
-  "packages/core/src/logger.ts", // single getLogger call
-  // apps/cli
-  "apps/cli/src/index.ts", // entry point (CLI wiring + LogTape config)
-  "apps/cli/src/config.ts", // pure as-const constants
-  // apps/server
-  "apps/server/src/index.ts", // entry point (Hono wiring + LogTape config)
-  "apps/server/src/config.ts", // pure as-const constants
+    // packages/core
+    'packages/core/src/db/schema.ts', // pure Drizzle table definition
+    'packages/core/src/db/client.ts', // lazy singleton adapter (Bun-only convenience)
+    'packages/core/src/db/adapters/d1.ts', // D1 adapter (needs Workers runtime)
+    'packages/core/src/types/result.ts', // type-only definition
+    'packages/core/src/schemas/skill.ts', // Zod schema definitions
+    'packages/core/src/index.ts', // barrel exports
+    'packages/core/src/logger.ts', // single getLogger call
+    // apps/cli
+    'apps/cli/src/index.ts', // entry point (CLI wiring + LogTape config)
+    'apps/cli/src/config.ts', // pure as-const constants
+    // apps/server
+    'apps/server/src/index.ts', // entry point (Hono wiring + LogTape config)
+    'apps/server/src/config.ts', // pure as-const constants
 ]);
 
 // Directories to scan for source files (relative to project root).
-const SRC_DIRS = ["packages/core/src", "apps/cli/src", "apps/server/src"];
+const SRC_DIRS = ['packages/core/src', 'apps/cli/src', 'apps/server/src'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -46,19 +46,19 @@ const SRC_DIRS = ["packages/core/src", "apps/cli/src", "apps/server/src"];
 
 /** Recursively collect all .ts files under a directory. */
 function collectTsFiles(dir: string, root: string): string[] {
-  const results: string[] = [];
-  if (!existsSync(dir)) return results;
+    const results: string[] = [];
+    if (!existsSync(dir)) return results;
 
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) {
-      results.push(...collectTsFiles(full, root));
-    } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) {
-      results.push(relative(root, full));
+    for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        const stat = statSync(full);
+        if (stat.isDirectory()) {
+            results.push(...collectTsFiles(full, root));
+        } else if (entry.endsWith('.ts') && !entry.endsWith('.d.ts')) {
+            results.push(relative(root, full));
+        }
     }
-  }
-  return results;
+    return results;
 }
 
 /**
@@ -71,81 +71,81 @@ function collectTsFiles(dir: string, root: string): string[] {
  *   → packages/core/tests/services/skill-service.test.ts
  */
 function expectedTestPath(srcFile: string): string {
-  // e.g. "packages/core/src/services/skill-service.ts"
-  const idx = srcFile.indexOf("/src/");
-  if (idx === -1) return "";
-  const pkg = srcFile.slice(0, idx); // "packages/core"
-  const relPath = srcFile.slice(idx + "/src/".length); // "services/skill-service.ts"
-  const testRel = relPath.replace(/\.ts$/, ".test.ts");
-  return `${pkg}/tests/${testRel}`;
+    // e.g. "packages/core/src/services/skill-service.ts"
+    const idx = srcFile.indexOf('/src/');
+    if (idx === -1) return '';
+    const pkg = srcFile.slice(0, idx); // "packages/core"
+    const relPath = srcFile.slice(idx + '/src/'.length); // "services/skill-service.ts"
+    const testRel = relPath.replace(/\.ts$/, '.test.ts');
+    return `${pkg}/tests/${testRel}`;
 }
 
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
-const projectRoot = resolve(import.meta.dir, "..");
+const projectRoot = resolve(import.meta.dir, '..');
 
 // ---- Part 1: Coverage threshold check ----
 
 if (!existsSync(COVERAGE_FILE)) {
-  console.error("No coverage file found at", COVERAGE_FILE);
-  console.error("Run `bun test --coverage` first.");
-  process.exit(1);
+    console.error('No coverage file found at', COVERAGE_FILE);
+    console.error('Run `bun test --coverage` first.');
+    process.exit(1);
 }
 
-const lcov = readFileSync(COVERAGE_FILE, "utf-8");
+const lcov = readFileSync(COVERAGE_FILE, 'utf-8');
 
 interface FileCoverage {
-  file: string;
-  linesFound: number;
-  linesHit: number;
+    file: string;
+    linesFound: number;
+    linesHit: number;
 }
 
 const coveredFiles: FileCoverage[] = [];
 let current: Partial<FileCoverage> | null = null;
 
-for (const line of lcov.split("\n")) {
-  const trimmed = line.trim();
-  if (trimmed.startsWith("SF:")) {
-    current = { file: trimmed.slice(3) };
-  } else if (trimmed.startsWith("LF:") && current) {
-    current.linesFound = Number(trimmed.slice(3));
-  } else if (trimmed.startsWith("LH:") && current) {
-    current.linesHit = Number(trimmed.slice(3));
-  } else if (trimmed === "end_of_record" && current?.file) {
-    coveredFiles.push(current as FileCoverage);
-    current = null;
-  }
+for (const line of lcov.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('SF:')) {
+        current = { file: trimmed.slice(3) };
+    } else if (trimmed.startsWith('LF:') && current) {
+        current.linesFound = Number(trimmed.slice(3));
+    } else if (trimmed.startsWith('LH:') && current) {
+        current.linesHit = Number(trimmed.slice(3));
+    } else if (trimmed === 'end_of_record' && current?.file) {
+        coveredFiles.push(current as FileCoverage);
+        current = null;
+    }
 }
 
 const coverageFailures: { file: string; pct: number }[] = [];
 
 for (const entry of coveredFiles) {
-  if (
-    entry.file.includes("node_modules") ||
-    entry.file.includes("__tests__") ||
-    entry.file.includes(".test.") ||
-    entry.file.includes(".spec.") ||
-    entry.file.includes("/drizzle/") ||
-    entry.file.includes("scripts/")
-  ) {
-    continue;
-  }
+    if (
+        entry.file.includes('node_modules') ||
+        entry.file.includes('__tests__') ||
+        entry.file.includes('.test.') ||
+        entry.file.includes('.spec.') ||
+        entry.file.includes('/drizzle/') ||
+        entry.file.includes('scripts/')
+    ) {
+        continue;
+    }
 
-  // Skip files that are exempt from testing (entry points, config files, etc.)
-  const normalizedFile = entry.file.replace(/^\//, "").replace(/\\+/g, "/");
-  if (NO_TEST_REQUIRED.has(normalizedFile)) {
-    continue;
-  }
+    // Skip files that are exempt from testing (entry points, config files, etc.)
+    const normalizedFile = entry.file.replace(/^\//, '').replace(/\\+/g, '/');
+    if (NO_TEST_REQUIRED.has(normalizedFile)) {
+        continue;
+    }
 
-  if (entry.linesFound === 0) continue;
+    if (entry.linesFound === 0) continue;
 
-  const pct = Math.round((entry.linesHit / entry.linesFound) * 100);
+    const pct = Math.round((entry.linesHit / entry.linesFound) * 100);
 
-  if (pct < THRESHOLD) {
-    coverageFailures.push({ file: entry.file, pct });
-  }
+    if (pct < THRESHOLD) {
+        coverageFailures.push({ file: entry.file, pct });
+    }
 }
 
 // ---- Part 2: Missing test detection ----
@@ -153,35 +153,33 @@ for (const entry of coveredFiles) {
 // Collect all source .ts files from the project
 const allSourceFiles = new Set<string>();
 for (const srcDir of SRC_DIRS) {
-  const absDir = join(projectRoot, srcDir);
-  for (const f of collectTsFiles(absDir, projectRoot)) {
-    allSourceFiles.add(f);
-  }
+    const absDir = join(projectRoot, srcDir);
+    for (const f of collectTsFiles(absDir, projectRoot)) {
+        allSourceFiles.add(f);
+    }
 }
 
 // Files that appear in coverage (have at least some lines instrumented)
 // Normalize to relative paths for consistent comparison
-const coveredSet = new Set(
-  coveredFiles.map((e) => (e.file.startsWith("/") ? relative(projectRoot, e.file) : e.file)),
-);
+const coveredSet = new Set(coveredFiles.map((e) => (e.file.startsWith('/') ? relative(projectRoot, e.file) : e.file)));
 
 const missingTests: string[] = [];
 
 for (const srcFile of allSourceFiles) {
-  // Skip whitelisted files
-  if (NO_TEST_REQUIRED.has(srcFile)) continue;
+    // Skip whitelisted files
+    if (NO_TEST_REQUIRED.has(srcFile)) continue;
 
-  // Skip if not in coverage at all (type-only files, barrel exports without logic)
-  if (!coveredSet.has(srcFile)) continue;
+    // Skip if not in coverage at all (type-only files, barrel exports without logic)
+    if (!coveredSet.has(srcFile)) continue;
 
-  // Check if a corresponding test file exists
-  const testPath = expectedTestPath(srcFile);
-  if (!testPath) continue;
+    // Check if a corresponding test file exists
+    const testPath = expectedTestPath(srcFile);
+    if (!testPath) continue;
 
-  const absTestPath = join(projectRoot, testPath);
-  if (!existsSync(absTestPath)) {
-    missingTests.push(srcFile);
-  }
+    const absTestPath = join(projectRoot, testPath);
+    if (!existsSync(absTestPath)) {
+        missingTests.push(srcFile);
+    }
 }
 
 // ---- Report ----
@@ -189,33 +187,29 @@ for (const srcFile of allSourceFiles) {
 let failed = false;
 
 if (coverageFailures.length > 0) {
-  console.error(`\nCoverage gate failed: ${coverageFailures.length} file(s) below ${THRESHOLD}%\n`);
-  for (const { file, pct } of coverageFailures) {
-    console.error(`  ${pct}%  ${file}`);
-  }
-  console.error("");
-  failed = true;
+    console.error(`\nCoverage gate failed: ${coverageFailures.length} file(s) below ${THRESHOLD}%\n`);
+    for (const { file, pct } of coverageFailures) {
+        console.error(`  ${pct}%  ${file}`);
+    }
+    console.error('');
+    failed = true;
 }
 
 if (missingTests.length > 0) {
-  console.error(`Missing tests: ${missingTests.length} source file(s) have no test file\n`);
-  for (const srcFile of missingTests) {
-    const testPath = expectedTestPath(srcFile);
-    console.error(`  ${srcFile}`);
-    console.error(`    expected: ${testPath}`);
-  }
-  console.error("");
-  console.error(
-    "If this is intentional, add the file to NO_TEST_REQUIRED in scripts/check-coverage.ts",
-  );
-  console.error("");
-  failed = true;
+    console.error(`Missing tests: ${missingTests.length} source file(s) have no test file\n`);
+    for (const srcFile of missingTests) {
+        const testPath = expectedTestPath(srcFile);
+        console.error(`  ${srcFile}`);
+        console.error(`    expected: ${testPath}`);
+    }
+    console.error('');
+    console.error('If this is intentional, add the file to NO_TEST_REQUIRED in scripts/check-coverage.ts');
+    console.error('');
+    failed = true;
 }
 
 if (failed) {
-  process.exit(1);
+    process.exit(1);
 }
 
-console.log(
-  `Coverage gate passed: all source files >= ${THRESHOLD}% and all testable files have tests`,
-);
+console.log(`Coverage gate passed: all source files >= ${THRESHOLD}% and all testable files have tests`);

@@ -1,15 +1,15 @@
 {
-  "name": "@project/core",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "dependencies": {
-    "@cloudflare/workers-types": "^4.20260410.1",
-    "@hono/zod-openapi": "^1.2.0",
-    "@logtape/logtape": "^2.0.0",
-    "drizzle-orm": "^0.45.0",
-    "zod": "^4.3.0"
-  }
+    "name": "@project/core",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "dependencies": {
+        "@cloudflare/workers-types": "^4.20260410.1",
+        "@hono/zod-openapi": "^1.2.0",
+        "@logtape/logtape": "^2.0.0",
+        "drizzle-orm": "^0.45.0",
+        "zod": "^4.3.0"
+    }
 }

@@ -5,44 +5,44 @@
  * Usage: bun run clean-demo
  */
 
-import { existsSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-const ROOT = resolve(import.meta.dir, "..");
+const ROOT = resolve(import.meta.dir, '..');
 
 // ---------------------------------------------------------------------------
 // Files to delete entirely
 // ---------------------------------------------------------------------------
 const DELETE_FILES: string[] = [
-  // Core — skill domain
-  "packages/core/src/schemas/skill.ts",
-  "packages/core/src/services/skill-service.ts",
-  "packages/core/tests/services/skill-service.test.ts",
+    // Core — skill domain
+    'packages/core/src/schemas/skill.ts',
+    'packages/core/src/services/skill-service.ts',
+    'packages/core/tests/services/skill-service.test.ts',
 
-  // CLI — skill commands + tests
-  "apps/cli/src/commands/skill-create.ts",
-  "apps/cli/src/commands/skill-delete.ts",
-  "apps/cli/src/commands/skill-get.ts",
-  "apps/cli/src/commands/skill-list.ts",
-  "apps/cli/tests/commands/skill-create.test.ts",
-  "apps/cli/tests/commands/skill-delete.test.ts",
-  "apps/cli/tests/commands/skill-get.test.ts",
-  "apps/cli/tests/commands/skill-list.test.ts",
+    // CLI — skill commands + tests
+    'apps/cli/src/commands/skill-create.ts',
+    'apps/cli/src/commands/skill-delete.ts',
+    'apps/cli/src/commands/skill-get.ts',
+    'apps/cli/src/commands/skill-list.ts',
+    'apps/cli/tests/commands/skill-create.test.ts',
+    'apps/cli/tests/commands/skill-delete.test.ts',
+    'apps/cli/tests/commands/skill-get.test.ts',
+    'apps/cli/tests/commands/skill-list.test.ts',
 
-  // Server — skill routes + tests
-  "apps/server/src/routes/skills.ts",
-  "apps/server/tests/routes/skills.test.ts",
+    // Server — skill routes + tests
+    'apps/server/src/routes/skills.ts',
+    'apps/server/tests/routes/skills.test.ts',
 ];
 
 // ---------------------------------------------------------------------------
 // File rewrites — strip skill references
 // ---------------------------------------------------------------------------
 const REWRITES: Record<string, string> = {
-  // packages/core/src/db/schema.ts — empty schema file (must be a valid module)
-  "packages/core/src/db/schema.ts": `// Add your Drizzle table definitions here.\nexport {};\n`,
+    // packages/core/src/db/schema.ts — empty schema file (must be a valid module)
+    'packages/core/src/db/schema.ts': `// Add your Drizzle table definitions here.\nexport {};\n`,
 
-  // packages/core/src/config.ts — remove skill constraints
-  "packages/core/src/config.ts": `/**
+    // packages/core/src/config.ts — remove skill constraints
+    'packages/core/src/config.ts': `/**
  * Core package configuration.
  *
  * Compile-time constants and runtime defaults for @project/core.
@@ -60,8 +60,8 @@ export const CORE_CONFIG = {
 } as const;
 `,
 
-  // packages/core/src/index.ts — remove skill exports
-  "packages/core/src/index.ts": `// @project/core — barrel export
+    // packages/core/src/index.ts — remove skill exports
+    'packages/core/src/index.ts': `// @project/core — barrel export
 
 // Config
 export { CORE_CONFIG } from "./config";
@@ -86,8 +86,8 @@ export { getLoggerConfig } from "./logging";
 export type { Result } from "./types/result";
 `,
 
-  // apps/cli/src/index.ts — remove skill commands
-  "apps/cli/src/index.ts": `#!/usr/bin/env bun
+    // apps/cli/src/index.ts — remove skill commands
+    'apps/cli/src/index.ts': `#!/usr/bin/env bun
 import { Writable } from "node:stream";
 import { configure, getConsoleSink, getStreamSink } from "@logtape/logtape";
 import { getLoggerConfig } from "@project/core";
@@ -120,8 +120,8 @@ cli.register(Builtins.VersionCommand);
 cli.runExit(process.argv.slice(2));
 `,
 
-  // apps/server/src/index.ts — remove skill routes
-  "apps/server/src/index.ts": `// @project/server — entry point
+    // apps/server/src/index.ts — remove skill routes
+    'apps/server/src/index.ts': `// @project/server — entry point
 
 import { Writable } from "node:stream";
 import { swaggerUI } from "@hono/swagger-ui";
@@ -204,8 +204,8 @@ export default {
 };
 `,
 
-  // packages/core/tests/test-db.ts — remove skills table DDL
-  "packages/core/tests/test-db.ts": `import { Database } from "bun:sqlite";
+    // packages/core/tests/test-db.ts — remove skills table DDL
+    'packages/core/tests/test-db.ts': `import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "../src/db/schema";
 
@@ -220,8 +220,8 @@ export function createTestDb() {
 }
 `,
 
-  // apps/cli/tests/test-setup.ts — remove skills table DDL
-  "apps/cli/tests/test-setup.ts": `import { getDb } from "@project/core";
+    // apps/cli/tests/test-setup.ts — remove skills table DDL
+    'apps/cli/tests/test-setup.ts': `import { getDb } from "@project/core";
 
 // Add your CREATE TABLE statements here after defining your schema.
 
@@ -239,8 +239,8 @@ export function setupCliTestDb() {
 }
 `,
 
-  // apps/server/tests/index.test.ts — remove skill route test
-  "apps/server/tests/index.test.ts": `import { afterEach, describe, expect, test } from "bun:test";
+    // apps/server/tests/index.test.ts — remove skill route test
+    'apps/server/tests/index.test.ts': `import { afterEach, describe, expect, test } from "bun:test";
 import { createTestDb } from "@project/core/tests/test-db";
 import { createApp } from "../src/index";
 
@@ -305,8 +305,8 @@ describe("server entry", () => {
 });
 `,
 
-  // packages/core/tests/config.test.ts — remove skill constraint test
-  "packages/core/tests/config.test.ts": `import { describe, expect, test } from "bun:test";
+    // packages/core/tests/config.test.ts — remove skill constraint test
+    'packages/core/tests/config.test.ts': `import { describe, expect, test } from "bun:test";
 import { CORE_CONFIG } from "../src/config";
 
 describe("CORE_CONFIG", () => {
@@ -323,8 +323,8 @@ describe("CORE_CONFIG", () => {
 });
 `,
 
-  // packages/core/tests/db/adapters/bun-sqlite.test.ts — remove skills table test
-  "packages/core/tests/db/adapters/bun-sqlite.test.ts": `import { describe, expect, test } from "bun:test";
+    // packages/core/tests/db/adapters/bun-sqlite.test.ts — remove skills table test
+    'packages/core/tests/db/adapters/bun-sqlite.test.ts': `import { describe, expect, test } from "bun:test";
 import { BunSqliteAdapter } from "../../../src/db/adapters/bun-sqlite";
 
 function extractRawSqlite(adapter: BunSqliteAdapter) {
@@ -390,22 +390,22 @@ let removed = 0;
 let rewritten = 0;
 
 for (const rel of DELETE_FILES) {
-  const abs = resolve(ROOT, rel);
-  if (existsSync(abs)) {
-    rmSync(abs);
-    console.log(`  deleted  ${rel}`);
-    removed++;
-  } else {
-    console.log(`  skip     ${rel} (not found)`);
-  }
+    const abs = resolve(ROOT, rel);
+    if (existsSync(abs)) {
+        rmSync(abs);
+        console.log(`  deleted  ${rel}`);
+        removed++;
+    } else {
+        console.log(`  skip     ${rel} (not found)`);
+    }
 }
 
 for (const [rel, content] of Object.entries(REWRITES)) {
-  const abs = resolve(ROOT, rel);
-  writeFileSync(abs, content);
-  console.log(`  rewrote  ${rel}`);
-  rewritten++;
+    const abs = resolve(ROOT, rel);
+    writeFileSync(abs, content);
+    console.log(`  rewrote  ${rel}`);
+    rewritten++;
 }
 
 console.log(`\nDone. Removed ${removed} files, rewrote ${rewritten} files.`);
-console.log("Run `bun run check` to verify everything is clean.");
+console.log('Run `bun run check` to verify everything is clean.');

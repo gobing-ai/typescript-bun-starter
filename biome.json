@@ -1,72 +1,72 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.11/schema.json",
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "css": {
+    "$schema": "https://biomejs.dev/schemas/2.4.11/schema.json",
     "formatter": {
-      "quoteStyle": "double"
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 120
     },
-    "parser": {
-      "cssModules": true,
-      "tailwindDirectives": true
-    }
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "suspicious": {
-        "noExplicitAny": "error"
-      },
-      "complexity": {
-        "noUselessConstructor": "off"
-      }
-    }
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "double",
-      "semicolons": "always",
-      "trailingCommas": "all"
-    }
-  },
-  "files": {
-    "includes": [
-      "**",
-      "!**/dist",
-      "!**/drizzle",
-      "!**/node_modules",
-      "!**/.astro",
-      "!**/apps/server/src/*.js",
-      "!**/apps/server/src/**/*.js"
-    ]
-  },
-  "assist": {
-    "actions": {
-      "source": {
-        "organizeImports": "on"
-      }
-    }
-  },
-  "overrides": [
-    {
-      "includes": ["apps/web/src/**/*.astro"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useConst": "off",
-            "useImportType": "off"
-          },
-          "correctness": {
-            "noUnusedImports": "off",
-            "noUnusedVariables": "off"
-          }
+    "css": {
+        "formatter": {
+            "quoteStyle": "double"
+        },
+        "parser": {
+            "cssModules": true,
+            "tailwindDirectives": true
         }
-      }
-    }
-  ]
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "recommended": true,
+            "suspicious": {
+                "noExplicitAny": "error"
+            },
+            "complexity": {
+                "noUselessConstructor": "off"
+            }
+        }
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "single",
+            "semicolons": "always",
+            "trailingCommas": "all"
+        }
+    },
+    "files": {
+        "includes": [
+            "**",
+            "!**/dist",
+            "!**/drizzle",
+            "!**/node_modules",
+            "!**/.astro",
+            "!**/apps/server/src/*.js",
+            "!**/apps/server/src/**/*.js"
+        ]
+    },
+    "assist": {
+        "actions": {
+            "source": {
+                "organizeImports": "on"
+            }
+        }
+    },
+    "overrides": [
+        {
+            "includes": ["apps/web/src/**/*.astro"],
+            "linter": {
+                "rules": {
+                    "style": {
+                        "useConst": "off",
+                        "useImportType": "off"
+                    },
+                    "correctness": {
+                        "noUnusedImports": "off",
+                        "noUnusedVariables": "off"
+                    }
+                }
+            }
+        }
+    ]
 }

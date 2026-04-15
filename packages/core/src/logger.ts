@@ -1,3 +1,3 @@
-import { getLogger } from "@logtape/logtape";
+import { getLogger } from '@logtape/logtape';
 
-export const logger = getLogger(["tbs"]);
+export const logger = getLogger(['tbs']);
