@@ -1,11 +1,11 @@
 {
-    "name": "@project/cli",
+    "name": "@starter/cli",
     "version": "0.1.0",
     "private": true,
     "type": "module",
     "dependencies": {
         "@logtape/logtape": "^2.0.5",
-        "@project/core": "workspace:*",
+        "@starter/core": "workspace:*",
         "clipanion": "^4.0.0-rc.4"
     }
 }
