@@ -51,7 +51,9 @@ describe("SkillDeleteCommand", () => {
     const createCommand = processCreate(
       cli,
       ["skill", "create", "--name", "prompt-delete-test", "--json"],
-      { stdout: createChunks },
+      {
+        stdout: createChunks,
+      },
     );
     await createCommand.execute();
     const created = JSON.parse(createChunks.join("")) as { id: string };
@@ -82,7 +84,9 @@ describe("SkillDeleteCommand", () => {
     const createCommand = processCreate(
       cli,
       ["skill", "create", "--name", "cancel-delete-test", "--json"],
-      { stdout: createChunks },
+      {
+        stdout: createChunks,
+      },
     );
     await createCommand.execute();
     const created = JSON.parse(createChunks.join("")) as { id: string };
@@ -150,7 +154,9 @@ describe("SkillDeleteCommand", () => {
     const createCommand = processCreate(
       cli,
       ["skill", "create", "--name", "delete-test", "--json"],
-      { stdout: createChunks },
+      {
+        stdout: createChunks,
+      },
     );
     await createCommand.execute();
     const created = JSON.parse(createChunks.join(""));
@@ -189,7 +195,9 @@ describe("SkillDeleteCommand", () => {
     const createCommand = processCreate(
       cli,
       ["skill", "create", "--name", "human-del-test", "--json"],
-      { stdout: createChunks },
+      {
+        stdout: createChunks,
+      },
     );
     await createCommand.execute();
     const created = JSON.parse(createChunks.join(""));
