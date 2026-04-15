@@ -89,7 +89,9 @@ describe("SkillListCommand", () => {
     const createCommand = processCreate(
       cli,
       ["skill", "create", "--name", "json-list-test", "--json"],
-      { stdout: createChunks },
+      {
+        stdout: createChunks,
+      },
     );
     await createCommand.execute();
 
