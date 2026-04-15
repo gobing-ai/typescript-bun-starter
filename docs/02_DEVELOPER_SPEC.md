@@ -372,7 +372,7 @@ app.route("/api", taskRoutes);
 | Interfaces for objects | `interface Foo { ... }` |
 | Types for unions | `type Status = "pending" \| "done"` |
 | Barrel exports | Each package has `src/index.ts` exporting the public API |
-| Path aliases | `@starter/core` resolves via workspace protocol |
+| Path aliases | `@starter/contracts` and `@starter/core` resolve via workspace protocol |
 
 **Alternatives to `as any`**:
 
@@ -825,10 +825,12 @@ FROM oven/bun:1 AS base
 WORKDIR /app
 
 COPY package.json bun.lock ./
+COPY packages/contracts/package.json packages/contracts/
 COPY packages/core/package.json packages/core/
 COPY apps/server/package.json apps/server/
 RUN bun install --frozen-lockfile --production
 
+COPY packages/contracts packages/contracts
 COPY packages/core packages/core
 COPY apps/server apps/server
 
