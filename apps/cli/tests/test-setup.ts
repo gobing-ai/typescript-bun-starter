@@ -1,5 +1,5 @@
 import type { Database } from 'bun:sqlite';
-import { getDb } from '@project/core';
+import { getDb } from '@starter/core';
 
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS skills (
