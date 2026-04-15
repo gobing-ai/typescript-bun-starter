@@ -16,5 +16,5 @@
 
 - Do not import server-only code or database code into the web app.
 - Keep data access in `src/lib/` or dedicated client helpers, not scattered across UI files.
-- Prefer shared types from `@starter/core` when crossing API boundaries.
+- Prefer shared types from `@starter/contracts` when crossing API boundaries.
 - UI components should stay presentation-focused; data fetching and transport details belong in client helpers or page-level orchestration.
