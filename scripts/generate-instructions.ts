@@ -132,6 +132,7 @@ function toBullets(items: string[]): string {
 }
 
 function resolvePlaceholders(items: string[]): string[] {
+    const workspaceContractsPackage = contract.requiredWorkspaces['packages/contracts'];
     const workspaceCorePackage = contract.requiredWorkspaces['packages/core'];
     const workspacePackagePattern = workspaceCorePackage.endsWith('/core')
         ? `${workspaceCorePackage.slice(0, -'/core'.length)}/<name>`
@@ -140,6 +141,7 @@ function resolvePlaceholders(items: string[]): string[] {
     return items.map((item) =>
         item
             .replaceAll('{{displayName}}', projectIdentity.displayName)
+            .replaceAll('{{workspaceContractsPackage}}', workspaceContractsPackage)
             .replaceAll('{{workspaceCorePackage}}', workspaceCorePackage)
             .replaceAll('{{workspacePackagePattern}}', workspacePackagePattern),
     );
