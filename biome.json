@@ -6,6 +6,15 @@
     "indentWidth": 2,
     "lineWidth": 100
   },
+  "css": {
+    "formatter": {
+      "quoteStyle": "double"
+    },
+    "parser": {
+      "cssModules": true,
+      "tailwindDirectives": true
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
@@ -26,7 +35,15 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/drizzle", "!**/node_modules"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/drizzle",
+      "!**/node_modules",
+      "!**/.astro",
+      "!**/apps/server/src/*.js",
+      "!**/apps/server/src/**/*.js"
+    ]
   },
   "assist": {
     "actions": {
@@ -34,5 +51,17 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/web/src/**/*.astro"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": "off"
+          }
+        }
+      }
+    }
+  ]
 }
