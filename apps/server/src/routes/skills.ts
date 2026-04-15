@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
-import type { Database, Skill } from '@project/core';
-import { isAppError, SkillService, skillInsertSchema, skillSelectSchema, skillUpdateSchema } from '@project/core';
+import type { Database, Skill } from '@starter/core';
+import { isAppError, SkillService, skillInsertSchema, skillSelectSchema, skillUpdateSchema } from '@starter/core';
 import type { Context } from 'hono';
 
 // ---------------------------------------------------------------------------
