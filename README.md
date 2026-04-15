@@ -1,15 +1,21 @@
 # TypeScript Bun Starter
 
-A production-ready monorepo starter for building **CLI**, **CLI + API**, or **CLI + API + Web** projects with TypeScript and Bun.
+A production-ready monorepo starter for building **CLI**, **CLI + API**, or
+**CLI + API + Web** projects with TypeScript and Bun.
 
 ## What You Get
 
-- **`packages/core`** -- Shared business logic, database layer (Drizzle ORM + SQLite), validation (Zod), and services
+- **`packages/core`** -- Shared business logic, database layer (Drizzle ORM + SQLite/D1),
+  validation (Zod), logging helpers, and services
 - **`apps/cli`** -- Type-safe CLI via Clipanion with dual-mode output (human + `--json`)
-- **`apps/server`** -- REST API with auto-generated OpenAPI docs (Hono + Swagger UI)
-- **Biome** for linting/formatting, **LogTape** for logging, **strict TypeScript** throughout
+- **`apps/server`** -- REST API with auto-generated OpenAPI docs (Hono + Swagger UI),
+  health endpoints, and optional static serving for the built web app
+- **`apps/web`** -- Astro 5 web app with React islands, Tailwind CSS v4, and a shared
+  typed API client
+- **Biome**, **LogTape**, and **strict TypeScript** throughout
 
-The project ships with a working "skills" CRUD example across all three tiers. Replace it with your own domain.
+The project ships with a working "skills" CRUD example for the CLI and API tiers, plus an
+Astro dashboard that demonstrates React islands and a typed health check call.
 
 ## Quick Start
 
@@ -35,6 +41,27 @@ The starter ships with a "skills" CRUD demo across all three tiers. Remove it to
 bun run clean-demo
 ```
 
+## Local Development
+
+```bash
+# API server only
+bun run dev:server
+
+# Web app only (expects the API server on localhost:3000)
+bun run dev:web
+
+# Both together
+bun run dev:all
+```
+
+Notes:
+
+- `bun run dev:web` starts Astro on `http://localhost:4321`
+- During web development, `/api/*` is proxied to `http://localhost:3000`
+- `bun run dev:all` is the simplest way to use the web dashboard against the local API
+- To serve the built web app from the Bun server on port `3000`, run
+  `bun run build:web && bun run dev:server`
+
 ### Try the CLI Demo
 
 ```bash
@@ -49,109 +76,63 @@ bun run dev:cli -- skill delete --id <id> --json
 ```bash
 bun run dev:server
 # http://localhost:3000/api/skills
+# http://localhost:3000/api/health  (JSON health envelope)
+# http://localhost:3000/            (simple health JSON)
 # http://localhost:3000/swagger    (Swagger UI)
 # http://localhost:3000/doc        (OpenAPI JSON)
 ```
 
-## Customization Guide
-
-### Tier 1: CLI Only
-
-If you only need a CLI tool, ignore `apps/server/` entirely.
-
-1. **Define your database schema** in `packages/core/src/db/schema.ts`
-2. **Write Zod schemas** in `packages/core/src/schemas/` (validation + OpenAPI metadata)
-3. **Build your service** in `packages/core/src/services/` (returns `Result<T>` for typed errors)
-4. **Add CLI commands** in `apps/cli/src/commands/` (each command is a Clipanion class)
-5. **Register commands** in `apps/cli/src/index.ts`
-
-```typescript
-// apps/cli/src/commands/my-command.ts
-import { Command, Option } from "clipanion";
-
-export class MyCommand extends Command {
-  constructor() { super(); }
-
-  static paths = [["my", "command"]];
-  json = Option.Boolean("--json", false, {});
-
-  async execute() {
-    const service = new MyService();
-    const result = await service.doSomething();
-    if (!result.ok) {
-      this.context.stderr.write(`Error: ${result.error.message}\n`);
-      return 1;
-    }
-    if (this.json) {
-      this.context.stdout.write(`${JSON.stringify(result.data)}\n`);
-    } else {
-      this.context.stdout.write(`Done!\n`);
-    }
-    return 0;
-  }
-}
-```
-
-Compile to a standalone binary:
+### Try the Web Demo
 
 ```bash
-bun run build:cli    # outputs dist/tbs
+bun run dev:all
+# http://localhost:4321/
+# http://localhost:4321/dashboard
 ```
 
-### Tier 2: CLI + API
+The dashboard includes a `Check Healthy` button that calls the shared web API client,
+hits `/api/health` through the Astro dev proxy, and renders the typed health payload.
 
-Add routes in `apps/server/src/routes/` using `@hono/zod-openapi`:
+## Removing Optional Tiers
 
-```typescript
-// apps/server/src/routes/my-route.ts
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { MyService, mySelectSchema } from "@project/core";
+### Keep CLI + API, remove the web app
 
-const app = new OpenAPIHono();
-const service = new MyService();
+```bash
+rm -rf apps/web
 
-const listRoute = createRoute({
-  method: "get",
-  path: "/items",
-  responses: {
-    200: {
-      content: { "application/json": { schema: z.object({ data: z.array(mySelectSchema) }) } },
-      description: "List items",
-    },
-  },
-});
+bun --eval 'const fs = require("node:fs"); const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); delete pkg.scripts["dev:web"]; delete pkg.scripts["build:web"]; delete pkg.scripts["dev:all"]; fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");'
 
-app.openapi(listRoute, async (c) => {
-  const result = await service.list();
-  if (!result.ok) return c.json({ error: result.error.message }, 500);
-  return c.json({ data: result.data }, 200);
-});
-
-export default app;
+bun run check
 ```
 
-Mount in `apps/server/src/index.ts`:
+Optional cleanup:
 
-```typescript
-app.route("/api", myRoutes);
+- Remove the static serving block from `apps/server/src/index.ts` if you want a pure API server
+- Remove web-related notes from your own project docs once you decide the web tier is gone
+
+### Keep CLI only, remove the API and web tiers
+
+```bash
+rm -rf apps/server apps/web
+
+bun --eval 'const fs = require("node:fs"); const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); delete pkg.scripts["dev:server"]; delete pkg.scripts["dev:web"]; delete pkg.scripts["dev:all"]; delete pkg.scripts["build:web"]; fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");'
+
+bun run check
 ```
 
-### Tier 3: CLI + API + Web
+### Keep the web app but remove the local API
 
-Add Hono JSX views in `apps/server/src/views/` and enable JSX in `apps/server/tsconfig.json`:
+That is possible, but the current web demo assumes a backend is available at `/api`.
+If you want to keep `apps/web` and remove `apps/server`, do this first:
 
-```json
-{
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx"
-  }
-}
-```
+1. Set `PUBLIC_API_URL` to your external backend
+2. Update `apps/web/src/pages/dashboard.astro` if you do not want the local `Check Healthy` demo
+3. Remove `dev:server` and `dev:all` from `package.json`
 
 ## Adding a New Domain
 
-Follow the pattern established by the "skills" example (or run `bun run clean-demo` first, then build from scratch):
+Follow the pattern established by the "skills" example, or run `bun run clean-demo`
+first and build your own domain from scratch:
 
 1. **Schema** -- `packages/core/src/db/schema.ts` (add table)
 2. **Validation** -- `packages/core/src/schemas/my-domain.ts` (Zod + `.openapi()`)
@@ -159,7 +140,9 @@ Follow the pattern established by the "skills" example (or run `bun run clean-de
 4. **Export** -- `packages/core/src/index.ts` (barrel export)
 5. **CLI** -- `apps/cli/src/commands/my-*.ts` (4 commands: create, list, get, delete)
 6. **API** -- `apps/server/src/routes/my-domain.ts` (OpenAPI routes)
-7. **Tests** -- `tests/` at package root (in-memory SQLite for unit tests)
+7. **Web (optional)** -- `apps/web/src/pages/`, `apps/web/src/components/`, and
+   `apps/web/src/lib/api-client.ts`
+8. **Tests** -- `tests/` at package root (in-memory SQLite for unit tests)
 
 ## Commands
 
@@ -173,6 +156,9 @@ bun run db:push        # push schema to dev database
 bun run db:generate    # generate migration files
 bun run dev:cli        # run CLI in dev mode
 bun run dev:server     # run API with hot reload
+bun run dev:web        # run Astro web app on localhost:4321
+bun run dev:all        # run API + web together for local development
+bun run build:web      # build Astro web app into apps/web/dist
 bun run build:cli      # compile CLI to standalone binary
 bun run clean-demo     # remove "skills" demo code, leaving clean skeleton
 bun run pub2npmjs      # publish to npm
@@ -188,6 +174,7 @@ bun run pub2npmjs      # publish to npm
 | Validation | Zod (`@hono/zod-openapi`) |
 | CLI | Clipanion |
 | API | Hono + OpenAPI |
+| Web | Astro 5 + React islands + Tailwind CSS v4 |
 | Lint/Format | Biome |
 | Logging | LogTape |
 
