@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Writable } from 'node:stream';
 import { configure, getConsoleSink, getStreamSink } from '@logtape/logtape';
-import { getLoggerConfig } from '@project/core';
+import { getLoggerConfig } from '@starter/core';
 import { Builtins, Cli } from 'clipanion';
 
 import { SkillCreateCommand } from './commands/skill-create';
