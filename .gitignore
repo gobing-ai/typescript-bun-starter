@@ -30,5 +30,6 @@ coverage/
 # Bun
 *.lockb
 
+.astro/
 /docs/.workflow-runs
 /docs/tasks/kanban.md
