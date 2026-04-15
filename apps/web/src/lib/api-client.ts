@@ -21,6 +21,25 @@ export interface ApiError {
   details?: unknown;
 }
 
+function unwrapResponseData<T>(payload: unknown): T | undefined {
+  if (payload && typeof payload === "object" && "data" in payload) {
+    return (payload as { data?: T }).data;
+  }
+
+  return payload as T | undefined;
+}
+
+function getErrorMessage(payload: unknown, fallback: string): string {
+  if (payload && typeof payload === "object" && "error" in payload) {
+    const error = payload.error;
+    if (typeof error === "string" && error.length > 0) {
+      return error;
+    }
+  }
+
+  return fallback;
+}
+
 /**
  * Creates a typed fetch wrapper for API calls.
  */
@@ -41,19 +60,19 @@ export function createApiClient(baseUrl: string = "") {
         },
       });
 
-      let data: Record<string, unknown> = {};
+      let payload: unknown;
       const text = await response.text().catch(() => "");
       if (text) {
         try {
-          data = JSON.parse(text);
+          payload = JSON.parse(text);
         } catch {
-          // Not JSON, ignore
+          payload = text;
         }
       }
 
       return {
-        data: response.ok ? (data as T) : undefined,
-        error: response.ok ? undefined : (data.error as string) || response.statusText,
+        data: response.ok ? unwrapResponseData<T>(payload) : undefined,
+        error: response.ok ? undefined : getErrorMessage(payload, response.statusText),
         status: response.status,
       };
     } catch (err) {
