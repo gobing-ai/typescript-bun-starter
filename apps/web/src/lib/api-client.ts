@@ -1,6 +1,6 @@
 /**
  * API client for the web application.
- * Uses shared types from @typescript-bun-starter/core for type-safe API calls.
+ * Uses shared types from @project/core for type-safe API calls.
  */
 
 export interface ApiResponse<T> {
