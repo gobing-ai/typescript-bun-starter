@@ -1,11 +1,14 @@
 // @project/server — entry point
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Writable } from "node:stream";
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { configure, getStreamSink } from "@logtape/logtape";
 import type { Database, DbAdapterConfig } from "@project/core";
 import { createDbAdapter, getLoggerConfig } from "@project/core";
+import { serveStatic } from "hono/bun";
 import { SERVER_CONFIG } from "./config";
 import { authMiddleware } from "./middleware/auth";
 import { errorHandler } from "./middleware/error";
@@ -64,6 +67,29 @@ export function createApp(localDb: Database) {
 
   // Health check
   app.get("/", (c) => c.json({ status: "ok" }));
+
+  // Serve static files from Astro build output (apps/web/dist/)
+  const staticPath = join(process.cwd(), "..", "web", "dist");
+  app.use("/*", serveStatic({ root: staticPath, rewriteRequestPath: (p) => p }));
+
+  // SPA fallback — serve index.html for non-API routes
+  app.use("/*", async (c, next) => {
+    const path = c.req.path;
+    // Skip API routes and assets
+    if (path.startsWith("/api") || path.includes(".")) {
+      return next();
+    }
+    // Let serveStatic handle existing files, fallback to index.html
+    try {
+      const indexPath = join(staticPath, "index.html");
+      const content = readFileSync(indexPath);
+      return c.body(new Uint8Array(content), 200, {
+        "Content-Type": "text/html; charset=utf-8",
+      });
+    } catch {
+      return next();
+    }
+  });
 
   return app;
 }
