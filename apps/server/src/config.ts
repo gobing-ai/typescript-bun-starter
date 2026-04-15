@@ -1,7 +1,7 @@
 /**
  * Server package configuration.
  *
- * Typed runtime config for @project/server. Environment-dependent values
+ * Typed runtime config for @starter/server. Environment-dependent values
  * are resolved at startup and frozen into this object.
  */
 export const SERVER_CONFIG = {
