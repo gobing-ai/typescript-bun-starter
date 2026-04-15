@@ -210,7 +210,7 @@ export type { Task, NewTask } from "./schemas/task";
 ```typescript
 // apps/cli/src/commands/task-create.ts
 import { Command, Option } from "clipanion";
-import { TaskService } from "@project/core";
+import { TaskService } from "@starter/core";
 
 export class TaskCreateCommand extends Command {
   // Explicit constructor required for V8 function coverage reporting
@@ -277,7 +277,7 @@ export class TaskCreateCommand extends Command {
 ```typescript
 // apps/server/src/routes/tasks.ts
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { TaskService, taskSelectSchema, taskInsertSchema } from "@project/core";
+import { TaskService, taskSelectSchema, taskInsertSchema } from "@starter/core";
 
 const app = new OpenAPIHono();
 const service = new TaskService();
@@ -372,7 +372,7 @@ app.route("/api", taskRoutes);
 | Interfaces for objects | `interface Foo { ... }` |
 | Types for unions | `type Status = "pending" \| "done"` |
 | Barrel exports | Each package has `src/index.ts` exporting the public API |
-| Path aliases | `@project/core` resolves via workspace protocol |
+| Path aliases | `@starter/core` resolves via workspace protocol |
 
 **Alternatives to `as any`**:
 
@@ -425,7 +425,7 @@ Enforced by Biome. Key settings:
 ### 4.4 Logging
 
 - **Never** use `console.log/warn/error` in library or application code.
-- Use `logger` from `@project/core` (backed by LogTape).
+- Use `logger` from `@starter/core` (backed by LogTape).
 - Use structured logging with named placeholders:
 
 ```typescript
