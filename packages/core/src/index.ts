@@ -1,4 +1,4 @@
-// @project/core — barrel export
+// @starter/core — barrel export
 
 // Config
 export { CORE_CONFIG } from './config';
