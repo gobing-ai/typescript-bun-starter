@@ -23,4 +23,4 @@ passWithNoTests = true
 # NOTE: coverageExclude does NOT work for dynamically imported files in Bun 1.3.11.
 # Worker threads spawned by import() have their coverage tracked globally and
 # coverageExclude patterns don't apply to them. This is a known Bun limitation.
-coverageThreshold = 0.9
+# coverageThreshold is managed by scripts/check-coverage.ts instead
