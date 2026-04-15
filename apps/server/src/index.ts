@@ -1,4 +1,4 @@
-// @project/server — entry point
+// @starter/server — entry point
 
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -6,8 +6,8 @@ import { Writable } from 'node:stream';
 import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
-import type { Database, DbAdapterConfig } from '@project/core';
-import { createDbAdapter, getLoggerConfig } from '@project/core';
+import type { Database, DbAdapterConfig } from '@starter/core';
+import { createDbAdapter, getLoggerConfig } from '@starter/core';
 import { serveStatic } from 'hono/bun';
 import { SERVER_CONFIG } from './config';
 import { authMiddleware } from './middleware/auth';
