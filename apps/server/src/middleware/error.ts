@@ -1,4 +1,4 @@
-import { isAppError, logger } from '@project/core';
+import { isAppError, logger } from '@starter/core';
 import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
