@@ -28,6 +28,7 @@
         "@hono/swagger-ui": "^0.6.0",
         "@hono/zod-openapi": "^1.2.0",
         "@logtape/logtape": "^2.0.5",
+        "@starter/contracts": "workspace:*",
         "@starter/core": "workspace:*",
         "hono": "^4.12.0",
       },
@@ -50,13 +51,13 @@
       "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
       },
-      "peerDependencies": {
-        "@starter/core": "workspace:*",
-      },
     },
     "packages/contracts": {
       "name": "@starter/contracts",
       "version": "0.1.0",
+      "dependencies": {
+        "zod": "^4.0.0",
+      },
     },
     "packages/core": {
       "name": "@starter/core",
@@ -65,6 +66,7 @@
         "@cloudflare/workers-types": "^4.20260410.1",
         "@hono/zod-openapi": "^1.2.0",
         "@logtape/logtape": "^2.0.0",
+        "@starter/contracts": "workspace:*",
         "drizzle-orm": "^0.45.0",
         "zod": "^4.3.0",
       },
@@ -317,16 +319,6 @@
 
     "@poppinss/exception": ["@poppinss/exception@1.2.3", "", {}, "sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw=="],
 
-    "@starter/cli": ["@starter/cli@workspace:apps/cli"],
-
-    "@starter/contracts": ["@starter/contracts@workspace:packages/contracts"],
-
-    "@starter/core": ["@starter/core@workspace:packages/core"],
-
-    "@starter/server": ["@starter/server@workspace:apps/server"],
-
-    "@starter/web": ["@starter/web@workspace:apps/web"],
-
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-beta.27", "", {}, "sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA=="],
 
     "@rollup/pluginutils": ["@rollup/pluginutils@5.3.0", "", { "dependencies": { "@types/estree": "^1.0.0", "estree-walker": "^2.0.2", "picomatch": "^4.0.2" }, "peerDependencies": { "rollup": "^1.20.0||^2.0.0||^3.0.0||^4.0.0" }, "optionalPeers": ["rollup"] }, "sha512-5EdhGZtnu3V88ces7s53hhfK5KSASnJZv8Lulpc04cWO3REESroJXg73DFsOmgbU2BhwV0E20bu2IDZb3VKW4Q=="],
@@ -398,6 +390,16 @@
     "@sindresorhus/is": ["@sindresorhus/is@7.2.0", "", {}, "sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw=="],
 
     "@speed-highlight/core": ["@speed-highlight/core@1.2.15", "", {}, "sha512-BMq1K3DsElxDWawkX6eLg9+CKJrTVGCBAWVuHXVUV2u0s2711qiChLSId6ikYPfxhdYocLNt3wWwSvDiTvFabw=="],
+
+    "@starter/cli": ["@starter/cli@workspace:apps/cli"],
+
+    "@starter/contracts": ["@starter/contracts@workspace:packages/contracts"],
+
+    "@starter/core": ["@starter/core@workspace:packages/core"],
+
+    "@starter/server": ["@starter/server@workspace:apps/server"],
+
+    "@starter/web": ["@starter/web@workspace:apps/web"],
 
     "@tailwindcss/node": ["@tailwindcss/node@4.2.2", "", { "dependencies": { "@jridgewell/remapping": "^2.3.5", "enhanced-resolve": "^5.19.0", "jiti": "^2.6.1", "lightningcss": "1.32.0", "magic-string": "^0.30.21", "source-map-js": "^1.2.1", "tailwindcss": "4.2.2" } }, "sha512-pXS+wJ2gZpVXqFaUEjojq7jzMpTGf8rU6ipJz5ovJV6PUGmlJ+jvIwGrzdHdQ80Sg+wmQxUFuoW1UAAwHNEdFA=="],
 
