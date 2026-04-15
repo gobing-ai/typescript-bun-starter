@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### New Features
 
 - **`bun run bootstrap`**: Contract-aware project identity rewrite for spawned repos, covering package names, workspace imports, generated instruction files, and starter copy
-- **Monorepo starter**: Production-ready TypeScript + Bun monorepo with three tiers — shared core (`packages/core`), CLI (`apps/cli`), and API server (`apps/server`)
+- **Monorepo starter**: Production-ready TypeScript + Bun monorepo with shared contracts (`packages/contracts`), shared core (`packages/core`), CLI (`apps/cli`), and API server (`apps/server`)
 - **Skills CRUD demo**: Working example across all three tiers demonstrating schema, service, CLI commands, and OpenAPI routes
 - **`bun run clean-demo`**: One-command cleanup to strip the demo code and leave a clean skeleton for your own domain
 - **`bun run pub2npmjs`**: Publish the project to npm as `@gobing-ai/typescript-bun-starter`
