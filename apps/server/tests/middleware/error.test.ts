@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { ConflictError, InternalError, NotFoundError, ValidationError } from '@project/core';
+import { ConflictError, InternalError, NotFoundError, ValidationError } from '@starter/core';
 import { errorHandler } from '../../src/middleware/error';
 
 describe('errorHandler', () => {
