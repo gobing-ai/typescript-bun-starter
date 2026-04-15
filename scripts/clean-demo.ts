@@ -45,7 +45,7 @@ const REWRITES: Record<string, string> = {
     'packages/core/src/config.ts': `/**
  * Core package configuration.
  *
- * Compile-time constants and runtime defaults for @project/core.
+ * Compile-time constants and runtime defaults for @starter/core.
  */
 export const CORE_CONFIG = {
   /** Default SQLite database path when DATABASE_URL is not set */
@@ -61,7 +61,7 @@ export const CORE_CONFIG = {
 `,
 
     // packages/core/src/index.ts — remove skill exports
-    'packages/core/src/index.ts': `// @project/core — barrel export
+    'packages/core/src/index.ts': `// @starter/core — barrel export
 
 // Config
 export { CORE_CONFIG } from "./config";
@@ -90,7 +90,7 @@ export type { Result } from "./types/result";
     'apps/cli/src/index.ts': `#!/usr/bin/env bun
 import { Writable } from "node:stream";
 import { configure, getConsoleSink, getStreamSink } from "@logtape/logtape";
-import { getLoggerConfig } from "@project/core";
+import { getLoggerConfig } from "@starter/core";
 import { Builtins, Cli } from "clipanion";
 
 import { CLI_CONFIG } from "./config";
@@ -121,14 +121,14 @@ cli.runExit(process.argv.slice(2));
 `,
 
     // apps/server/src/index.ts — remove skill routes
-    'apps/server/src/index.ts': `// @project/server — entry point
+    'apps/server/src/index.ts': `// @starter/server — entry point
 
 import { Writable } from "node:stream";
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { configure, getStreamSink } from "@logtape/logtape";
-import type { Database, DbAdapterConfig } from "@project/core";
-import { createDbAdapter, getLoggerConfig } from "@project/core";
+import type { Database, DbAdapterConfig } from "@starter/core";
+import { createDbAdapter, getLoggerConfig } from "@starter/core";
 import { SERVER_CONFIG } from "./config";
 import { authMiddleware } from "./middleware/auth";
 import { errorHandler } from "./middleware/error";
@@ -221,7 +221,7 @@ export function createTestDb() {
 `,
 
     // apps/cli/tests/test-setup.ts — remove skills table DDL
-    'apps/cli/tests/test-setup.ts': `import { getDb } from "@project/core";
+    'apps/cli/tests/test-setup.ts': `import { getDb } from "@starter/core";
 
 // Add your CREATE TABLE statements here after defining your schema.
 
@@ -241,7 +241,7 @@ export function setupCliTestDb() {
 
     // apps/server/tests/index.test.ts — remove skill route test
     'apps/server/tests/index.test.ts': `import { afterEach, describe, expect, test } from "bun:test";
-import { createTestDb } from "@project/core/tests/test-db";
+import { createTestDb } from "@starter/core/tests/test-db";
 import { createApp } from "../src/index";
 
 const cleanupFns: Array<() => void> = [];
