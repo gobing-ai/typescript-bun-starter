@@ -51,6 +51,11 @@ Provide a production-ready project starter that streamlines development of AI ag
 +-- bun.lock
 |
 +-- packages/
+|   +-- contracts/            # @starter/contracts -- transport-safe shared contracts
+|   |   +-- package.json
+|   |   +-- tsconfig.json
+|   |   +-- src/
+|   |       +-- index.ts      # Public transport contract barrel export
 |   +-- core/                 # @starter/core -- business logic + data
 |       +-- package.json
 |       +-- tsconfig.json
@@ -155,18 +160,36 @@ Root `package.json`:
 ### 3.3 Package Dependencies
 
 ```
-@starter/cli ----depends-on----> @starter/core
-@starter/server --depends-on----> @starter/core
-@starter/core --depends-on----> bun:sqlite (built-in, local adapter)
-                            ---> drizzle-orm/d1 (D1 adapter, optional)
+@starter/contracts --owns---> cross-tier DTOs, API envelopes, error codes, transport-safe types
+                      (runtime-light, no internal workspace dependencies)
+
+@starter/core --depends-on--> @starter/contracts
+            --owns-----> domain services, business rules, persistence adapters, DB schemas
+
+@starter/cli ------depends-on----> @starter/contracts, @starter/core
+@starter/server ---depends-on----> @starter/contracts, @starter/core
+@starter/web ------depends-on----> @starter/contracts, @starter/core
+
+[app workspaces] ----must-not----> [other app workspaces]
 ```
+
+**Dependency rules** (enforced by `scripts/check-contracts.ts`):
+
+| Consumer | Can depend on |
+|----------|---------------|
+| `@starter/contracts` | nothing (runtime-light, transport-safe only) |
+| `@starter/core` | `@starter/contracts` |
+| `@starter/cli` | `@starter/contracts`, `@starter/core` |
+| `@starter/server` | `@starter/contracts`, `@starter/core` |
+| `@starter/web` | `@starter/contracts`, `@starter/core` |
 
 Cross-package references use `workspace:*` protocol:
 
 ```json
 {
-  "name": "@starter/cli",
+  "name": "@starter/server",
   "dependencies": {
+    "@starter/contracts": "workspace:*",
     "@starter/core": "workspace:*"
   }
 }
@@ -899,6 +922,7 @@ Target: Under 90MB including Bun runtime. Cross-compilation supported via `--tar
 
 | Feature | CLI-only | CLI + API | CLI + API + Web |
 |---------|----------|-----------|-----------------|
+| `packages/contracts` | Yes | Yes | Yes |
 | `packages/core` | Yes | Yes | Yes |
 | `apps/cli` | Yes | Yes | Yes |
 | `apps/server` (API routes) | No | Yes | Yes |
