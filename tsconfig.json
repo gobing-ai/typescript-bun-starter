@@ -1,9 +1,14 @@
 {
     "compilerOptions": {
+        "baseUrl": ".",
         "strict": true,
         "target": "ESNext",
         "module": "ESNext",
         "moduleResolution": "bundler",
+        "paths": {
+            "@starter/contracts": ["packages/contracts/src/index.ts"],
+            "@starter/core": ["packages/core/src/index.ts"]
+        },
         "jsx": "react-jsx",
         "jsxImportSource": "react",
         "esModuleInterop": true,
