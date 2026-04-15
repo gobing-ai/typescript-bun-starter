@@ -1,77 +1,73 @@
-# AGENTS.md — TypeScript Bun Starter
+# AGENTS.md -- TypeScript Bun Starter
 
-## Test Directory Convention
+## Purpose
 
-All unit tests MUST use **co-located `tests/` at the package root**, NOT `__tests__/` inside `src/`.
+This file is the repo-wide execution contract for agentic changes.
 
-**Why:** Keeps `src/` clean, scales well in monorepos, and test structure mirrors source structure without interleaving.
+- Keep this file concise and broadly applicable.
+- Put subtree-specific rules in nested `AGENTS.md` files.
+- Put deterministic policy in `contracts/project-contracts.json` and enforce it in `scripts/check-contracts.ts`.
+- If you change structure, naming, or workspace boundaries, update `AGENTS.md` and `contracts/project-contracts.json` in the same patch.
 
-### Directory Layout
+## Scope And Precedence
 
-```
-packages/core/
-  src/
-    services/skill-service.ts
-    db/adapter.ts
-  tests/
-    services/skill-service.test.ts
-    db/adapter.test.ts
-apps/cli/
-  src/
-    commands/skill-create.ts
-  tests/
-    commands/skill-create.test.ts
-apps/server/
-  src/
-    routes/skills.ts
-    middleware/auth.ts
-  tests/
-    routes/skills.test.ts
-    middleware/auth.test.ts
-```
+- This file applies to the entire repository unless a deeper `AGENTS.md` overrides part of it.
+- Nested `AGENTS.md` files under `packages/core`, `apps/cli`, `apps/server`, and `apps/web` are authoritative for those subtrees.
+- Treat `docs/01_ARCHITECTURE_SPEC.md` and `docs/02_DEVELOPER_SPEC.md` as canonical references for examples and rationale, not as substitutes for this contract.
 
-### Rules
+## Mandatory Verification
 
-- **NEVER** use `__tests__/` directories inside `src/`
-- **NEVER** place `.test.ts` files alongside source files in `src/`
-- Test files go in `tests/` at the workspace root, mirroring the `src/` directory structure
-- Import paths from tests to source use `../../src/...` (or appropriate depth)
-
-## No `any` Types
-
-**NEVER** use `// biome-ignore lint/suspicious/noExplicitAny` to suppress the `any` lint rule.
-
-**Why:** Defeats the purpose of type safety. Fix the code instead.
-
-### Alternatives
-
-| Situation | Instead of `any` | Use |
-|-----------|-------------------|-----|
-| Accessing internal APIs | `(x as any).prop` | `Reflect.get(x, "prop")` |
-| Mock objects for third-party types | `mock as any` | `mock as unknown as TargetType` |
-| Hono handler return types | `Promise<any>` | Remove explicit annotation, let TS infer from `c.json()` |
-| Test utilities overriding context | `context = { ... } as any` | Use the library's native context parameter |
-
-## Tech Stack
-
-- **Runtime:** Bun.js
-- **Language:** TypeScript (strict mode)
-- **Linter/Formatter:** Biome v2.x
-- **ORM:** Drizzle ORM with sqlite-core schemas
-- **Framework:** Hono + @hono/zod-openapi
-- **CLI:** Clipanion 4.0.0-rc.4
-- **Logger:** LogTape
-
-## Commands
+After any intentional repo change, run:
 
 ```bash
-bun run check         # lint + typecheck + test with coverage gate
-bun run test          # full test suite with lcov + coverage gate
-bun run typecheck     # tsc --noEmit
-bun run format        # biome format --write
-bun run lint-fix      # biome lint --write
+bun run check
 ```
 
-## Coverage Gate
+`bun run check` is the definition-of-done gate for this starter. It must cover linting, contract checks, type checking, tests, and coverage.
 
-Per-file line coverage >= 90%. Configured in `scripts/check-coverage.ts`.
+## Repository Contract
+
+- `packages/core` is the shared domain and data layer.
+- `apps/cli`, `apps/server`, and `apps/web` are optional interface tiers built on top of `@project/core`.
+- Existing workspace package names must follow `@project/<name>`.
+- Cross-workspace dependencies must use the `workspace:*` protocol.
+- App workspaces must not import from other app workspaces.
+- `packages/core` must not import from `apps/*`.
+- If a tier is removed, remove its workspace folder, root scripts, and stale references in docs or starter copy.
+
+## Naming And Placement
+
+- Source files are kebab-case by default.
+- Web UI components in `apps/web/src/components` use PascalCase.
+- Web layouts in `apps/web/src/layouts` use PascalCase.
+- Tests live in `tests/` at the package root and mirror `src/`.
+- Do not create `__tests__` directories.
+- Do not place `.test.ts` or `.spec.ts` files under `src/`.
+- Keep public workspace exports in `src/index.ts`.
+
+## Code Rules
+
+- Runtime stack: Bun workspaces, TypeScript strict mode, Biome.
+- Do not suppress `noExplicitAny` with `biome-ignore`.
+- Do not introduce app business logic into CLI, server, or web transport layers.
+- Prefer thin handlers and commands that delegate to `@project/core`.
+- Keep generated or vendor-specific instructions aligned with this file.
+
+## Change Approval Boundaries
+
+Ask before changing any of the following:
+
+- `.github/workflows/`
+- `Dockerfile*`
+- `.env*`
+- `drizzle/` migrations
+- workspace layout beyond the allowed starter tiers
+- runtime or framework swaps
+- root package manager decisions
+
+## Canonical References
+
+- Machine-readable contract: `contracts/project-contracts.json`
+- Contract checker: `scripts/check-contracts.ts`
+- Architecture reference: `docs/01_ARCHITECTURE_SPEC.md`
+- Developer reference: `docs/02_DEVELOPER_SPEC.md`
