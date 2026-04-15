@@ -23,8 +23,5 @@
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0"
-    },
-    "peerDependencies": {
-        "@starter/core": "workspace:*"
     }
 }
