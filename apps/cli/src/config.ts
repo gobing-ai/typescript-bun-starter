@@ -1,7 +1,7 @@
 /**
  * CLI package configuration.
  *
- * Typed constants for @project/cli. Binary metadata is consumed by Clipanion
+ * Typed constants for @starter/cli. Binary metadata is consumed by Clipanion
  * and may also be used for --version output.
  */
 export const CLI_CONFIG = {
