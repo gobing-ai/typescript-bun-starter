@@ -1,0 +1,85 @@
+---
+---
+
+<BaseLayout title="Dashboard | Bun Starter" description="Interactive dashboard with React islands">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-12">
+      <h1 class="text-4xl font-bold text-gray-900">Dashboard</h1>
+      <p class="mt-2 text-gray-600">
+        This page demonstrates Astro Islands Architecture with React components.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <h2 class="text-xl font-semibold mb-4">React Island: Counter</h2>
+        <p class="text-gray-600 mb-6">
+          This interactive counter is a React component hydrated only on the client.
+          The rest of the page is static HTML with zero JavaScript.
+        </p>
+        <Counter client:load initialCount={42} label="Interactive Counter" />
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <h2 class="text-xl font-semibold mb-4">Another Counter</h2>
+        <p class="text-gray-600 mb-6">
+          A second counter instance showing component reusability.
+        </p>
+        <Counter client:visible initialCount={0} label="Secondary Counter" />
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-r from-primary-50 to-primary-100 rounded-2xl p-8">
+      <h2 class="text-2xl font-bold text-primary-900 mb-4">Static Content</h2>
+      <p class="text-primary-700">
+        This entire section is pure HTML/CSS — no JavaScript shipped to the browser.
+        Only the Counter components above are hydrated.
+      </p>
+      <div class="mt-4 flex gap-4">
+        <div class="bg-white/60 rounded-lg px-4 py-2">
+          <span class="text-2xl font-bold text-primary-600">0 KB</span>
+          <span class="text-sm text-primary-600 ml-1">JS for this section</span>
+        </div>
+        <div class="bg-white/60 rounded-lg px-4 py-2">
+          <span class="text-2xl font-bold text-primary-600">100%</span>
+          <span class="text-sm text-primary-600 ml-1">Static HTML</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-12 p-6 bg-white rounded-xl border border-gray-200">
+      <h2 class="text-lg font-semibold mb-4">API Integration</h2>
+      <p class="text-gray-600 mb-4">
+        The API client uses shared types from <code class="bg-gray-100 px-2 py-1 rounded">@typescript-bun-starter/core</code>.
+      </p>
+      <button
+        id="fetch-data-btn"
+        class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-500 transition-colors"
+      >
+        Fetch Sample Data
+      </button>
+      <div id="api-result" class="mt-4 hidden">
+        <pre class="bg-gray-50 p-4 rounded-lg text-sm overflow-auto"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById("fetch-data-btn");
+    const result = document.getElementById("api-result");
+    const pre = result?.querySelector("pre");
+
+    btn?.addEventListener("click", async () => {
+      if (!pre) return;
+      try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        pre.textContent = JSON.stringify(data, null, 2);
+        result?.classList.remove("hidden");
+      } catch (err) {
+        pre.textContent = `Error: ${err instanceof Error ? err.message : "Unknown error"}`;
+        result?.classList.remove("hidden");
+      }
+    });
+  </script>
+</BaseLayout>
