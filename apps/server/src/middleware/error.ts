@@ -1,3 +1,4 @@
+import { errorCodeToHttpStatus } from '@starter/contracts';
 import { isAppError, logger } from '@starter/core';
 import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
@@ -24,18 +25,9 @@ export function errorHandler() {
 }
 
 function resolveStatus(err: Error): number {
-    // AppErrors carry their own status mapping
+    // AppErrors carry their own status mapping via shared contracts
     if (isAppError(err)) {
-        switch (err.code) {
-            case 'NOT_FOUND':
-                return 404;
-            case 'VALIDATION':
-                return 400;
-            case 'CONFLICT':
-                return 409;
-            case 'INTERNAL':
-                return 500;
-        }
+        return errorCodeToHttpStatus(err.code);
     }
     // HTTPError from Hono middleware (e.g. OpenAPI validation)
     if ('status' in err && typeof err.status === 'number') {
