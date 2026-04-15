@@ -23,15 +23,43 @@ Astro dashboard that demonstrates React islands and a typed health check call.
 # via degit (recommended — clean copy, no git history)
 bunx degit gobing-ai/typescript-bun-starter my-project && cd my-project
 bun install
+bun run bootstrap -- --name my-project --scope @acme --title "My Project"
 bun run check        # lint + typecheck + test (all should pass)
 
 # or clone from GitHub
 git clone https://github.com/gobing-ai/typescript-bun-starter.git my-project && cd my-project
 bun install
+bun run bootstrap -- --name my-project --scope @acme --title "My Project"
 bun run check
 ```
 
 > **npm package:** [`@gobing-ai/typescript-bun-starter`](https://www.npmjs.com/package/@gobing-ai/typescript-bun-starter)
+
+### Bootstrap Project Identity
+
+The starter includes a contract-aware bootstrap command that rewrites the spawned
+project identity across root and workspace package names, internal workspace imports,
+generated instruction files, CLI metadata, API title, web starter copy, and primary docs.
+
+```bash
+bun run bootstrap -- --name my-project --scope @acme --title "My Project"
+```
+
+Useful flags:
+
+```bash
+# preview only
+bun run bootstrap -- --name my-project --scope @acme --dry-run
+
+# customize the CLI binary name
+bun run bootstrap -- --name my-project --scope @acme --bin mp
+
+# customize the short web / product brand
+bun run bootstrap -- --name my-project --scope @acme --title "My Project Platform" --brand "My Project"
+
+# skip the full verification pass
+bun run bootstrap -- --name my-project --scope @acme --skip-check
+```
 
 ### Clean Demo Code
 
@@ -160,6 +188,7 @@ bun run dev:web        # run Astro web app on localhost:4321
 bun run dev:all        # run API + web together for local development
 bun run build:web      # build Astro web app into apps/web/dist
 bun run build:cli      # compile CLI to standalone binary
+bun run bootstrap      # rewrite project identity for a spawned repo
 bun run clean-demo     # remove "skills" demo code, leaving clean skeleton
 bun run pub2npmjs      # publish to npm
 ```
