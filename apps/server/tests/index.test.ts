@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createTestDb } from '@project/core/tests/test-db';
+import { createTestDb } from '@starter/core/tests/test-db';
 import serverEntry, { createApp, WEB_DIST_PATH } from '../src/index';
 
 const cleanupFns: Array<() => void> = [];
