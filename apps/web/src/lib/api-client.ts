@@ -3,6 +3,9 @@ import type { ApiResponse, HealthResponse } from '@starter/contracts';
 /**
  * API client for the web application.
  * Uses shared types from @starter/contracts for type-safe API calls.
+ *
+ * Note: For Zod schema validation helpers, import from './api-validators'
+ * instead to avoid pulling zod into the default browser bundle.
  */
 
 function unwrapResponseData<T>(payload: unknown): T | undefined {
@@ -14,10 +17,11 @@ function unwrapResponseData<T>(payload: unknown): T | undefined {
 }
 
 function getErrorMessage(payload: unknown, fallback: string): string {
-    if (payload && typeof payload === 'object' && 'error' in payload) {
-        const error = payload.error;
-        if (typeof error === 'string' && error.length > 0) {
-            return error;
+    if (payload && typeof payload === 'object') {
+        // Direct property access for error extraction (no schema dependency)
+        const errorProp = (payload as Record<string, unknown>).error;
+        if (typeof errorProp === 'string' && errorProp.length > 0) {
+            return errorProp;
         }
     }
 
@@ -26,6 +30,9 @@ function getErrorMessage(payload: unknown, fallback: string): string {
 
 /**
  * Creates a typed fetch wrapper for API calls.
+ *
+ * This is the runtime-light default export. It does not import any Zod schemas
+ * to keep the browser bundle size minimal for normal API usage.
  */
 export function createApiClient(baseUrl: string = '') {
     const defaultHeaders: HeadersInit = {
