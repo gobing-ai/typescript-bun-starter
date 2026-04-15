@@ -1,7 +1,7 @@
 // @project/server — entry point
 
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { Writable } from "node:stream";
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -22,7 +22,13 @@ interface ServerEnv {
 }
 
 interface ServerVariables {
-  db: Database;
+  db?: Database;
+}
+
+interface HealthPayload {
+  status: "ok";
+  timestamp: string;
+  version?: string;
 }
 
 // Configure LogTape — always to stderr so stdout is never polluted
@@ -31,7 +37,17 @@ await configure({
   sinks: { console: getStreamSink(Writable.toWeb(process.stderr)) },
 });
 
-export function createApp(localDb: Database) {
+export const WEB_DIST_PATH = resolve(import.meta.dir, "..", "..", "web", "dist");
+
+function createHealthPayload(): HealthPayload {
+  return {
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version,
+  };
+}
+
+export function createApp(localDb?: Database) {
   const app = new OpenAPIHono<{ Bindings: ServerEnv; Variables: ServerVariables }>();
 
   app.use("*", async (c, next) => {
@@ -40,11 +56,17 @@ export function createApp(localDb: Database) {
     if (binding) {
       const adapter = await createDbAdapter({ driver: "d1", binding });
       c.set("db", adapter.getDb());
-    } else {
+    } else if (localDb) {
       c.set("db", localDb);
     }
     await next();
   });
+
+  app.get(`${SERVER_CONFIG.apiPrefix}/health`, (c) =>
+    c.json({
+      data: createHealthPayload(),
+    }),
+  );
 
   // Global middleware
   app.onError(errorHandler());
@@ -66,11 +88,10 @@ export function createApp(localDb: Database) {
   app.get(SERVER_CONFIG.swaggerPath, swaggerUI({ url: SERVER_CONFIG.docPath }));
 
   // Health check
-  app.get("/", (c) => c.json({ status: "ok" }));
+  app.get("/", (c) => c.json(createHealthPayload()));
 
   // Serve static files from Astro build output (apps/web/dist/)
-  const staticPath = join(process.cwd(), "..", "web", "dist");
-  app.use("/*", serveStatic({ root: staticPath, rewriteRequestPath: (p) => p }));
+  app.use("/*", serveStatic({ root: WEB_DIST_PATH, rewriteRequestPath: (p) => p }));
 
   // SPA fallback — serve index.html for non-API routes
   app.use("/*", async (c, next) => {
@@ -81,7 +102,7 @@ export function createApp(localDb: Database) {
     }
     // Let serveStatic handle existing files, fallback to index.html
     try {
-      const indexPath = join(staticPath, "index.html");
+      const indexPath = join(WEB_DIST_PATH, "index.html");
       const content = readFileSync(indexPath);
       return c.body(new Uint8Array(content), 200, {
         "Content-Type": "text/html; charset=utf-8",
@@ -94,20 +115,44 @@ export function createApp(localDb: Database) {
   return app;
 }
 
-// Construct the Bun local adapter explicitly so the server owns its runtime choice.
-const localAdapter = await createDbAdapter({
-  driver: "bun-sqlite",
-  url: process.env.DATABASE_URL,
-});
+type ServerApp = ReturnType<typeof createApp>;
+type ServerFetchArgs = Parameters<ServerApp["fetch"]>;
 
-const app = createApp(localAdapter.getDb());
+let localAppPromise: Promise<ServerApp> | undefined;
+
+async function getLocalApp(): Promise<ServerApp> {
+  if (!localAppPromise) {
+    localAppPromise = (async () => {
+      const localAdapter = await createDbAdapter({
+        driver: "bun-sqlite",
+        url: process.env.DATABASE_URL,
+      });
+
+      return createApp(localAdapter.getDb());
+    })();
+  }
+
+  return localAppPromise;
+}
+
+async function getRequestApp(env: ServerFetchArgs[1]): Promise<ServerApp> {
+  if (env && typeof env === "object" && "DB" in env && env.DB) {
+    return createApp();
+  }
+
+  return getLocalApp();
+}
 
 // Export AppType for typed RPC client reuse (hono/client)
-export type AppType = typeof app;
+export type AppType = ServerApp;
 
 export default {
   port: Number.isFinite(Number(process.env.PORT))
     ? Number(process.env.PORT)
     : SERVER_CONFIG.defaultPort,
-  fetch: app.fetch,
+  fetch: async (...args: ServerFetchArgs) => {
+    const [request, env, executionCtx] = args;
+    const app = await getRequestApp(env);
+    return app.fetch(request, env, executionCtx);
+  },
 };
