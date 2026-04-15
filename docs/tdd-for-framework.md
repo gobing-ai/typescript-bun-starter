@@ -18,13 +18,13 @@ We use Bun Workspaces to decouple the presentation layers from the logic.
 
 graph TD
     subgraph Packages
-        Core[@project/core]
+        Core[@starter/core]
     end
     subgraph Apps
-        CLI[@project/cli]
+        CLI[@starter/cli]
     end
     subgraph Services
-        API[@project/server]
+        API[@starter/server]
     end
 
     CLI --> Core
