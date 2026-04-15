@@ -16,7 +16,7 @@ This file is consumed by GitHub Copilot repository custom instructions and mirro
 ## Scope And Precedence
 
 - This file applies to the entire repository unless a deeper AGENTS.md overrides part of it.
-- Nested AGENTS.md files under packages/core, apps/cli, apps/server, and apps/web are authoritative for those subtrees.
+- Nested AGENTS.md files under packages/contracts, packages/core, apps/cli, apps/server, and apps/web are authoritative for those subtrees.
 - Treat docs/01_ARCHITECTURE_SPEC.md and docs/02_DEVELOPER_SPEC.md as canonical references for examples and rationale, not as substitutes for this contract.
 
 ## Mandatory Verification
@@ -31,9 +31,10 @@ bun run check is the definition-of-done gate for this starter. It must cover lin
 
 ## Repository Contract
 
-- packages/core is the shared domain and data layer.
-- apps/cli, apps/server, and apps/web are optional interface tiers built on top of @project/core.
-- Existing workspace package names must follow @project/<name>.
+- packages/contracts owns shared cross-tier contracts and transport-safe DTOs.
+- packages/core is the shared domain and data layer built on top of @starter/contracts when contracts are needed.
+- apps/cli, apps/server, and apps/web are optional interface tiers built on top of @starter/contracts and @starter/core.
+- Existing workspace package names must follow @starter/<name>.
 - Cross-workspace dependencies must use the workspace:* protocol.
 - App workspaces must not import from other app workspaces.
 - packages/core must not import from apps/*.
@@ -54,7 +55,7 @@ bun run check is the definition-of-done gate for this starter. It must cover lin
 - Runtime stack: Bun workspaces, TypeScript strict mode, Biome.
 - Do not suppress noExplicitAny with biome-ignore.
 - Do not introduce app business logic into CLI, server, or web transport layers.
-- Prefer thin handlers and commands that delegate to @project/core.
+- Prefer thin handlers and commands that delegate to @starter/core.
 - Keep generated or vendor-specific instructions aligned with this contract.
 
 ## Change Approval Boundaries
