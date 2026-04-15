@@ -1,4 +1,4 @@
-import { SkillService } from '@project/core';
+import { SkillService } from '@starter/core';
 import { Command, Option } from 'clipanion';
 
 export class SkillGetCommand extends Command {
