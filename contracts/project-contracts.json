@@ -28,8 +28,7 @@
     },
     "optionalWorkspaces": {
         "apps/cli": "@starter/cli",
-        "apps/server": "@starter/server",
-        "apps/web": "@starter/web"
+        "apps/server": "@starter/server"
     },
     "workspaceDependencyRules": {
         "@starter/contracts": [],
