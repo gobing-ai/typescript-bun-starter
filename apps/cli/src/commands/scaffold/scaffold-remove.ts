@@ -99,9 +99,12 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
      * Check if a feature is installed (exists in project).
      */
     private isInstalled(feature: string, service: ScaffoldService): boolean {
-        // For skills, check a key file
+        // For skills, check multiple key files to avoid false positives
         if (feature === 'skills') {
-            return service.exists('packages/core/src/services/skill-service.ts');
+            return (
+                service.exists('packages/core/src/services/skill-service.ts') &&
+                service.exists('packages/core/src/schemas/skill.ts')
+            );
         }
 
         // For apps, check the workspace path
