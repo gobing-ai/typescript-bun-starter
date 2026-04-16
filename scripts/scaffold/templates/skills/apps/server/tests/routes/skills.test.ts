@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
-describe("Skills routes", () => {
-    it("should be defined", () => {
+describe('Skills routes', () => {
+    it('should be defined', () => {
         expect(true).toBe(true);
     });
 });

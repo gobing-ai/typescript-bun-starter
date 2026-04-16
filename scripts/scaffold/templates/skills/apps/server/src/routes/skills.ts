@@ -1,5 +1,3 @@
-import type { HonoContext } from "../index";
-
 /**
  * Register skill routes on the Hono app.
  * Stub — replace with actual route handlers.
