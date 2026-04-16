@@ -253,12 +253,16 @@ describe('ScaffoldValidateCommand', () => {
             }) as ScaffoldValidateCommand;
 
             const exitCode = await cmd.execute();
-            // Warnings don't cause error exit, but missing optional workspace
-            // also triggers "Workspace missing package.json" which is an error
-            expect(exitCode).toBe(1);
+            // Missing optional workspace is a warning only, no error
+            expect(exitCode).toBe(0);
 
             const output = JSON.parse(stdout.join(''));
-            expect(output.error).toContain('Validation failed');
+            expect(
+                output.issues.some(
+                    (i: { category: string; message: string }) =>
+                        i.category === 'workspace' && i.message.includes('apps/server'),
+                ),
+            ).toBe(true);
         });
 
         it('should error when workspace missing package.json', async () => {
@@ -478,6 +482,183 @@ describe('ScaffoldValidateCommand', () => {
             const instructionIssues =
                 output.issues?.filter((i: { category: string }) => i.category === 'instructions') ?? [];
             expect(instructionIssues.length).toBe(0);
+        });
+    });
+
+    // ── Dependency rule validation ────────────────────────────────────
+
+    describe('dependency rule validation', () => {
+        it('should error when workspace depends on disallowed package', async () => {
+            // packages/contracts has empty allowed list [], but depends on @starter/core
+            setupTestProject({
+                requiredWorkspaces: {
+                    'packages/contracts': '@starter/contracts',
+                    'packages/core': '@starter/core',
+                },
+            });
+            writeFileSync(
+                `${TEST_DIR}/packages/contracts/package.json`,
+                JSON.stringify({
+                    name: '@starter/contracts',
+                    dependencies: { '@starter/core': 'workspace:*' },
+                }),
+            );
+            const contract = {
+                version: 1,
+                projectIdentity: {
+                    displayName: 'Test',
+                    brandName: 'Test',
+                    projectSlug: 'test',
+                    rootPackageName: 'test',
+                    repositoryUrl: 'https://example.com',
+                    binaryName: 'tbs',
+                    binaryLabel: 'TBS',
+                    apiTitle: 'Test API',
+                    webDescription: 'Test',
+                },
+                requiredWorkspaces: {
+                    'packages/contracts': '@starter/contracts',
+                    'packages/core': '@starter/core',
+                },
+                optionalWorkspaces: {},
+                workspaceDependencyRules: {
+                    '@starter/contracts': [],
+                    '@starter/core': ['@starter/contracts'],
+                },
+            };
+            mkdirSync(`${TEST_DIR}/contracts`, { recursive: true });
+            writeFileSync(`${TEST_DIR}/contracts/project-contracts.json`, JSON.stringify(contract, null, 2));
+
+            process.chdir(TEST_DIR);
+
+            const cli = makeCli();
+            const stdout: string[] = [];
+            const cmd = cli.process(['scaffold', 'validate', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldValidateCommand;
+
+            const exitCode = await cmd.execute();
+            expect(exitCode).toBe(1);
+
+            const output = JSON.parse(stdout.join(''));
+            expect(output.error).toContain('Validation failed');
+        });
+
+        it('should pass when dependencies conform to rules', async () => {
+            setupTestProject({
+                requiredWorkspaces: {
+                    'packages/contracts': '@starter/contracts',
+                    'packages/core': '@starter/core',
+                },
+            });
+            writeFileSync(
+                `${TEST_DIR}/packages/core/package.json`,
+                JSON.stringify({
+                    name: '@starter/core',
+                    dependencies: { '@starter/contracts': 'workspace:*' },
+                }),
+            );
+            const contract = {
+                version: 1,
+                projectIdentity: {
+                    displayName: 'Test',
+                    brandName: 'Test',
+                    projectSlug: 'test',
+                    rootPackageName: 'test',
+                    repositoryUrl: 'https://example.com',
+                    binaryName: 'tbs',
+                    binaryLabel: 'TBS',
+                    apiTitle: 'Test API',
+                    webDescription: 'Test',
+                },
+                requiredWorkspaces: {
+                    'packages/contracts': '@starter/contracts',
+                    'packages/core': '@starter/core',
+                },
+                optionalWorkspaces: {},
+                workspaceDependencyRules: {
+                    '@starter/contracts': [],
+                    '@starter/core': ['@starter/contracts'],
+                },
+            };
+            mkdirSync(`${TEST_DIR}/contracts`, { recursive: true });
+            writeFileSync(`${TEST_DIR}/contracts/project-contracts.json`, JSON.stringify(contract, null, 2));
+
+            process.chdir(TEST_DIR);
+
+            const cli = makeCli();
+            const stdout: string[] = [];
+            const cmd = cli.process(['scaffold', 'validate', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldValidateCommand;
+
+            const exitCode = await cmd.execute();
+            expect(exitCode).toBe(0);
+
+            const output = JSON.parse(stdout.join(''));
+            expect(output.valid).toBe(true);
+        });
+
+        it('should skip when workspaceDependencyRules is empty', async () => {
+            setupTestProject(); // Default has workspaceDependencyRules: {}
+            process.chdir(TEST_DIR);
+
+            const cli = makeCli();
+            const stdout: string[] = [];
+            const cmd = cli.process(['scaffold', 'validate', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldValidateCommand;
+
+            const exitCode = await cmd.execute();
+            expect(exitCode).toBe(0);
+        });
+
+        it('should skip dependency check when workspace package.json is missing', async () => {
+            setupTestProject({
+                requiredWorkspaces: {
+                    'packages/contracts': '@starter/contracts',
+                },
+            });
+            // Delete package.json — already reported by validateWorkspaces
+            rmSync(`${TEST_DIR}/packages/contracts/package.json`);
+            const contract = {
+                version: 1,
+                projectIdentity: {
+                    displayName: 'Test',
+                    brandName: 'Test',
+                    projectSlug: 'test',
+                    rootPackageName: 'test',
+                    repositoryUrl: 'https://example.com',
+                    binaryName: 'tbs',
+                    binaryLabel: 'TBS',
+                    apiTitle: 'Test API',
+                    webDescription: 'Test',
+                },
+                requiredWorkspaces: {
+                    'packages/contracts': '@starter/contracts',
+                },
+                optionalWorkspaces: {},
+                workspaceDependencyRules: {
+                    '@starter/contracts': [],
+                },
+            };
+            mkdirSync(`${TEST_DIR}/contracts`, { recursive: true });
+            writeFileSync(`${TEST_DIR}/contracts/project-contracts.json`, JSON.stringify(contract, null, 2));
+
+            process.chdir(TEST_DIR);
+
+            const cli = makeCli();
+            const stdout: string[] = [];
+            const cmd = cli.process(['scaffold', 'validate', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldValidateCommand;
+
+            const exitCode = await cmd.execute();
+            expect(exitCode).toBe(1);
+
+            const output = JSON.parse(stdout.join(''));
+            // Should only report missing package.json, NOT a dependency rule error
+            expect(output.error).toContain('Validation failed');
         });
     });
 
