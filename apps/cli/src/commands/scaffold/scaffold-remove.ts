@@ -11,6 +11,10 @@ import { ScaffoldService } from './services/scaffold-service';
 import type { FeatureDefinition } from './types/scaffold';
 
 export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
+    constructor() {
+        super();
+    }
+
     static paths = [['scaffold', 'remove']];
 
     static usage = Command.Usage({
