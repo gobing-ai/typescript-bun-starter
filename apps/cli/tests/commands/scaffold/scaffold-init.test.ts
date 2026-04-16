@@ -163,7 +163,7 @@ describe('ScaffoldInitCommand', () => {
         it('should compute identity with minimal options', () => {
             const cmd = new ScaffoldInitCommand();
             const options: ScaffoldInitOptions = { name: 'my-project', scope: '@myorg' };
-            const identity = cmd.computeIdentity(options);
+            const identity = cmd.computeIdentity(options, new ScaffoldService());
 
             expect(identity.displayName).toBe('My Project');
             expect(identity.brandName).toBe('My Project');
@@ -183,7 +183,7 @@ describe('ScaffoldInitCommand', () => {
                 repoUrl: 'https://gitlab.com/myorg/my-app',
                 bin: 'myapp',
             };
-            const identity = cmd.computeIdentity(options);
+            const identity = cmd.computeIdentity(options, new ScaffoldService());
 
             expect(identity.displayName).toBe('My Application');
             expect(identity.brandName).toBe('MyBrand');
@@ -196,32 +196,35 @@ describe('ScaffoldInitCommand', () => {
 
         it('should derive title from name', () => {
             const cmd = new ScaffoldInitCommand();
-            const identity = cmd.computeIdentity({ name: 'my-project-name', scope: '@org' });
+            const identity = cmd.computeIdentity({ name: 'my-project-name', scope: '@org' }, new ScaffoldService());
             expect(identity.displayName).toBe('My Project Name');
         });
 
         it('should derive brand from title', () => {
             const cmd = new ScaffoldInitCommand();
-            const identity = cmd.computeIdentity({ name: 'proj', title: 'Project Title', scope: '@org' });
+            const identity = cmd.computeIdentity(
+                { name: 'proj', title: 'Project Title', scope: '@org' },
+                new ScaffoldService(),
+            );
             expect(identity.brandName).toBe('Project Title');
         });
 
         it('should derive repo URL from scope and name', () => {
             const cmd = new ScaffoldInitCommand();
-            const identity = cmd.computeIdentity({ name: 'myapp', scope: '@myorg' });
+            const identity = cmd.computeIdentity({ name: 'myapp', scope: '@myorg' }, new ScaffoldService());
             expect(identity.repositoryUrl).toBe('https://github.com/myorg/myapp');
         });
 
         it('should generate apiTitle and webDescription', () => {
             const cmd = new ScaffoldInitCommand();
-            const identity = cmd.computeIdentity({ name: 'proj', scope: '@org' });
+            const identity = cmd.computeIdentity({ name: 'proj', scope: '@org' }, new ScaffoldService());
             expect(identity.apiTitle).toBe('Proj API');
             expect(identity.webDescription).toBe('Proj WebApp');
         });
 
         it('should handle kebab-case to title case', () => {
             const cmd = new ScaffoldInitCommand();
-            const identity = cmd.computeIdentity({ name: 'my-awesome-project', scope: '@org' });
+            const identity = cmd.computeIdentity({ name: 'my-awesome-project', scope: '@org' }, new ScaffoldService());
             expect(identity.displayName).toBe('My Awesome Project');
             expect(identity.projectSlug).toBe('my-awesome-project');
         });
@@ -269,7 +272,7 @@ describe('ScaffoldInitCommand', () => {
         it('should stage contract and package.json updates', () => {
             const cmd = new ScaffoldInitCommand();
             const service = new ScaffoldService(TEST_DIR);
-            const identity = cmd.computeIdentity({ name: 'newproj', scope: '@neworg' });
+            const identity = cmd.computeIdentity({ name: 'newproj', scope: '@neworg' }, new ScaffoldService());
 
             const pending = cmd.stageChanges(service, identity);
 
@@ -280,7 +283,7 @@ describe('ScaffoldInitCommand', () => {
         it('should update project identity in contract', () => {
             const cmd = new ScaffoldInitCommand();
             const service = new ScaffoldService(TEST_DIR);
-            const identity = cmd.computeIdentity({ name: 'newproj', scope: '@neworg' });
+            const identity = cmd.computeIdentity({ name: 'newproj', scope: '@neworg' }, new ScaffoldService());
 
             const pending = cmd.stageChanges(service, identity);
             const contractContent = pending.get('contracts/project-contracts.json');
@@ -294,7 +297,7 @@ describe('ScaffoldInitCommand', () => {
         it('should update package.json name', () => {
             const cmd = new ScaffoldInitCommand();
             const service = new ScaffoldService(TEST_DIR);
-            const identity = cmd.computeIdentity({ name: 'newproj', scope: '@neworg' });
+            const identity = cmd.computeIdentity({ name: 'newproj', scope: '@neworg' }, new ScaffoldService());
 
             const pending = cmd.stageChanges(service, identity);
             const pkgContent = pending.get('package.json');
@@ -354,7 +357,7 @@ describe('ScaffoldInitCommand', () => {
 
             // When this.name is undefined and this.json is false,
             // collectOptions calls promptText which throws
-            await expect(cmd.collectOptions()).rejects.toThrow();
+            await expect(cmd.collectOptions(new ScaffoldService())).rejects.toThrow();
         });
 
         it('should return options with defaults when only name is provided', async () => {
@@ -365,7 +368,7 @@ describe('ScaffoldInitCommand', () => {
             }) as ScaffoldInitCommand;
 
             // In interactive mode with --name, scope gets default '@myorg'
-            const options = await cmd.collectOptions();
+            const options = await cmd.collectOptions(new ScaffoldService());
             expect(options.name).toBe('my-project');
             expect(options.scope).toBe('@myorg'); // default scope
             expect(options.title).toBe('My Project'); // derived from name
@@ -391,7 +394,7 @@ describe('ScaffoldInitCommand', () => {
                 stdout: createMockWritable(stdout),
             }) as ScaffoldInitCommand;
             try {
-                const options = await cmd.collectOptions();
+                const options = await cmd.collectOptions(new ScaffoldService());
                 expect(options.name).toBe('proj');
                 expect(options.scope).toBe('@org');
                 expect(options.json).toBe(true);
@@ -427,7 +430,7 @@ describe('ScaffoldInitCommand', () => {
                     stdout: createMockWritable(stdout),
                 },
             ) as ScaffoldInitCommand;
-            const options = await cmd.collectOptions();
+            const options = await cmd.collectOptions(new ScaffoldService());
             expect(options.name).toBe('proj');
             expect(options.scope).toBe('@org');
             expect(options.title).toBe('My Project');
