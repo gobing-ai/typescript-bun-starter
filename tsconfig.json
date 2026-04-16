@@ -23,5 +23,5 @@
         "noUnusedParameters": true
     },
     "include": ["packages/*/src", "apps/*/src", "scripts"],
-    "exclude": ["node_modules", "dist", "coverage", "drizzle"]
+    "exclude": ["node_modules", "dist", "coverage", "drizzle", "scripts/scaffold/templates"]
 }
