@@ -43,7 +43,7 @@
             "!**/.astro",
             "!**/apps/server/src/*.js",
             "!**/apps/server/src/**/*.js",
-            "!**/.ant-colony/**"
+            "!**/.ant-colony"
         ]
     },
     "assist": {
