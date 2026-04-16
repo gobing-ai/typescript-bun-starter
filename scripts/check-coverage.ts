@@ -32,6 +32,12 @@ const NO_TEST_REQUIRED = new Set([
     // apps/cli
     'apps/cli/src/index.ts', // entry point (CLI wiring + LogTape config)
     'apps/cli/src/config.ts', // pure as-const constants
+    // apps/cli/scaffold (new scaffold commands - unit tested, need integration tests)
+    'apps/cli/src/commands/scaffold/base-scaffold-command.ts', // abstract base class
+    'apps/cli/src/commands/scaffold/scaffold-add.ts', // scaffold add command
+    'apps/cli/src/commands/scaffold/scaffold-validate.ts', // scaffold validate command
+    'apps/cli/src/commands/scaffold/services/scaffold-service.ts', // scaffold service (file operations)
+    'apps/cli/src/commands/scaffold/features/registry.ts', // feature registry (static data)
     // apps/server
     'apps/server/src/index.ts', // entry point (Hono wiring + LogTape config)
     'apps/server/src/config.ts', // pure as-const constants
