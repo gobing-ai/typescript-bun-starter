@@ -1,18 +1,7 @@
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
 import { ScaffoldService } from './services/scaffold-service';
-import type { ProjectIdentity, ScaffoldInitOptions } from './types/scaffold';
-
-/**
- * Contract file structure.
- */
-interface ContractFile {
-    version: number;
-    projectIdentity: ProjectIdentity;
-    requiredWorkspaces: Record<string, string>;
-    optionalWorkspaces: Record<string, string>;
-    workspaceDependencyRules: Record<string, string[]>;
-}
+import type { ContractFile, ProjectIdentity, ScaffoldInitOptions } from './types/scaffold';
 
 export class ScaffoldInitCommand extends BaseScaffoldCommand {
     static paths = [['scaffold', 'init']];
@@ -74,7 +63,7 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
         const service = new ScaffoldService();
 
         // 1. Collect options (prompt for missing in non-JSON mode)
-        const options = await this.collectOptions();
+        const options = await this.collectOptions(service);
 
         // 2. Validate options
         const validation = this.validateOptions(options);
@@ -83,7 +72,7 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
         }
 
         // 3. Compute new identity
-        const identity = this.computeIdentity(options);
+        const identity = this.computeIdentity(options, service);
 
         // 4. Stage changes
         const pendingWrites = this.stageChanges(service, identity);
@@ -110,7 +99,7 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
     }
 
     /** @internal */
-    public async collectOptions(): Promise<ScaffoldInitOptions> {
+    public async collectOptions(service: ScaffoldService): Promise<ScaffoldInitOptions> {
         if (this.json) {
             // JSON mode: all required
             return {
@@ -125,9 +114,11 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
             };
         }
 
-        // Interactive mode: prompt for missing
+        // Interactive mode: prompt for missing required values.
+        // NOTE: Real interactive prompting is not yet implemented.
+        // Missing required fields without defaults will throw.
         const slug = this.name ?? this.promptText('Project slug (kebab-case, e.g., my-project)');
-        const displayTitle = this.title ?? service().toTitleCase(slug);
+        const displayTitle = this.title ?? service.toTitleCase(slug);
         const brandName = this.brand ?? displayTitle;
         const npmScope = this.scope ?? this.promptText('NPM scope (e.g., @myorg)', '@myorg');
 
@@ -171,8 +162,7 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
     }
 
     /** @internal */
-    public computeIdentity(options: ScaffoldInitOptions): ProjectIdentity {
-        const service = new ScaffoldService();
+    public computeIdentity(options: ScaffoldInitOptions, service: ScaffoldService): ProjectIdentity {
         const slug = service.slugify(options.name ?? '');
         const title = options.title ?? service.toTitleCase(slug);
         const brand = options.brand ?? title;
@@ -240,7 +230,7 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
         let updated = content;
         for (const [from, to] of replacements) {
             if (from && from !== to) {
-                updated = updated.split(from).join(to);
+                updated = updated.replaceAll(from, to);
             }
         }
         return updated;
@@ -252,8 +242,9 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
             return;
         }
 
-        // Run bun install
         const { spawnSync } = await import('node:child_process');
+
+        // Run bun install
         spawnSync('bun', ['install'], {
             cwd: service.getRoot(),
             stdio: 'inherit',
@@ -270,10 +261,11 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
             cwd: service.getRoot(),
             stdio: 'inherit',
         });
-    }
-}
 
-// Helper to create service instance lazily
-function service(): ScaffoldService {
-    return new ScaffoldService();
+        // Run full project check (lint + typecheck + test + coverage)
+        spawnSync('bun', ['run', 'check'], {
+            cwd: service.getRoot(),
+            stdio: 'inherit',
+        });
+    }
 }
