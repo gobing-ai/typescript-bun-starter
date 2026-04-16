@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
@@ -21,7 +21,7 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
             Available features:
             - skills: Skill management domain (SkillService, CRUD commands)
             - webapp: Astro-based web application (apps/web)
-            - api: Hono REST API server (apps/server)
+            - server: Hono REST API server (apps/server)
             - cli: Clipanion CLI tool (apps/cli)
 
             Templates are copied from scripts/scaffold/templates/<feature>/.
@@ -31,7 +31,7 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
         examples: [
             ['Add skills domain', 'tbs scaffold add skills'],
             ['Preview webapp addition', 'tbs scaffold add webapp --dry-run'],
-            ['JSON mode', 'tbs scaffold add api --json'],
+            ['JSON mode', 'tbs scaffold add server --json'],
         ],
     });
 
@@ -90,17 +90,36 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
             });
         }
 
-        // 7. Apply changes
-        // Create directories first
-        for (const dir of dirsToCreate) {
-            mkdirSync(resolve(service.getRoot(), dir), { recursive: true });
-        }
+        // 7. Apply changes with rollback on failure
+        const createdDirs: string[] = [];
+        const copiedFiles: string[] = [];
 
-        // Copy files
-        for (const { src, dest } of filesToCopy) {
-            const absSrc = resolve(templateDir, src);
-            const absDest = resolve(service.getRoot(), dest);
-            cpSync(absSrc, absDest, { recursive: true });
+        try {
+            // Create directories first
+            for (const dir of dirsToCreate) {
+                const absDir = resolve(service.getRoot(), dir);
+                if (!existsSync(absDir)) {
+                    mkdirSync(absDir, { recursive: true });
+                    createdDirs.push(dir);
+                }
+            }
+
+            // Copy files
+            for (const { src, dest } of filesToCopy) {
+                const absSrc = resolve(templateDir, src);
+                const absDest = resolve(service.getRoot(), dest);
+                cpSync(absSrc, absDest, { recursive: true });
+                copiedFiles.push(dest);
+            }
+        } catch (err) {
+            // Rollback: remove copied files and created directories
+            for (const file of copiedFiles) {
+                try { rmSync(resolve(service.getRoot(), file), { recursive: true, force: true }); } catch {}
+            }
+            for (const dir of createdDirs.reverse()) {
+                try { rmSync(resolve(service.getRoot(), dir), { recursive: true, force: true }); } catch {}
+            }
+            return this.writeOutput(null, `Failed to add feature '${this.feature}': ${String(err)}`);
         }
 
         // 8. Update contracts
@@ -128,7 +147,11 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
      */
     private isInstalled(feature: string, service: ScaffoldService): boolean {
         if (feature === 'skills') {
-            return service.exists('packages/core/src/services/skill-service.ts');
+            // Check multiple key files to avoid false positives from partial installs
+            return (
+                service.exists('packages/core/src/services/skill-service.ts') &&
+                service.exists('packages/core/src/schemas/skill.ts')
+            );
         }
 
         const featureDef = SCAFFOLD_FEATURES[feature];
@@ -218,8 +241,6 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
             return;
         }
 
-        const contract = service.readJson<Record<string, unknown>>(contractPath);
-
         // Map feature names to workspace paths and package names
         const workspaceMap: Record<string, { path: string; pkg: string }> = {
             cli: { path: 'apps/cli', pkg: '@starter/cli' },
@@ -228,14 +249,35 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
         };
 
         const featureConfig = workspaceMap[feature];
-        if (featureConfig) {
-            // Add to optionalWorkspaces
-            const optionalWorkspaces = (contract.optionalWorkspaces as Record<string, string>) ?? {};
-            if (!optionalWorkspaces[featureConfig.path]) {
-                optionalWorkspaces[featureConfig.path] = featureConfig.pkg;
-                contract.optionalWorkspaces = optionalWorkspaces;
-                service.writeJson(contractPath, contract);
-            }
+        if (!featureConfig) {
+            return;
+        }
+
+        const contract = service.readJson<Record<string, unknown>>(contractPath);
+        const optionalWorkspaces = (contract.optionalWorkspaces as Record<string, string>) ?? {};
+        if (optionalWorkspaces[featureConfig.path]) {
+            return; // Already present
+        }
+
+        // Backup before modifying
+        const absContractPath = service.resolvePath(contractPath);
+        const backupPath = `${absContractPath}.bak`;
+        copyFileSync(absContractPath, backupPath);
+
+        try {
+            optionalWorkspaces[featureConfig.path] = featureConfig.pkg;
+            contract.optionalWorkspaces = optionalWorkspaces;
+            service.writeJson(contractPath, contract);
+        } catch (err) {
+            // Restore backup on failure
+            try {
+                const content = service.readFile(`${contractPath}.bak`);
+                service.writeFile(contractPath, content);
+            } catch {}
+            throw err;
+        } finally {
+            // Clean up backup
+            try { rmSync(backupPath, { force: true }); } catch {}
         }
     }
 }
