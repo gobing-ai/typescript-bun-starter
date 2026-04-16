@@ -4,34 +4,7 @@ import { join, relative, resolve } from 'node:path';
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
 import { ScaffoldService } from './services/scaffold-service';
-import type { ValidationIssue } from './types/scaffold';
-
-/**
- * Contract file structure.
- */
-interface ContractFile {
-    version: number;
-    projectIdentity: {
-        displayName: string;
-        brandName: string;
-        projectSlug: string;
-        rootPackageName: string;
-        repositoryUrl: string;
-        binaryName: string;
-        binaryLabel: string;
-        apiTitle: string;
-        webDescription: string;
-    };
-    requiredWorkspaces: Record<string, string>;
-    optionalWorkspaces: Record<string, string>;
-    workspaceDependencyRules: Record<string, string[]>;
-    requiredRootScripts?: string[];
-    fileNamingRules?: Array<{
-        pathPrefix: string;
-        pattern: string;
-        description: string;
-    }>;
-}
+import type { ContractFile, ValidationIssue } from './types/scaffold';
 
 export class ScaffoldValidateCommand extends BaseScaffoldCommand {
     static paths = [['scaffold', 'validate']];
