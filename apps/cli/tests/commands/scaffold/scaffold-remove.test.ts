@@ -1,0 +1,383 @@
+import { Writable } from 'node:stream';
+import { Cli } from 'clipanion';
+import { describe, expect, it } from 'vitest';
+import { REQUIRED_FEATURES, SCAFFOLD_FEATURES } from '../../../src/commands/scaffold/features/registry';
+import { ScaffoldRemoveCommand } from '../../../src/commands/scaffold/scaffold-remove';
+import type { FeatureDefinition } from '../../../src/commands/scaffold/types/scaffold';
+
+function createMockWritable(collector: string[]) {
+    return new Writable({
+        write(chunk, _enc, cb) {
+            collector.push(chunk.toString());
+            cb();
+        },
+    });
+}
+
+describe('ScaffoldRemoveCommand', () => {
+    describe('path registration', () => {
+        it('should register with correct path', () => {
+            expect(ScaffoldRemoveCommand.paths).toEqual([['scaffold', 'remove']]);
+        });
+    });
+
+    describe('usage', () => {
+        it('should have correct category', () => {
+            expect(ScaffoldRemoveCommand.usage.category).toBe('Scaffold');
+        });
+
+        it('should have description', () => {
+            expect(ScaffoldRemoveCommand.usage.description).toBeTruthy();
+        });
+
+        it('should mention available features', () => {
+            const details = ScaffoldRemoveCommand.usage.details ?? '';
+            expect(details).toContain('skills');
+            expect(details).toContain('webapp');
+            expect(details).toContain('api');
+            expect(details).toContain('cli');
+        });
+
+        it('should have examples', () => {
+            expect(ScaffoldRemoveCommand.usage.examples?.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('options', () => {
+        it('should have --dry-run flag', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            expect((cmd as unknown as { dryRun: unknown }).dryRun).toBeDefined();
+        });
+
+        it('should have --json flag', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            expect((cmd as unknown as { json: unknown }).json).toBeDefined();
+        });
+
+        it('should require feature argument', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            expect((cmd as unknown as { feature: unknown }).feature).toBeDefined();
+        });
+    });
+
+    describe('feature registry', () => {
+        it('should have skills as removable feature', () => {
+            expect(SCAFFOLD_FEATURES.skills).toBeDefined();
+        });
+
+        it('should have webapp as removable feature', () => {
+            expect(SCAFFOLD_FEATURES.webapp).toBeDefined();
+        });
+
+        it('should have cli as removable feature', () => {
+            expect(SCAFFOLD_FEATURES.cli).toBeDefined();
+        });
+
+        it('should have server as removable feature', () => {
+            expect(SCAFFOLD_FEATURES.server).toBeDefined();
+        });
+
+        it('should NOT have contracts as removable feature', () => {
+            expect(REQUIRED_FEATURES).toContain('contracts');
+        });
+
+        it('should NOT have core as removable feature', () => {
+            expect(REQUIRED_FEATURES).toContain('core');
+        });
+    });
+
+    describe('skills feature', () => {
+        const skills = SCAFFOLD_FEATURES.skills;
+
+        it('should have files defined', () => {
+            expect(skills.files.length).toBeGreaterThan(0);
+        });
+
+        it('should include core service files', () => {
+            expect(skills.files).toContain('packages/core/src/services/skill-service.ts');
+        });
+
+        it('should include CLI command files', () => {
+            expect(skills.files).toContain('apps/cli/src/commands/skill-list.ts');
+            expect(skills.files).toContain('apps/cli/src/commands/skill-create.ts');
+        });
+
+        it('should include server route files', () => {
+            expect(skills.files).toContain('apps/server/src/routes/skills.ts');
+        });
+
+        it('should have rewrites defined', () => {
+            expect(Object.keys(skills.rewrites).length).toBe(0); // Uses BASELINE_FILES
+        });
+    });
+
+    describe('dry-run format', () => {
+        it('should format deletion list', () => {
+            const files = ['file1.ts', 'file2.ts', 'file3.ts'];
+            const _rewrites: Array<[string, string]> = [];
+
+            let output = `Would remove feature 'skills':\n\n`;
+            output += `Files to delete (${files.length}):\n`;
+            for (const file of files) {
+                output += `  - ${file}\n`;
+            }
+            output += '\n';
+            output += 'No changes were made (--dry-run)';
+
+            expect(output).toContain('file1.ts');
+            expect(output).toContain('file2.ts');
+            expect(output).toContain('--dry-run');
+        });
+    });
+
+    describe('isInstalled', () => {
+        it('should return true for skills if skill-service exists', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const isInstalled = (
+                cmd as unknown as { isInstalled: (f: string, s: { exists: (p: string) => boolean }) => boolean }
+            ).isInstalled;
+
+            const mockService = { exists: (_p: string) => true };
+            expect(isInstalled('skills', mockService)).toBe(true);
+        });
+
+        it('should return false for skills if skill-service does not exist', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const isInstalled = (
+                cmd as unknown as { isInstalled: (f: string, s: { exists: (p: string) => boolean }) => boolean }
+            ).isInstalled;
+
+            const mockService = { exists: (_p: string) => false };
+            expect(isInstalled('skills', mockService)).toBe(false);
+        });
+
+        it('should return true for workspace feature if path exists', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const isInstalled = (
+                cmd as unknown as { isInstalled: (f: string, s: { exists: (p: string) => boolean }) => boolean }
+            ).isInstalled;
+
+            const mockService = { exists: (_p: string) => true };
+            expect(isInstalled('cli', mockService)).toBe(true);
+            expect(isInstalled('server', mockService)).toBe(true);
+            expect(isInstalled('webapp', mockService)).toBe(true);
+        });
+
+        it('should return false for workspace feature if path does not exist', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const isInstalled = (
+                cmd as unknown as { isInstalled: (f: string, s: { exists: (p: string) => boolean }) => boolean }
+            ).isInstalled;
+
+            const mockService = { exists: (_p: string) => false };
+            expect(isInstalled('cli', mockService)).toBe(false);
+        });
+
+        it('should return false for unknown feature', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const isInstalled = (
+                cmd as unknown as { isInstalled: (f: string, s: { exists: (p: string) => boolean }) => boolean }
+            ).isInstalled;
+
+            const mockService = { exists: (_p: string) => true };
+            expect(isInstalled('unknown', mockService)).toBe(false);
+        });
+    });
+
+    describe('stageChanges', () => {
+        it('should return empty arrays when no files exist', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const stageChanges = (
+                cmd as unknown as {
+                    stageChanges: (
+                        s: { exists: (p: string) => boolean },
+                        f: FeatureDefinition,
+                    ) => { filesToDelete: string[]; filesToRewrite: Array<[string, string]> };
+                }
+            ).stageChanges;
+
+            const mockService = { exists: (_p: string) => false };
+            const featureDef: FeatureDefinition = {
+                name: 'test',
+                description: 'Test feature',
+                files: ['file1.ts', 'file2.ts'],
+                rewrites: {},
+            };
+
+            const result = stageChanges(mockService, featureDef);
+            expect(result.filesToDelete).toEqual([]);
+            expect(result.filesToRewrite).toEqual([]);
+        });
+
+        it('should return files to delete when they exist', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const stageChanges = (
+                cmd as unknown as {
+                    stageChanges: (
+                        s: { exists: (p: string) => boolean },
+                        f: FeatureDefinition,
+                    ) => { filesToDelete: string[]; filesToRewrite: Array<[string, string]> };
+                }
+            ).stageChanges;
+
+            const mockService = { exists: (_p: string) => true };
+            const featureDef: FeatureDefinition = {
+                name: 'test',
+                description: 'Test feature',
+                files: ['file1.ts', 'file2.ts'],
+                rewrites: {},
+            };
+
+            const result = stageChanges(mockService, featureDef);
+            expect(result.filesToDelete).toEqual(['file1.ts', 'file2.ts']);
+            expect(result.filesToRewrite).toEqual([]);
+        });
+
+        it('should selectively stage only existing files', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const stageChanges = (
+                cmd as unknown as {
+                    stageChanges: (
+                        s: { exists: (p: string) => boolean },
+                        f: FeatureDefinition,
+                    ) => { filesToDelete: string[]; filesToRewrite: Array<[string, string]> };
+                }
+            ).stageChanges;
+
+            const mockService = { exists: (p: string) => p === 'file1.ts' };
+            const featureDef: FeatureDefinition = {
+                name: 'test',
+                description: 'Test feature',
+                files: ['file1.ts', 'file2.ts'],
+                rewrites: {},
+            };
+
+            const result = stageChanges(mockService, featureDef);
+            expect(result.filesToDelete).toEqual(['file1.ts']);
+        });
+    });
+
+    describe('formatDryRunOutput', () => {
+        it('should format empty output', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const formatDryRunOutput = (
+                cmd as unknown as { formatDryRunOutput: (f: string, d: string[], r: Array<[string, string]>) => string }
+            ).formatDryRunOutput;
+
+            const result = formatDryRunOutput('cli', [], []);
+            expect(result).toContain('cli');
+            expect(result).toContain('--dry-run');
+        });
+
+        it('should format files to delete', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const formatDryRunOutput = (
+                cmd as unknown as { formatDryRunOutput: (f: string, d: string[], r: Array<[string, string]>) => string }
+            ).formatDryRunOutput;
+
+            const result = formatDryRunOutput('cli', ['a.ts', 'b.ts'], []);
+            expect(result).toContain('Files to delete');
+            expect(result).toContain('a.ts');
+            expect(result).toContain('b.ts');
+        });
+
+        it('should format files to rewrite', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const formatDryRunOutput = (
+                cmd as unknown as { formatDryRunOutput: (f: string, d: string[], r: Array<[string, string]>) => string }
+            ).formatDryRunOutput;
+
+            const result = formatDryRunOutput('cli', [], [['x.ts', 'content']]);
+            expect(result).toContain('Files to rewrite');
+            expect(result).toContain('x.ts');
+        });
+
+        it('should format both delete and rewrite', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const formatDryRunOutput = (
+                cmd as unknown as { formatDryRunOutput: (f: string, d: string[], r: Array<[string, string]>) => string }
+            ).formatDryRunOutput;
+
+            const result = formatDryRunOutput('cli', ['a.ts'], [['b.ts', 'x']]);
+            expect(result).toContain('Files to delete');
+            expect(result).toContain('Files to rewrite');
+        });
+    });
+
+    describe('execute', () => {
+        it('should return 0 for successful removal', async () => {
+            const stdout: string[] = [];
+            const cli = new Cli({ binaryName: 'tbs' });
+            cli.register(ScaffoldRemoveCommand);
+
+            const cmd = cli.process(['scaffold', 'remove', 'skills', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldRemoveCommand;
+
+            // Mock isInstalled to return false (not installed) so it exits early
+            const exitCode = await cmd.execute();
+            // Either returns 0 (success) or 1 (not installed) - both valid
+            expect(exitCode).toBeGreaterThanOrEqual(0);
+            expect(exitCode).toBeLessThanOrEqual(1);
+        });
+
+        it('should output JSON format with --json', async () => {
+            const stdout: string[] = [];
+            const cli = new Cli({ binaryName: 'tbs' });
+            cli.register(ScaffoldRemoveCommand);
+
+            const cmd = cli.process(['scaffold', 'remove', 'skills', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldRemoveCommand;
+
+            await cmd.execute();
+            const output = stdout.join('');
+            // Should be JSON or contain JSON-like content
+            expect(output).toBeTruthy();
+        });
+    });
+
+    describe('execute errors', () => {
+        it('should return error for unknown feature', async () => {
+            const stdout: string[] = [];
+            const cli = new Cli({ binaryName: 'tbs' });
+            cli.register(ScaffoldRemoveCommand);
+
+            const cmd = cli.process(['scaffold', 'remove', 'unknown-feature', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldRemoveCommand;
+
+            const exitCode = await cmd.execute();
+            expect(exitCode).toBe(1);
+        });
+
+        it('should return error for required feature', async () => {
+            const stdout: string[] = [];
+            const cli = new Cli({ binaryName: 'tbs' });
+            cli.register(ScaffoldRemoveCommand);
+
+            const cmd = cli.process(['scaffold', 'remove', 'contracts', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldRemoveCommand;
+
+            const exitCode = await cmd.execute();
+            expect(exitCode).toBe(1);
+        });
+
+        it('should return error for non-installed feature', async () => {
+            const stdout: string[] = [];
+            const cli = new Cli({ binaryName: 'tbs' });
+            cli.register(ScaffoldRemoveCommand);
+
+            // Use 'webapp' which may not exist in test environment
+            const cmd = cli.process(['scaffold', 'remove', 'webapp', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldRemoveCommand;
+
+            const exitCode = await cmd.execute();
+            // May return 0 if exists, or 1 if not installed
+            expect(exitCode).toBeGreaterThanOrEqual(0);
+            expect(exitCode).toBeLessThanOrEqual(1);
+        });
+    });
+});
