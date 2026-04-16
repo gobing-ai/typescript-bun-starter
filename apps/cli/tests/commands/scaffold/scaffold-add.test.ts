@@ -69,16 +69,21 @@ describe('ScaffoldAddCommand', () => {
         cleanupTestDirs();
         setupTestTemplates();
         setupTestProject();
-        // Create marker file so isInstalled('skills') returns true for that test
+        // Create marker files so isInstalled('skills') returns true for that test
         mkdirSync('packages/core/src/services', { recursive: true });
+        mkdirSync('packages/core/src/schemas', { recursive: true });
         writeFileSync('packages/core/src/services/skill-service.ts', '// marker');
+        writeFileSync('packages/core/src/schemas/skill.ts', '// marker');
     });
 
     afterEach(() => {
         cleanupTestDirs();
-        // Clean up marker file
+        // Clean up marker files
         try {
             rmSync('packages/core/src/services/skill-service.ts');
+        } catch {}
+        try {
+            rmSync('packages/core/src/schemas/skill.ts');
         } catch {}
     });
 
@@ -101,7 +106,7 @@ describe('ScaffoldAddCommand', () => {
             const details = ScaffoldAddCommand.usage.details ?? '';
             expect(details).toContain('skills');
             expect(details).toContain('webapp');
-            expect(details).toContain('api');
+            expect(details).toContain('server');
             expect(details).toContain('cli');
         });
 
