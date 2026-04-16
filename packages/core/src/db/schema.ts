@@ -5,7 +5,7 @@ export const skills = sqliteTable('skills', {
     name: text('name').notNull(),
     description: text('description'),
     version: integer('version').notNull().default(1),
-    config: text('config', { mode: 'json' }),
-    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    config: text('config'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
 });
