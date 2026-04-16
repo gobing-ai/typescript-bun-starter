@@ -174,23 +174,20 @@ import { CLI_CONFIG } from "./config";
 const isJsonMode = process.argv.includes("--json");
 
 await configure({
-  ...getLoggerConfig(process.env),
-  sinks: {
-    console: isJsonMode ? getStreamSink(Writable.toWeb(process.stderr)) : getConsoleSink(),
-  },
+    ...getLoggerConfig(process.env),
+    sinks: {
+        console: isJsonMode ? getStreamSink(Writable.toWeb(process.stderr)) : getConsoleSink(),
+    },
 });
 
 const cli = new Cli({
-  binaryLabel: CLI_CONFIG.binaryLabel,
-  binaryName: CLI_CONFIG.binaryName,
-  binaryVersion: CLI_CONFIG.binaryVersion,
+    binaryLabel: CLI_CONFIG.binaryLabel,
+    binaryName: CLI_CONFIG.binaryName,
+    binaryVersion: CLI_CONFIG.binaryVersion,
 });
 
 cli.register(Builtins.HelpCommand);
 cli.register(Builtins.VersionCommand);
-
-// Register your commands here:
-// cli.register(MyCommand);
 
 cli.runExit(process.argv.slice(2));
 `,
@@ -208,65 +205,77 @@ import { errorHandler } from "./middleware/error";
 
 type D1Binding = Extract<DbAdapterConfig, { driver: "d1" }>["binding"];
 
-interface ServerEnv {
-  API_KEY?: string;
-  DB?: D1Binding;
-}
-
-interface ServerVariables {
-  db: Database;
-}
+type ServerEnv = {
+    Bindings: {
+        API_KEY?: string;
+        DB?: D1Binding;
+    };
+    Variables: {
+        db: Database;
+    };
+};
 
 // Configure LogTape — always to stderr so stdout is never polluted
 await configure({
-  ...getLoggerConfig(process.env),
-  sinks: { console: getStreamSink(Writable.toWeb(process.stderr)) },
+    ...getLoggerConfig(process.env),
+    sinks: { console: getStreamSink(Writable.toWeb(process.stderr)) },
 });
 
 export function createApp(localDb?: Database) {
-  const app = new OpenAPIHono<{ Variables: ServerVariables }, ServerEnv>({
-    defaultRenderer: (content, code) =>
-      new Response(content, { status: code }),
-    notFoundHandler: () => {
-      return new Response(null, { status: 404 });
-    },
-    errorHandler: errorHandler,
-  });
+    const app = new OpenAPIHono<ServerEnv>();
 
-  // Database middleware
-  app.use("*", async (c, next) => {
-    if (localDb) {
-      c.set("db", localDb);
-      await next();
-      return;
-    }
+    app.onError(errorHandler());
+    app.notFound(() => new Response(null, { status: 404 }));
 
-    const dbBinding = c.env.DB;
-      c.var.db = await createDbAdapter({ driver: "d1", binding: c.env.DB });
-    } else {
-      c.var.db = await createDbAdapter({
-        driver: "bun",
-        path: process.env.DATABASE_URL ?? "data/app.db",
-      });
-    }
-    await next();
-  });
+    // Database middleware
+    app.use("*", async (c, next) => {
+        if (localDb) {
+            c.set("db", localDb);
+            await next();
+            return;
+        }
 
-  // Swagger UI at /docs
-  app.get("/docs", swaggerUI({ url: "/openapi.json" }));
+        const dbBinding = c.env.DB;
+        if (dbBinding) {
+            const adapter = await createDbAdapter({ driver: "d1", binding: dbBinding });
+            c.set("db", adapter.getDb());
+        } else {
+            const adapter = await createDbAdapter({
+                driver: "bun-sqlite",
+                url: process.env.DATABASE_URL ?? "data/app.db",
+            });
+            c.set("db", adapter.getDb());
+        }
+        await next();
+    });
 
-  // OpenAPI spec
-  app.doc("/openapi.json", (c) => ({
-    openapi: "3.0.0",
-    info: {
-      title: SERVER_CONFIG.apiTitle,
-      version: SERVER_CONFIG.apiVersion,
-    },
-    paths: {},
-  }));
+    // Health
+    app.get("/", (c) => {
+        return c.json({ status: "ok", timestamp: new Date().toISOString() });
+    });
 
-  return app;
+    // Swagger UI
+    app.get("/swagger", swaggerUI({ url: "/doc" }));
+
+    // OpenAPI spec
+    app.doc("/doc", (_c) => ({
+        openapi: "3.0.0",
+        info: {
+            title: SERVER_CONFIG.apiTitle,
+            version: SERVER_CONFIG.apiVersion,
+        },
+        paths: {},
+    }));
+
+    return app;
 }
+
+default export {
+    fetch: (request: Request, env?: Record<string, unknown>) => {
+        const app = createApp();
+        return app.fetch(request, env ?? {});
+    },
+};
 `,
 };
 
