@@ -9,17 +9,17 @@ export const SERVER_CONFIG = {
     defaultPort: 3000,
 
     /** API route prefix */
-    apiPrefix: "/api",
+    apiPrefix: '/api',
 
     /** OpenAPI spec endpoint */
-    docPath: "/doc",
+    docPath: '/doc',
 
     /** Swagger UI endpoint */
-    swaggerPath: "/swagger",
+    swaggerPath: '/swagger',
 
     /** API title for OpenAPI spec */
-    apiTitle: "TypeScript Bun Starter API",
+    apiTitle: 'TypeScript Bun Starter API',
 
     /** API version for OpenAPI spec */
-    apiVersion: "0.1.0",
+    apiVersion: '0.1.0',
 } as const;
