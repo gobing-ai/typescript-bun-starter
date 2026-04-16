@@ -11,10 +11,6 @@ import { ScaffoldService } from './services/scaffold-service';
 import type { FeatureDefinition } from './types/scaffold';
 
 export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
-    constructor() {
-        super();
-    }
-
     static paths = [['scaffold', 'remove']];
 
     static usage = Command.Usage({
@@ -44,11 +40,6 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
 
     async execute(): Promise<number> {
         const service = new ScaffoldService();
-
-        // 1. Validate feature name
-        if (!this.feature) {
-            return this.writeOutput(null, 'Feature name is required');
-        }
 
         const featureDef = getFeature(this.feature);
         if (!featureDef) {
@@ -93,6 +84,7 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
 
         // 7. Update contracts if needed
         await this.updateContracts(service, this.feature);
+        this.runPostRemoveScripts(service);
 
         this.writeSuccess(`Feature '${this.feature}' removed`);
         return this.writeOutput({
@@ -142,7 +134,7 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
         }
 
         // 2. For skills, we need to rewrite certain files to strip references
-        if (featureDef.name === 'Skills') {
+        if (this.feature === 'skills') {
             for (const [relPath, baselineContent] of Object.entries(BASELINE_FILES)) {
                 if (service.exists(relPath)) {
                     filesToRewrite.push([relPath, baselineContent]);
@@ -217,13 +209,16 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
                 modified = true;
             }
 
-            // Remove from workspaceDependencyRules
-            const dependencyRules = (contract.workspaceDependencyRules as Record<string, string[]>) ?? {};
-            // Find and remove the workspace package
-            for (const key of Object.keys(dependencyRules)) {
-                if (key.includes(`/${feature}`) || key.includes(`-${feature}`)) {
-                    delete dependencyRules[key];
-                    modified = true;
+            // Remove dependency rules for the workspace's package names
+            const featureDef = SCAFFOLD_FEATURES[feature];
+            const packageNames = featureDef?.packages ?? [];
+            if (packageNames.length > 0) {
+                const dependencyRules = (contract.workspaceDependencyRules as Record<string, string[]>) ?? {};
+                for (const pkg of packageNames) {
+                    if (pkg in dependencyRules) {
+                        delete dependencyRules[pkg];
+                        modified = true;
+                    }
                 }
             }
         }
@@ -231,5 +226,13 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
         if (modified) {
             service.writeJson(contractPath, contract);
         }
+    }
+
+    /**
+     * Run post-remove shell commands to keep workspace in sync.
+     */
+    private runPostRemoveScripts(service: ScaffoldService): void {
+        service.runShell('bun install');
+        service.runShell('bun run generate:instructions');
     }
 }
