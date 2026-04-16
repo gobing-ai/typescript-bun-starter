@@ -74,3 +74,20 @@ export interface FeatureStatus {
     installed: boolean;
     workspacePath?: string;
 }
+
+/**
+ * Contract file structure from contracts/project-contracts.json.
+ */
+export interface ContractFile {
+    version: number;
+    projectIdentity: ProjectIdentity;
+    requiredWorkspaces: Record<string, string>;
+    optionalWorkspaces: Record<string, string>;
+    workspaceDependencyRules: Record<string, string[]>;
+    requiredRootScripts?: string[];
+    fileNamingRules?: Array<{
+        pathPrefix: string;
+        pattern: string;
+        description: string;
+    }>;
+}
