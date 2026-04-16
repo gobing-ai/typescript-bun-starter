@@ -1,8 +1,7 @@
 /**
  * Core package configuration.
  *
- * These are compile-time constants and runtime defaults for @starter/core.
- * Environment-dependent values (DATABASE_URL) are resolved at the adapter level.
+ * Compile-time constants and runtime defaults for @starter/core.
  */
 export const CORE_CONFIG = {
     /** Default SQLite database path when DATABASE_URL is not set */
@@ -15,9 +14,9 @@ export const CORE_CONFIG = {
         foreignKeys: 'PRAGMA foreign_keys = ON',
     },
 
-    /** Skill field constraints — mirrors the Zod schemas in schemas/skill.ts */
+    /** Skill validation constraints */
     skill: {
-        nameMaxLength: 100,
         nameMinLength: 1,
+        nameMaxLength: 100,
     },
 } as const;
