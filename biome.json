@@ -55,7 +55,7 @@
     },
     "overrides": [
         {
-            "includes": ["apps/web/src/**/*.astro"],
+            "includes": ["apps/web/src/**/*.astro", "scripts/scaffold/templates/webapp/**/*.astro"],
             "linter": {
                 "rules": {
                     "style": {
