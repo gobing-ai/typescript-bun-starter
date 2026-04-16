@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
-import { Writable } from "node:stream";
-import { configure, getConsoleSink, getStreamSink } from "@logtape/logtape";
-import { getLoggerConfig } from "@starter/core";
-import { Builtins, Cli } from "clipanion";
+import { Writable } from 'node:stream';
+import { configure, getConsoleSink, getStreamSink } from '@logtape/logtape';
+import { getLoggerConfig } from '@starter/core';
+import { Builtins, Cli } from 'clipanion';
 
-import { CLI_CONFIG } from "./config";
+import { CLI_CONFIG } from './config';
 
 // Detect JSON agent mode before logging is configured.
-const isJsonMode = process.argv.includes("--json");
+const isJsonMode = process.argv.includes('--json');
 
 await configure({
     ...getLoggerConfig(process.env),
