@@ -187,14 +187,16 @@ describe('ScaffoldRemoveCommand', () => {
     describe('stageChanges', () => {
         it('should return empty arrays when no files exist', () => {
             const cmd = new ScaffoldRemoveCommand();
+            (cmd as unknown as { feature: string }).feature = 'test';
             const stageChanges = (
                 cmd as unknown as {
                     stageChanges: (
+                        this: { feature: string },
                         s: { exists: (p: string) => boolean },
                         f: FeatureDefinition,
                     ) => { filesToDelete: string[]; filesToRewrite: Array<[string, string]> };
                 }
-            ).stageChanges;
+            ).stageChanges.bind(cmd);
 
             const mockService = { exists: (_p: string) => false };
             const featureDef: FeatureDefinition = {
@@ -211,14 +213,16 @@ describe('ScaffoldRemoveCommand', () => {
 
         it('should return files to delete when they exist', () => {
             const cmd = new ScaffoldRemoveCommand();
+            (cmd as unknown as { feature: string }).feature = 'test';
             const stageChanges = (
                 cmd as unknown as {
                     stageChanges: (
+                        this: { feature: string },
                         s: { exists: (p: string) => boolean },
                         f: FeatureDefinition,
                     ) => { filesToDelete: string[]; filesToRewrite: Array<[string, string]> };
                 }
-            ).stageChanges;
+            ).stageChanges.bind(cmd);
 
             const mockService = { exists: (_p: string) => true };
             const featureDef: FeatureDefinition = {
@@ -235,14 +239,16 @@ describe('ScaffoldRemoveCommand', () => {
 
         it('should selectively stage only existing files', () => {
             const cmd = new ScaffoldRemoveCommand();
+            (cmd as unknown as { feature: string }).feature = 'test';
             const stageChanges = (
                 cmd as unknown as {
                     stageChanges: (
+                        this: { feature: string },
                         s: { exists: (p: string) => boolean },
                         f: FeatureDefinition,
                     ) => { filesToDelete: string[]; filesToRewrite: Array<[string, string]> };
                 }
-            ).stageChanges;
+            ).stageChanges.bind(cmd);
 
             const mockService = { exists: (p: string) => p === 'file1.ts' };
             const featureDef: FeatureDefinition = {
@@ -334,6 +340,28 @@ describe('ScaffoldRemoveCommand', () => {
             const output = stdout.join('');
             // Should be JSON or contain JSON-like content
             expect(output).toBeTruthy();
+        });
+    });
+
+    describe('runPostRemoveScripts', () => {
+        it('should run bun install and generate:instructions', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const runPostRemoveScripts = (
+                cmd as unknown as {
+                    runPostRemoveScripts: (s: { runShell: (cmd: string) => number }) => void;
+                }
+            ).runPostRemoveScripts;
+
+            const commands: string[] = [];
+            const mockService = {
+                runShell: (c: string) => {
+                    commands.push(c);
+                    return 0;
+                },
+            };
+
+            runPostRemoveScripts(mockService);
+            expect(commands).toEqual(['bun install', 'bun run generate:instructions']);
         });
     });
 
