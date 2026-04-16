@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { cwd } from 'node:process';
@@ -89,6 +90,20 @@ export class ScaffoldService {
     deleteFile(relPath: string): void {
         const absPath = this.resolvePath(relPath);
         rmSync(absPath, { recursive: true, force: true });
+    }
+
+    /**
+     * Run a shell command in the project root.
+     * Returns the exit code (0 = success).
+     */
+    runShell(command: string): number {
+        try {
+            execSync(command, { cwd: this.root, stdio: 'pipe' });
+            return 0;
+        } catch (err: unknown) {
+            const error = err as { status?: number };
+            return error.status ?? 1;
+        }
     }
 
     /**
