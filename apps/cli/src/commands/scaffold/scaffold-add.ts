@@ -114,10 +114,14 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
         } catch (err) {
             // Rollback: remove copied files and created directories
             for (const file of copiedFiles) {
-                try { rmSync(resolve(service.getRoot(), file), { recursive: true, force: true }); } catch {}
+                try {
+                    rmSync(resolve(service.getRoot(), file), { recursive: true, force: true });
+                } catch {}
             }
             for (const dir of createdDirs.reverse()) {
-                try { rmSync(resolve(service.getRoot(), dir), { recursive: true, force: true }); } catch {}
+                try {
+                    rmSync(resolve(service.getRoot(), dir), { recursive: true, force: true });
+                } catch {}
             }
             return this.writeOutput(null, `Failed to add feature '${this.feature}': ${String(err)}`);
         }
@@ -277,7 +281,9 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
             throw err;
         } finally {
             // Clean up backup
-            try { rmSync(backupPath, { force: true }); } catch {}
+            try {
+                rmSync(backupPath, { force: true });
+            } catch {}
         }
     }
 }
