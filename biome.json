@@ -42,7 +42,8 @@
             "!**/node_modules",
             "!**/.astro",
             "!**/apps/server/src/*.js",
-            "!**/apps/server/src/**/*.js"
+            "!**/apps/server/src/**/*.js",
+            "!**/.ant-colony/**"
         ]
     },
     "assist": {
