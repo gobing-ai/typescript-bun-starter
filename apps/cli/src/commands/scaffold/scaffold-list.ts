@@ -87,10 +87,6 @@ export class ScaffoldListCommand extends BaseScaffoldCommand {
      * Check if a feature is installed.
      */
     private isInstalled(feature: string, service: ScaffoldService): boolean {
-        if (feature === 'skills') {
-            return service.exists('packages/core/src/services/skill-service.ts');
-        }
-
         const featureDef = SCAFFOLD_FEATURES[feature];
         if (featureDef?.workspacePath) {
             return service.exists(featureDef.workspacePath);
