@@ -9,7 +9,7 @@
         "apps/*"
     ],
     "scripts": {
-        "bootstrap": "bun run scripts/bootstrap-project.ts",
+        "bootstrap": "echo 'Deprecated: Use \"tbs scaffold init\" instead.' && bun run scripts/bootstrap-project.ts",
         "check": "biome check . && bun run check:contracts && bun run check:instructions && bun run typecheck && bun run test:coverage",
         "check:contracts": "bun run scripts/check-contracts.ts",
         "check:instructions": "bun run scripts/generate-instructions.ts --check",
@@ -30,7 +30,7 @@
         "build:cli": "bun build --compile apps/cli/src/index.ts --outfile dist/tbs",
         "tree": "tree . -a -I 'node_modules|.git|coverage'",
         "pub2npmjs": "npm whoami >/dev/null 2>&1 || { echo 'Error: not logged in to npm. Run `npm login` first.'; exit 1; } && npm publish --access public",
-        "clean-demo": "bun run scripts/clean-demo.ts"
+        "clean-demo": "echo 'Deprecated: Use \"tbs scaffold remove skills\" instead.' && bun run scripts/clean-demo.ts"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.0.0",
