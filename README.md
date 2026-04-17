@@ -25,13 +25,21 @@ Astro dashboard that demonstrates React islands and a typed health check call.
 # via degit (recommended — clean copy, no git history)
 bunx degit gobing-ai/typescript-bun-starter my-project && cd my-project
 bun install
-tbs scaffold init --name my-project --scope @acme --title "My Project"
+
+# build the binary file first
+bun run build:cli
+
+./dist/tbs scaffold init --name my-project --scope @acme --title "My Project"
 bun run check        # lint + typecheck + test (all should pass)
 
 # or clone from GitHub
 git clone https://github.com/gobing-ai/typescript-bun-starter.git my-project && cd my-project
 bun install
-tbs scaffold init --name my-project --scope @acme --title "My Project"
+
+# build the binary file first
+bun run build:cli
+
+./dist/tbs scaffold init --name my-project --scope @acme --title "My Project"
 bun run check
 ```
 
@@ -39,42 +47,42 @@ bun run check
 
 ### Scaffold Commands
 
-Use `tbs scaffold` to manage project features and identity:
+Use `./dist/tbs scaffold` to manage project features and identity:
 
 ```bash
 # Initialize project identity
-tbs scaffold init --name my-project --scope @acme
+./dist/tbs scaffold init --name my-project --scope @acme
 
 # Preview without applying
-tbs scaffold init --name my-project --scope @acme --dry-run
+./dist/tbs scaffold init --name my-project --scope @acme --dry-run
 
 # Customize CLI binary name
-tbs scaffold init --name my-project --scope @acme --bin mp
+./dist/tbs scaffold init --name my-project --scope @acme --bin mp
 
 # Customize branding
-tbs scaffold init --name my-project --scope @acme --title "My Project Platform" --brand "My Project"
+./dist/tbs scaffold init --name my-project --scope @acme --title "My Project Platform" --brand "My Project"
 
 # Skip post-init verification
-tbs scaffold init --name my-project --scope @acme --skip-check
+./dist/tbs scaffold init --name my-project --scope @acme --skip-check
 
 # List all features with status
-tbs scaffold list
+./dist/tbs scaffold list
 
 # Add optional features
-tbs scaffold add cli        # Clipanion CLI tool
-tbs scaffold add server     # Hono REST API server
-tbs scaffold add webapp     # Astro web application
+./dist/tbs scaffold add cli        # Clipanion CLI tool
+./dist/tbs scaffold add server     # Hono REST API server
+./dist/tbs scaffold add webapp     # Astro web application
 
 # Skills CRUD domain is built-in (always installed)
 
 # Remove optional features
-tbs scaffold remove webapp
+./dist/tbs scaffold remove webapp
 
 # Validate project contracts
-tbs scaffold validate --fix
+./dist/tbs scaffold validate --fix
 ```
 
-Run `tbs scaffold --help` for all options.
+Run `./dist/tbs scaffold --help` for all options.
 
 ### Clean Demo Code
 
@@ -84,7 +92,7 @@ The starter ships with a "skills" CRUD demo across all three tiers. Remove it to
 bun run clean-demo
 ```
 
-> **Deprecated:** `bun run clean-demo` and `bun run bootstrap` are deprecated. Use `tbs scaffold init` instead.
+> **Deprecated:** `bun run clean-demo` and `bun run bootstrap` are deprecated. Use `./dist/tbs scaffold init` instead.
 
 ## Local Development
 
@@ -208,11 +216,11 @@ bun run build:cli      # compile CLI to standalone binary
 bun run pub2npmjs      # publish to npm
 
 # Scaffold commands (see "Scaffold Commands" section above)
-tbs scaffold init      # initialize or update project identity
-tbs scaffold add       # install an optional feature
-tbs scaffold remove    # uninstall an optional feature
-tbs scaffold list      # show all features with status
-tbs scaffold validate  # validate project contracts
+./dist/tbs scaffold init      # initialize or update project identity
+./dist/tbs scaffold add       # install an optional feature
+./dist/tbs scaffold remove    # uninstall an optional feature
+./dist/tbs scaffold list      # show all features with status
+./dist/tbs scaffold validate  # validate project contracts
 ```
 
 ## Tech Stack
