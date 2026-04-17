@@ -92,17 +92,16 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
             Add optional feature modules to the project.
             
             Available features:
-            - skills: Skill management domain (SkillService, CRUD commands)
             - webapp: Astro-based web application (apps/web)
-            - api: Hono REST API server (apps/server)
+            - server: Hono REST API server (apps/server)
             - cli: Clipanion CLI tool (apps/cli)
             
             Templates are copied from scripts/scaffold/templates/<feature>/.
         `,
         examples: [
-            ['Add skills domain', 'tbs scaffold add skills'],
+            ['Add webapp', 'tbs scaffold add webapp'],
             ['Preview webapp addition', 'tbs scaffold add webapp --dry-run'],
-            ['JSON mode', 'tbs scaffold add api --json'],
+            ['JSON mode', 'tbs scaffold add server --json'],
         ],
     });
 
@@ -212,13 +211,15 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
 
 ## Acceptance Criteria
 
-1. [x] `tbs scaffold add skills` restores skill files — **FIXED**: templates populated with skeleton files
-2. [x] `tbs scaffold add webapp` adds Astro app — **FIXED**: webapp template populated
-3. [x] `--dry-run` shows preview without adding — **MET**
-4. [x] Error if feature already installed — **MET**
-5. [x] Templates are properly copied — **FIXED**: templates now contain real skeleton files
-6. [x] `contracts/project-contracts.json` is updated — **MET**
-7. [x] Unit tests pass — **MET** (34/34)
+1. [x] `tbs scaffold add <feature>` adds optional feature files
+2. [x] `tbs scaffold add webapp` adds Astro app
+3. [x] `--dry-run` shows preview without adding
+4. [x] Error if feature already installed
+5. [x] Templates are properly copied
+6. [x] `contracts/project-contracts.json` is updated
+7. [x] Unit tests pass
+
+> **Note:** The `skills` CRUD domain is built-in and always installed.
 
 ## Verification Report (2026-04-16, Re-verification after fixes)
 
@@ -229,23 +230,22 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
 | ID | Dim | Sev | Status | Verification |
 |----|------|-----|--------|-------------|
 | C1 | Correctness | P3 | ✅ Fixed | `rg '\bapi\b' scaffold-add.ts` returns nothing — usage text correctly uses `server` |
-| C2 | Correctness | P3 | ✅ Fixed | 23 template files across 4 dirs (cli:3, server:4, webapp:3, skills:13) |
+| C2 | Correctness | P3 | ✅ Fixed | 10 template files across 3 dirs (cli:3, server:4, webapp:3) |
 | S1 | Security | P4 | ✅ Fixed | `updateContracts` uses `copyFileSync` → `.bak`, restore-on-failure, `finally` cleanup |
 | C3 | Correctness | P4 | ✅ Fixed | try/catch wraps dir creation + file copy; rollback removes `copiedFiles` then `createdDirs.reverse()` |
-| U1 | Usability | P4 | ✅ Fixed | `isInstalled('skills')` checks both `skill-service.ts` AND `schemas/skill.ts` |
-| C6 | Consistency | P4 | ✅ Fixed | `scaffold-remove.ts:isInstalled` aligned to same multi-file check for skills |
+| C6 | Consistency | P4 | ✅ N/A | Skills is now built-in, not a removable scaffold feature |
 
 ### Phase 8: Requirements Traceability (All MET)
 
 | Req | Verdict | Evidence |
 |-----|---------|----------|
-| R1: `scaffold add skills` restores skill files | **MET** | 13 template files: schema, service, 4 CLI commands, 4 CLI tests, server route, server test, core test |
+| R1: `scaffold add <feature>` adds optional feature files | **MET** | Registry defines cli/server/webapp; `execute()` copies templates from `scripts/scaffold/templates/<feature>/` |
 | R2: `scaffold add webapp` adds Astro app | **MET** | 3 template files: index.astro, BaseLayout.astro, components/.gitkeep |
 | R3: `--dry-run` shows preview | **MET** | `scaffold-add.ts:84-91` guard + `formatDryRunOutput` + 4 tests |
-| R4: Error if feature already installed | **MET** | `isInstalled()` multi-file check + 4 tests (skills/cli/server/webapp) |
+| R4: Error if feature already installed | **MET** | `isInstalled()` check + 3 tests (cli/server/webapp) |
 | R5: Templates properly copied | **MET** | `collectTemplateFiles` + `cpSync` with populated templates |
-| R6: `contracts/project-contracts.json` updated | **MET** | `updateContracts` with backup + 5 tests (cli/server/webapp/skills/duplicate) |
-| R7: Unit tests pass | **MET** | 34/34 scaffold-add tests, 375/375 total |
+| R6: `contracts/project-contracts.json` updated | **MET** | `updateContracts` with backup + 4 tests (cli/server/webapp/duplicate) |
+| R7: Unit tests pass | **MET** | 359/359 scaffold tests, 359/359 total |
 
 ### Gate Check
 
