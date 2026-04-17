@@ -32,9 +32,8 @@ describe('ScaffoldRemoveCommand', () => {
 
         it('should mention available features', () => {
             const details = ScaffoldRemoveCommand.usage.details ?? '';
-            expect(details).toContain('skills');
             expect(details).toContain('webapp');
-            expect(details).toContain('api');
+            expect(details).toContain('server');
             expect(details).toContain('cli');
         });
 
@@ -61,10 +60,6 @@ describe('ScaffoldRemoveCommand', () => {
     });
 
     describe('feature registry', () => {
-        it('should have skills as removable feature', () => {
-            expect(SCAFFOLD_FEATURES.skills).toBeDefined();
-        });
-
         it('should have webapp as removable feature', () => {
             expect(SCAFFOLD_FEATURES.webapp).toBeDefined();
         });
@@ -86,37 +81,12 @@ describe('ScaffoldRemoveCommand', () => {
         });
     });
 
-    describe('skills feature', () => {
-        const skills = SCAFFOLD_FEATURES.skills;
-
-        it('should have files defined', () => {
-            expect(skills.files.length).toBeGreaterThan(0);
-        });
-
-        it('should include core service files', () => {
-            expect(skills.files).toContain('packages/core/src/services/skill-service.ts');
-        });
-
-        it('should include CLI command files', () => {
-            expect(skills.files).toContain('apps/cli/src/commands/skill-list.ts');
-            expect(skills.files).toContain('apps/cli/src/commands/skill-create.ts');
-        });
-
-        it('should include server route files', () => {
-            expect(skills.files).toContain('apps/server/src/routes/skills.ts');
-        });
-
-        it('should have rewrites defined', () => {
-            expect(Object.keys(skills.rewrites).length).toBe(0); // Uses BASELINE_FILES
-        });
-    });
-
     describe('dry-run format', () => {
         it('should format deletion list', () => {
             const files = ['file1.ts', 'file2.ts', 'file3.ts'];
             const _rewrites: Array<[string, string]> = [];
 
-            let output = `Would remove feature 'skills':\n\n`;
+            let output = `Would remove feature 'webapp':\n\n`;
             output += `Files to delete (${files.length}):\n`;
             for (const file of files) {
                 output += `  - ${file}\n`;
@@ -131,26 +101,6 @@ describe('ScaffoldRemoveCommand', () => {
     });
 
     describe('isInstalled', () => {
-        it('should return true for skills if skill-service exists', () => {
-            const cmd = new ScaffoldRemoveCommand();
-            const isInstalled = (
-                cmd as unknown as { isInstalled: (f: string, s: { exists: (p: string) => boolean }) => boolean }
-            ).isInstalled;
-
-            const mockService = { exists: (_p: string) => true };
-            expect(isInstalled('skills', mockService)).toBe(true);
-        });
-
-        it('should return false for skills if skill-service does not exist', () => {
-            const cmd = new ScaffoldRemoveCommand();
-            const isInstalled = (
-                cmd as unknown as { isInstalled: (f: string, s: { exists: (p: string) => boolean }) => boolean }
-            ).isInstalled;
-
-            const mockService = { exists: (_p: string) => false };
-            expect(isInstalled('skills', mockService)).toBe(false);
-        });
-
         it('should return true for workspace feature if path exists', () => {
             const cmd = new ScaffoldRemoveCommand();
             const isInstalled = (
@@ -316,7 +266,7 @@ describe('ScaffoldRemoveCommand', () => {
             const cli = new Cli({ binaryName: 'tbs' });
             cli.register(ScaffoldRemoveCommand);
 
-            const cmd = cli.process(['scaffold', 'remove', 'skills', '--json'], {
+            const cmd = cli.process(['scaffold', 'remove', 'webapp', '--json'], {
                 stdout: createMockWritable(stdout),
             }) as ScaffoldRemoveCommand;
 
@@ -332,7 +282,7 @@ describe('ScaffoldRemoveCommand', () => {
             const cli = new Cli({ binaryName: 'tbs' });
             cli.register(ScaffoldRemoveCommand);
 
-            const cmd = cli.process(['scaffold', 'remove', 'skills', '--json'], {
+            const cmd = cli.process(['scaffold', 'remove', 'webapp', '--json'], {
                 stdout: createMockWritable(stdout),
             }) as ScaffoldRemoveCommand;
 
