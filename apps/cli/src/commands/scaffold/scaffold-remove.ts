@@ -1,12 +1,6 @@
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
-import {
-    BASELINE_FILES,
-    getFeature,
-    isRequiredFeature,
-    REQUIRED_FEATURES,
-    SCAFFOLD_FEATURES,
-} from './features/registry';
+import { getFeature, isRequiredFeature, REQUIRED_FEATURES, SCAFFOLD_FEATURES } from './features/registry';
 import { ScaffoldService } from './services/scaffold-service';
 import type { FeatureDefinition } from './types/scaffold';
 
@@ -24,9 +18,8 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
             Remove optional feature modules from the project.
 
             Available features:
-            - skills: Skill management domain (SkillService, CRUD commands)
             - webapp: Astro-based web application (apps/web)
-            - api: Hono REST API server (apps/server)
+            - server: Hono REST API server (apps/server)
             - cli: Clipanion CLI tool (apps/cli)
 
             Warning: Removing a feature also removes all associated tests.
@@ -34,9 +27,9 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
             Use 'tbs scaffold list' to see which features are currently installed.
         `,
         examples: [
-            ['Remove skills domain', 'tbs scaffold remove skills'],
+            ['Remove webapp', 'tbs scaffold remove webapp'],
             ['Preview webapp removal', 'tbs scaffold remove webapp --dry-run'],
-            ['JSON mode', 'tbs scaffold remove api --json'],
+            ['JSON mode', 'tbs scaffold remove server --json'],
         ],
     });
 
@@ -103,15 +96,6 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
      * Check if a feature is installed (exists in project).
      */
     private isInstalled(feature: string, service: ScaffoldService): boolean {
-        // For skills, check multiple key files to avoid false positives
-        if (feature === 'skills') {
-            return (
-                service.exists('packages/core/src/services/skill-service.ts') &&
-                service.exists('packages/core/src/schemas/skill.ts')
-            );
-        }
-
-        // For apps, check the workspace path
         const featureDef = SCAFFOLD_FEATURES[feature];
         if (featureDef?.workspacePath) {
             return service.exists(featureDef.workspacePath);
@@ -137,20 +121,6 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
         for (const file of featureDef.files) {
             if (service.exists(file)) {
                 filesToDelete.push(file);
-            }
-        }
-
-        // 2. For skills, we need to rewrite certain files to strip references
-        if (this.feature === 'skills') {
-            for (const [relPath, baselineContent] of Object.entries(BASELINE_FILES)) {
-                if (service.exists(relPath)) {
-                    filesToRewrite.push([relPath, baselineContent]);
-                    // Remove from delete list if it's in there
-                    const idx = filesToDelete.indexOf(relPath);
-                    if (idx !== -1) {
-                        filesToDelete.splice(idx, 1);
-                    }
-                }
             }
         }
 
