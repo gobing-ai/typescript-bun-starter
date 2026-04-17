@@ -19,7 +19,6 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
             Add optional feature modules to the project.
 
             Available features:
-            - skills: Skill management domain (SkillService, CRUD commands)
             - webapp: Astro-based web application (apps/web)
             - server: Hono REST API server (apps/server)
             - cli: Clipanion CLI tool (apps/cli)
@@ -29,7 +28,7 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
             Use 'tbs scaffold list' to see which features are currently installed.
         `,
         examples: [
-            ['Add skills domain', 'tbs scaffold add skills'],
+            ['Add webapp', 'tbs scaffold add webapp'],
             ['Preview webapp addition', 'tbs scaffold add webapp --dry-run'],
             ['JSON mode', 'tbs scaffold add server --json'],
         ],
@@ -150,14 +149,6 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
      * Check if a feature is installed.
      */
     private isInstalled(feature: string, service: ScaffoldService): boolean {
-        if (feature === 'skills') {
-            // Check multiple key files to avoid false positives from partial installs
-            return (
-                service.exists('packages/core/src/services/skill-service.ts') &&
-                service.exists('packages/core/src/schemas/skill.ts')
-            );
-        }
-
         const featureDef = SCAFFOLD_FEATURES[feature];
         if (featureDef?.workspacePath) {
             return service.exists(featureDef.workspacePath);
