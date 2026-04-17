@@ -1,5 +1,10 @@
 #!/usr/bin/env bun
 /**
+ * @deprecated Use `tbs scaffold remove skills` instead.
+ *
+ * This script will be removed in v1.0.0.
+ * Run `tbs scaffold remove skills` for equivalent functionality.
+ *
  * Remove the "skills" demo domain, leaving a clean starter skeleton.
  *
  * Usage: bun run clean-demo
