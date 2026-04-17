@@ -1,4 +1,10 @@
 #!/usr/bin/env bun
+/**
+ * @deprecated Use `tbs scaffold init` instead.
+ *
+ * This script will be removed in v1.0.0.
+ * Run `tbs scaffold init` for equivalent functionality.
+ */
 
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
