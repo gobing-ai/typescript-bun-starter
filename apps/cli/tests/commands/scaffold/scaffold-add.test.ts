@@ -69,22 +69,10 @@ describe('ScaffoldAddCommand', () => {
         cleanupTestDirs();
         setupTestTemplates();
         setupTestProject();
-        // Create marker files so isInstalled('skills') returns true for that test
-        mkdirSync('packages/core/src/services', { recursive: true });
-        mkdirSync('packages/core/src/schemas', { recursive: true });
-        writeFileSync('packages/core/src/services/skill-service.ts', '// marker');
-        writeFileSync('packages/core/src/schemas/skill.ts', '// marker');
     });
 
     afterEach(() => {
         cleanupTestDirs();
-        // Clean up marker files
-        try {
-            rmSync('packages/core/src/services/skill-service.ts');
-        } catch {}
-        try {
-            rmSync('packages/core/src/schemas/skill.ts');
-        } catch {}
     });
 
     describe('path registration', () => {
@@ -104,7 +92,6 @@ describe('ScaffoldAddCommand', () => {
 
         it('should mention available features', () => {
             const details = ScaffoldAddCommand.usage.details ?? '';
-            expect(details).toContain('skills');
             expect(details).toContain('webapp');
             expect(details).toContain('server');
             expect(details).toContain('cli');
@@ -188,19 +175,6 @@ describe('ScaffoldAddCommand', () => {
     });
 
     describe('validation - already installed', () => {
-        it('should return error when skills is already installed', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'add', 'skills', '--json'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldAddCommand;
-
-            const exitCode = await cmd.execute();
-            expect(exitCode).toBe(1);
-            const output = JSON.parse(stdout.join(''));
-            expect(output.error).toContain('already installed');
-        });
-
         it('should return error when cli is already installed', async () => {
             const cli = makeCli();
             const stdout: string[] = [];
@@ -373,17 +347,6 @@ describe('ScaffoldAddCommand', () => {
             expect(contract.optionalWorkspaces['apps/web']).toBe('@starter/web');
         });
 
-        it('should not update for skills (no workspace)', async () => {
-            const cmd = new ScaffoldAddCommand();
-            const service = new ScaffoldService(TEST_PROJECT_DIR);
-            const original = JSON.parse(readFileSync(`${TEST_PROJECT_DIR}/contracts/project-contracts.json`, 'utf8'));
-
-            await cmd.updateContracts(service, 'skills');
-
-            const contract = JSON.parse(readFileSync(`${TEST_PROJECT_DIR}/contracts/project-contracts.json`, 'utf8'));
-            expect(contract.optionalWorkspaces).toEqual(original.optionalWorkspaces);
-        });
-
         it('should not duplicate if already exists', async () => {
             const cmd = new ScaffoldAddCommand();
             const service = new ScaffoldService(TEST_PROJECT_DIR);
@@ -411,11 +374,6 @@ describe('ScaffoldAddCommand', () => {
         it('should have webapp feature', () => {
             expect(SCAFFOLD_FEATURES.webapp).toBeDefined();
             expect(SCAFFOLD_FEATURES.webapp.workspacePath).toBe('apps/web');
-        });
-
-        it('should have skills feature without workspacePath', () => {
-            expect(SCAFFOLD_FEATURES.skills).toBeDefined();
-            expect(SCAFFOLD_FEATURES.skills.workspacePath).toBeUndefined();
         });
 
         it('should have required features', () => {
