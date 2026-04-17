@@ -72,17 +72,16 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
             Remove unused feature modules from the project.
             
             Available features:
-            - skills: Skill management domain (SkillService, CRUD commands)
             - webapp: Astro-based web application (apps/web)
-            - api: Hono REST API server (apps/server)
+            - server: Hono REST API server (apps/server)
             - cli: Clipanion CLI tool (apps/cli)
             
             Warning: Removing a feature also removes all associated tests.
         `,
         examples: [
-            ['Remove skills domain', 'tbs scaffold remove skills'],
+            ['Remove webapp', 'tbs scaffold remove webapp'],
             ['Preview webapp removal', 'tbs scaffold remove webapp --dry-run'],
-            ['JSON mode', 'tbs scaffold remove api --json'],
+            ['JSON mode', 'tbs scaffold remove server --json'],
         ],
     });
 
@@ -197,7 +196,7 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
 
 ## Acceptance Criteria
 
-1. [x] `tbs scaffold remove skills` removes skill files
+1. [x] `tbs scaffold remove <feature>` removes optional feature files
 2. [x] `tbs scaffold remove webapp` removes Astro app
 3. [x] `--dry-run` shows preview without deleting
 4. [x] Cannot remove required features (contracts, core)
@@ -205,9 +204,11 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
 6. [x] `contracts/project-contracts.json` is updated
 7. [x] Unit tests pass
 
+> **Note:** The `skills` CRUD domain is built-in and always installed.
+
 ## Requirements Traceability
 
-- [x] **AC1**: `tbs scaffold remove skills` removes skill files → **MET** | Evidence: `scaffold-remove.ts:execute()` → `stageChanges()` iterates `SCAFFOLD_FEATURES.skills.files`, deletes via `service.deleteFile()`
+- [x] **AC1**: `tbs scaffold remove <feature>` removes optional feature files → **MET** | Evidence: `scaffold-remove.ts:execute()` → `stageChanges()` iterates `SCAFFOLD_FEATURES[feature].files`, deletes via `service.deleteFile()`
 - [x] **AC2**: `tbs scaffold remove webapp` removes Astro app → **MET** | Evidence: Registry defines webapp files (registry.ts); `execute()` deletion loop handles them
 - [x] **AC3**: `--dry-run` shows preview without deleting → **MET** | Evidence: `execute():79-87` returns preview data before any side effects
 - [x] **AC4**: Cannot remove required features → **MET** | Evidence: `isRequiredFeature()` check; tests verify rejection for contracts/core
