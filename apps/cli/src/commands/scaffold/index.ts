@@ -1,7 +1,6 @@
 // Feature registry
 export {
     ALL_FEATURES,
-    BASELINE_FILES,
     getFeature,
     isOptionalFeature,
     isRequiredFeature,
