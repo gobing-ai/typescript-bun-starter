@@ -11,7 +11,7 @@
 ```bash
 git clone <repo-url> && cd typescript-bun-starter
 bun install
-bun run bootstrap -- --name my-project --scope @acme --title "My Project"
+tbs scaffold init --name my-project --scope @acme --title "My Project"
 ```
 
 **From compiled binary:**
@@ -25,11 +25,14 @@ chmod +x tbs
 
 ### 1.2 First Commands
 
-Before you start adding domain logic, bootstrap the spawned project identity:
+Before you start adding domain logic, initialize the project identity:
 
 ```bash
-bun run bootstrap -- --name my-project --scope @acme --title "My Project"
+tbs scaffold init --name my-project --scope @acme --title "My Project"
 ```
+
+This rewrites package names, internal imports, generated instruction files, CLI
+metadata, and starter-facing copy from the default starter identity.
 
 This rewrites package names, internal imports, generated instruction files, CLI
 metadata, and starter-facing copy from the default starter identity.
@@ -273,6 +276,79 @@ tbs skill get --id "$ID" --json
 # Clean up
 tbs skill delete --id "$ID" --json
 ```
+
+### 2.3 Scaffold Commands
+
+#### `tbs scaffold init`
+
+Initialize or update the project identity.
+
+```bash
+tbs scaffold init --name <name> --scope <scope> [--title <title>] [--brand <brand>] [--bin <bin>] [--dry-run] [--json] [--skip-check]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--name` | Yes | Project slug (used in package names) |
+| `--scope` | Yes | npm scope, e.g. `@myorg` |
+| `--title` | No | Display name (defaults to name) |
+| `--brand` | No | Short brand name for CLI binary label |
+| `--bin` | No | Binary name (defaults to `tbs`) |
+| `--dry-run` | No | Preview without applying changes |
+| `--json` | No | JSON output mode |
+| `--skip-check` | No | Skip post-init verification |
+
+#### `tbs scaffold add`
+
+Install an optional feature.
+
+```bash
+tbs scaffold add <feature> [--dry-run] [--json]
+```
+
+| Feature | Description |
+|---------|-------------|
+| `cli` | Clipanion CLI tool |
+| `server` | Hono REST API server |
+| `webapp` | Astro web application |
+| `skills` | Full CRUD domain across all tiers |
+
+#### `tbs scaffold remove`
+
+Uninstall an optional feature.
+
+```bash
+tbs scaffold remove <feature> [--dry-run] [--json]
+```
+
+#### `tbs scaffold list`
+
+Show all features with their installation status.
+
+```bash
+tbs scaffold list [--json]
+```
+
+#### `tbs scaffold validate`
+
+Validate project contract integrity.
+
+```bash
+tbs scaffold validate [--fix] [--json]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--fix` | Automatically fix fixable issues |
+| `--json` | JSON output mode |
+
+**Common options for all scaffold commands:**
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Preview changes without applying |
+| `--json` | JSON output (for scripts and AI agents) |
+| `--help` | Show help |
 
 ## 3. API Reference
 
