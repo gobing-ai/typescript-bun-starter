@@ -158,32 +158,6 @@ describe('ScaffoldListCommand', () => {
     });
 
     describe('isInstalled', () => {
-        it('should return true for skills feature if skill-service exists', () => {
-            const cmd = new ScaffoldListCommand();
-            // Use type casting to test private method
-            const isInstalled = (cmd as unknown as { isInstalled: (f: string, s: ScaffoldService) => boolean })
-                .isInstalled;
-
-            // Create a mock service that returns true
-            const mockService = {
-                exists: (_path: string) => true,
-            } as unknown as ScaffoldService;
-
-            expect(isInstalled('skills', mockService)).toBe(true);
-        });
-
-        it('should return false for skills feature if skill-service does not exist', () => {
-            const cmd = new ScaffoldListCommand();
-            const isInstalled = (cmd as unknown as { isInstalled: (f: string, s: ScaffoldService) => boolean })
-                .isInstalled;
-
-            const mockService = {
-                exists: (_path: string) => false,
-            } as unknown as ScaffoldService;
-
-            expect(isInstalled('skills', mockService)).toBe(false);
-        });
-
         it('should return true for workspace feature if path exists', () => {
             const cmd = new ScaffoldListCommand();
             const isInstalled = (cmd as unknown as { isInstalled: (f: string, s: ScaffoldService) => boolean })
@@ -205,7 +179,6 @@ describe('ScaffoldListCommand', () => {
                 exists: (_path: string) => true,
             } as unknown as ScaffoldService;
 
-            // 'skills' has no workspacePath but has special handling
             // 'unknown' has no workspacePath and no special handling
             expect(isInstalled('unknown', mockService)).toBe(false);
         });
@@ -264,7 +237,7 @@ describe('ScaffoldListCommand', () => {
             await cmd.execute();
 
             const output = stdout.join('');
-            // Should contain optional features (cli, server, webapp, skills)
+            // Should contain optional features (cli, server, webapp)
             expect(output).toContain('cli');
             expect(output).toContain('server');
             expect(output).toContain('webapp');
