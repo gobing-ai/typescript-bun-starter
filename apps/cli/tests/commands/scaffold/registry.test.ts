@@ -24,11 +24,10 @@ describe('Feature Registry', () => {
     });
 
     describe('OPTIONAL_FEATURES', () => {
-        it('should contain cli, server, webapp, skills', () => {
+        it('should contain cli, server, webapp', () => {
             expect(OPTIONAL_FEATURES).toContain('cli');
             expect(OPTIONAL_FEATURES).toContain('server');
             expect(OPTIONAL_FEATURES).toContain('webapp');
-            expect(OPTIONAL_FEATURES).toContain('skills');
         });
 
         it('should not include required features', () => {
@@ -59,13 +58,6 @@ describe('Feature Registry', () => {
             expect(SCAFFOLD_FEATURES.server.workspacePath).toBe('apps/server');
             expect(SCAFFOLD_FEATURES.webapp.workspacePath).toBe('apps/web');
         });
-
-        it('should have skills files defined', () => {
-            const skills = SCAFFOLD_FEATURES.skills;
-            expect(skills.files.length).toBeGreaterThan(0);
-            expect(skills.files).toContain('packages/core/src/services/skill-service.ts');
-            expect(skills.files).toContain('apps/cli/src/commands/skill-list.ts');
-        });
     });
 
     describe('getFeature', () => {
@@ -88,7 +80,8 @@ describe('Feature Registry', () => {
 
         it('should return false for optional features', () => {
             expect(isRequiredFeature('cli')).toBe(false);
-            expect(isRequiredFeature('skills')).toBe(false);
+            expect(isRequiredFeature('server')).toBe(false);
+            expect(isRequiredFeature('webapp')).toBe(false);
         });
     });
 
@@ -97,7 +90,6 @@ describe('Feature Registry', () => {
             expect(isOptionalFeature('cli')).toBe(true);
             expect(isOptionalFeature('server')).toBe(true);
             expect(isOptionalFeature('webapp')).toBe(true);
-            expect(isOptionalFeature('skills')).toBe(true);
         });
 
         it('should return false for required features', () => {
