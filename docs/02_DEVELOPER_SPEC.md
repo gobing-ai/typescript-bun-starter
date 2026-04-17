@@ -805,9 +805,94 @@ const testAdapter = new BunSqliteAdapter(":memory:");
 const service = new TaskService(testAdapter.getDb());
 ```
 
-## 7. Building and Distribution
+## 7. Scaffold Commands
 
-### 7.1 Compile CLI to Binary
+The CLI provides commands for project initialization and feature management.
+
+### 7.1 Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `tbs scaffold init` | Initialize or update project identity |
+| `tbs scaffold add <feature>` | Install an optional feature |
+| `tbs scaffold remove <feature>` | Uninstall an optional feature |
+| `tbs scaffold list` | Show all features with installation status |
+| `tbs scaffold validate` | Validate project contract integrity |
+
+### 7.2 Project Identity
+
+```bash
+# Initialize (first time or reconfigure)
+tbs scaffold init --name my-project --scope @myorg
+
+# Preview changes without applying
+tbs scaffold init --name my-project --scope @myorg --dry-run --json
+
+# Customize binary name and branding
+tbs scaffold init --name my-project --scope @myorg --bin mp --brand "My Project"
+
+# Skip post-init verification
+tbs scaffold init --name my-project --scope @myorg --skip-check
+```
+
+### 7.3 Feature Management
+
+```bash
+# List all features (required + optional) with status
+tbs scaffold list
+
+# Add optional features
+tbs scaffold add cli        # Clipanion CLI tool
+tbs scaffold add server    # Hono REST API server
+tbs scaffold add webapp     # Astro web application
+
+# Skills CRUD domain is built-in (always installed)
+
+# Preview additions without applying
+tbs scaffold add webapp --dry-run
+
+# Remove optional features
+tbs scaffold remove webapp
+
+# Preview removals
+tbs scaffold remove webapp --dry-run
+```
+
+### 7.4 Validation
+
+```bash
+# Validate project contracts (required workspaces, package.json integrity)
+tbs scaffold validate
+
+# Auto-fix fixable issues
+tbs scaffold validate --fix
+
+# JSON output for CI/agent consumption
+tbs scaffold validate --json
+```
+
+### 7.5 Common Options
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Preview changes without applying |
+| `--json` | JSON output mode (for agents and CI) |
+| `--help` | Show help for any command |
+
+### 7.6 Feature Registry
+
+| Feature | Type | Description |
+|---------|------|-------------|
+| `contracts` | Required | Shared transport-safe DTOs (always installed) |
+| `core` | Required | Domain, data layer, shared utilities (always installed) |
+| `cli` | Optional | Clipanion CLI with scaffold commands |
+| `server` | Optional | Hono REST API with OpenAPI docs |
+| `webapp` | Optional | Astro 5 web application |
+| `skills` | Built-in | Full CRUD domain across all tiers (always installed) |
+
+## 8. Building and Distribution
+
+### 8.1 Compile CLI to Binary
 
 ```bash
 # Default (current platform)
@@ -818,7 +903,7 @@ bun build --compile --target=bun-linux-x64 apps/cli/src/index.ts --outfile dist/
 bun build --compile --target=bun-darwin-arm64 apps/cli/src/index.ts --outfile dist/ase-macos
 ```
 
-### 7.2 Docker (API/Web Tier)
+### 8.2 Docker (API/Web Tier)
 
 ```dockerfile
 FROM oven/bun:1 AS base
@@ -838,7 +923,7 @@ EXPOSE 3000
 CMD ["bun", "run", "apps/server/src/index.ts"]
 ```
 
-### 7.3 Size Budget
+### 8.3 Size Budget
 
 | Artifact | Target |
 |----------|--------|
@@ -846,7 +931,7 @@ CMD ["bun", "run", "apps/server/src/index.ts"]
 | Docker image (API) | < 150MB |
 | `node_modules` | < 50MB |
 
-## 8. API Design Conventions
+## 9. API Design Conventions
 
 ### 8.1 Response Envelope
 
@@ -880,7 +965,7 @@ API versioning via URL prefix when needed: `/api/v1/tasks`, `/api/v2/tasks`.
 
 For the initial version, no prefix needed -- just `/api/tasks`.
 
-## 9. Security Checklist
+## 10. Security Checklist
 
 | Area | Requirement |
 |------|-------------|
@@ -891,7 +976,7 @@ For the initial version, no prefix needed -- just `/api/tasks`.
 | CORS | Configure via Hono's `cors()` middleware for web tier |
 | Rate Limiting | Optional middleware for public-facing deployments |
 
-## 10. Git Conventions
+## 11. Git Conventions
 
 ### 10.1 Branch Strategy
 
@@ -921,7 +1006,7 @@ docs: update architecture spec
 2. `tsc --noEmit` -- type checking
 3. `bun test --coverage` -- full test suite with coverage
 
-## 11. Dependency Management
+## 12. Dependency Management
 
 ### 11.1 Adding Dependencies
 
@@ -948,7 +1033,7 @@ bun add -D @biomejs/biome
 
 Use exact versions for core dependencies. Use caret (`^`) for tooling.
 
-## 12. IDE Setup
+## 13. IDE Setup
 
 ### 12.1 VS Code
 
