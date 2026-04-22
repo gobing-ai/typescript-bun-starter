@@ -26,7 +26,15 @@ import { createErrorResponse, HealthResponseSchema } from '@starter/contracts';
  */
 export function validateHealthPayload(data: unknown): HealthResponse | null {
     const result = HealthResponseSchema.safeParse(data);
-    return result.success ? result.data : null;
+    if (!result.success) {
+        return null;
+    }
+
+    return {
+        status: result.data.status,
+        timestamp: result.data.timestamp,
+        ...(result.data.version !== undefined ? { version: result.data.version } : {}),
+    };
 }
 
 /**
