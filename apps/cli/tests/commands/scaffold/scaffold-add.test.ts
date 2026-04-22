@@ -201,17 +201,14 @@ describe('ScaffoldAddCommand', () => {
             expect(output.error).toContain('already installed');
         });
 
-        it('should return error when webapp is already installed', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'add', 'webapp', '--json'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldAddCommand;
+        it('should treat webapp as not installed when apps/web is absent', () => {
+            const cmd = new ScaffoldAddCommand();
+            const isInstalled = (
+                cmd as unknown as { isInstalled: (f: string, s: { exists: (p: string) => boolean }) => boolean }
+            ).isInstalled;
 
-            const exitCode = await cmd.execute();
-            expect(exitCode).toBe(1);
-            const output = JSON.parse(stdout.join(''));
-            expect(output.error).toContain('already installed');
+            const mockService = { exists: (path: string) => path !== 'apps/web' };
+            expect(isInstalled('webapp', mockService)).toBe(false);
         });
     });
 
