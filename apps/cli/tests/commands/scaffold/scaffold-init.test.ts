@@ -1,5 +1,4 @@
-// biome-ignore lint/correctness/noUnusedImports: fs functions are used in setup/cleanup
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { Writable } from 'node:stream';
 import { Cli } from 'clipanion';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
