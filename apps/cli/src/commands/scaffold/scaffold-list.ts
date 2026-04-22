@@ -9,9 +9,9 @@ export class ScaffoldListCommand extends BaseScaffoldCommand {
         super();
     }
 
-    static paths = [['scaffold', 'list']];
+    static override paths = [['scaffold', 'list']];
 
-    static usage = Command.Usage({
+    static override usage = Command.Usage({
         category: 'Scaffold',
         description: 'List available scaffold features and their status',
         details: `
