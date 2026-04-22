@@ -11,6 +11,9 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { getLogger } from '@logtape/logtape';
+
+const logger = getLogger(['tbs']);
 
 // ---------------------------------------------------------------------------
 // Config
@@ -95,8 +98,8 @@ const projectRoot = resolve(import.meta.dir, '..');
 // ---- Part 1: Coverage threshold check ----
 
 if (!existsSync(COVERAGE_FILE)) {
-    console.error('No coverage file found at', COVERAGE_FILE);
-    console.error('Run `bun test --coverage` first.');
+    logger.error(`No coverage file found at ${COVERAGE_FILE}`);
+    logger.error('Run `bun test --coverage` first.');
     process.exit(1);
 }
 
@@ -193,24 +196,21 @@ for (const srcFile of allSourceFiles) {
 let failed = false;
 
 if (coverageFailures.length > 0) {
-    console.error(`\nCoverage gate failed: ${coverageFailures.length} file(s) below ${THRESHOLD}%\n`);
+    logger.error(`Coverage gate failed: ${coverageFailures.length} file(s) below ${THRESHOLD}%`);
     for (const { file, pct } of coverageFailures) {
-        console.error(`  ${pct}%  ${file}`);
+        logger.error(`${pct}% ${file}`);
     }
-    console.error('');
     failed = true;
 }
 
 if (missingTests.length > 0) {
-    console.error(`Missing tests: ${missingTests.length} source file(s) have no test file\n`);
+    logger.error(`Missing tests: ${missingTests.length} source file(s) have no test file`);
     for (const srcFile of missingTests) {
         const testPath = expectedTestPath(srcFile);
-        console.error(`  ${srcFile}`);
-        console.error(`    expected: ${testPath}`);
+        logger.error(srcFile);
+        logger.error(`expected: ${testPath}`);
     }
-    console.error('');
-    console.error('If this is intentional, add the file to NO_TEST_REQUIRED in scripts/check-coverage.ts');
-    console.error('');
+    logger.error('If this is intentional, add the file to NO_TEST_REQUIRED in scripts/check-coverage.ts');
     failed = true;
 }
 
@@ -218,4 +218,4 @@ if (failed) {
     process.exit(1);
 }
 
-console.log(`Coverage gate passed: all source files >= ${THRESHOLD}% and all testable files have tests`);
+logger.info(`Coverage gate passed: all source files >= ${THRESHOLD}% and all testable files have tests`);
