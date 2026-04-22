@@ -1,7 +1,26 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout title="Welcome">
-    <h1>Welcome to TypeScript Bun Starter</h1>
-    <p>Get started by editing <code>src/pages/index.astro</code></p>
+    <div class="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+        <h1 class="text-5xl font-bold tracking-tight text-gray-900">TypeScript Bun Starter</h1>
+        <p class="mt-4 max-w-2xl text-lg text-gray-600">
+            Start with the CLI and API profile, then add the optional Astro web tier when you need it.
+        </p>
+        <div class="mt-8 flex gap-4">
+            <a
+                href="/dashboard"
+                class="rounded-lg bg-primary-600 px-5 py-3 text-sm font-semibold text-white hover:bg-primary-500"
+            >
+                Open dashboard
+            </a>
+            <a
+                href="/api/health"
+                class="rounded-lg border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+                API health
+            </a>
+        </div>
+    </div>
 </BaseLayout>
