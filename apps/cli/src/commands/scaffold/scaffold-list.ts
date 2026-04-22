@@ -38,14 +38,14 @@ export class ScaffoldListCommand extends BaseScaffoldCommand {
             name,
             description: SCAFFOLD_FEATURES[name]?.description ?? name,
             installed: true, // Required features are always installed
-            workspacePath: SCAFFOLD_FEATURES[name]?.workspacePath,
+            ...(SCAFFOLD_FEATURES[name]?.workspacePath ? { workspacePath: SCAFFOLD_FEATURES[name].workspacePath } : {}),
         }));
 
         const optional: FeatureStatus[] = OPTIONAL_FEATURES.map((name) => ({
             name,
             description: SCAFFOLD_FEATURES[name]?.description ?? name,
             installed: this.isInstalled(name, service),
-            workspacePath: SCAFFOLD_FEATURES[name]?.workspacePath,
+            ...(SCAFFOLD_FEATURES[name]?.workspacePath ? { workspacePath: SCAFFOLD_FEATURES[name].workspacePath } : {}),
         }));
 
         if (this.json) {
