@@ -354,6 +354,6 @@ bun run check                   # Full green field install + verify
 8. API `GET /doc` returns valid OpenAPI 3.0 JSON
 9. API `GET /swagger` renders Swagger UI
 10. `bun run build:cli` produces binary < 90MB
-11. No `any` types, no `console.*` calls, no biome-ignore
+11. No `any` types, no console calls, no biome-ignore
 12. Database adapter factory works for both bun:sqlite and D1 configs
 13. Services are fully driver-agnostic via constructor injection
