@@ -8,6 +8,10 @@ import { ScaffoldService } from './services/scaffold-service';
 import type { ContractFile, ValidationIssue } from './types/scaffold';
 
 export class ScaffoldValidateCommand extends BaseScaffoldCommand {
+    constructor() {
+        super();
+    }
+
     static paths = [['scaffold', 'validate']];
 
     static usage = Command.Usage({
