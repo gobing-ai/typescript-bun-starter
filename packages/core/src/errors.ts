@@ -56,7 +56,7 @@ export class ConflictError extends AppError {
 export class InternalError extends AppError {
     constructor(
         message: string,
-        readonly cause?: unknown,
+        override readonly cause?: unknown,
     ) {
         super(ErrorCode.Internal, message);
         this.name = 'InternalError';
