@@ -285,6 +285,25 @@ describe('ScaffoldValidateCommand', () => {
             // writeOutput with error string produces { error: msg }
             expect(output.error).toContain('Validation failed');
         });
+
+        it('should error when a known workspace exists on disk but is missing from the contract', async () => {
+            setupTestProject();
+            mkdirSync(`${TEST_DIR}/apps/web/src/pages`, { recursive: true });
+            writeFileSync(`${TEST_DIR}/apps/web/package.json`, JSON.stringify({ name: '@starter/web' }));
+            process.chdir(TEST_DIR);
+
+            const cli = makeCli();
+            const stdout: string[] = [];
+            const cmd = cli.process(['scaffold', 'validate', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldValidateCommand;
+
+            const exitCode = await cmd.execute();
+            expect(exitCode).toBe(1);
+
+            const output = JSON.parse(stdout.join(''));
+            expect(output.error).toContain('Validation failed');
+        });
     });
 
     // ── Script validation ──────────────────────────────────────────────
