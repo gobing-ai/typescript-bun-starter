@@ -3,6 +3,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
+import { SCAFFOLD_FEATURES } from './features/registry';
 import { ScaffoldService } from './services/scaffold-service';
 import type { ContractFile, ValidationIssue } from './types/scaffold';
 
@@ -153,6 +154,27 @@ export class ScaffoldValidateCommand extends BaseScaffoldCommand {
                     category: 'workspace',
                     message: `Workspace missing package.json: ${pkgJsonPath}`,
                     path: pkgJsonPath,
+                    fixable: false,
+                });
+            }
+        }
+
+        const declaredWorkspaces = new Set([
+            ...Object.keys(contract.requiredWorkspaces),
+            ...Object.keys(contract.optionalWorkspaces),
+        ]);
+
+        for (const feature of Object.values(SCAFFOLD_FEATURES)) {
+            if (!feature.workspacePath || !service.exists(feature.workspacePath)) {
+                continue;
+            }
+
+            if (!declaredWorkspaces.has(feature.workspacePath)) {
+                issues.push({
+                    severity: 'error',
+                    category: 'workspace',
+                    message: `Workspace exists on disk but is missing from contract: ${feature.workspacePath}`,
+                    path: feature.workspacePath,
                     fixable: false,
                 });
             }
