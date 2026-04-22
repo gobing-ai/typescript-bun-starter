@@ -61,9 +61,12 @@ export function createApiClient(baseUrl: string = '') {
                 }
             }
 
+            const data = response.ok ? unwrapResponseData<T>(payload) : undefined;
+            const error = response.ok ? undefined : getErrorMessage(payload, response.statusText);
+
             return {
-                data: response.ok ? unwrapResponseData<T>(payload) : undefined,
-                error: response.ok ? undefined : getErrorMessage(payload, response.statusText),
+                ...(data !== undefined ? { data } : {}),
+                ...(error !== undefined ? { error } : {}),
                 status: response.status,
             };
         } catch (err) {
@@ -81,14 +84,14 @@ export function createApiClient(baseUrl: string = '') {
             request<T>(path, {
                 ...options,
                 method: 'POST',
-                body: body ? JSON.stringify(body) : undefined,
+                ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
             }),
 
         put: <T>(path: string, body?: unknown, options?: RequestInit) =>
             request<T>(path, {
                 ...options,
                 method: 'PUT',
-                body: body ? JSON.stringify(body) : undefined,
+                ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
             }),
 
         delete: <T>(path: string, options?: RequestInit) => request<T>(path, { ...options, method: 'DELETE' }),
