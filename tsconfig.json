@@ -5,6 +5,7 @@
         "target": "ESNext",
         "module": "ESNext",
         "moduleResolution": "bundler",
+        "types": ["bun"],
         "paths": {
             "@starter/contracts": ["packages/contracts/src/index.ts"],
             "@starter/core": ["packages/core/src/index.ts"]
@@ -18,6 +19,8 @@
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitOverride": true,
         "noUncheckedIndexedAccess": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true
