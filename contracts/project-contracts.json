@@ -15,8 +15,10 @@
         "bootstrap",
         "check",
         "check:contracts",
+        "check:docs",
         "check:instructions",
         "generate:instructions",
+        "smoke:generated",
         "test",
         "typecheck",
         "format",
@@ -28,13 +30,15 @@
     },
     "optionalWorkspaces": {
         "apps/cli": "@starter/cli",
-        "apps/server": "@starter/server"
+        "apps/server": "@starter/server",
+        "apps/web": "@starter/web"
     },
     "workspaceDependencyRules": {
         "@starter/contracts": [],
         "@starter/core": ["@starter/contracts"],
         "@starter/cli": ["@starter/contracts", "@starter/core"],
-        "@starter/server": ["@starter/contracts", "@starter/core"]
+        "@starter/server": ["@starter/contracts", "@starter/core"],
+        "@starter/web": ["@starter/contracts"]
     },
     "instructionPolicy": {
         "editableSources": ["contracts/project-contracts.json", "scripts/generate-instructions.ts"],
