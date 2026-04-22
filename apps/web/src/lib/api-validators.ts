@@ -19,7 +19,7 @@ import { createErrorResponse, HealthResponseSchema } from '@starter/contracts';
  * if (response.data) {
  *   const health = validateHealthPayload(response.data);
  *   if (health) {
- *     console.log(health.status);
+ *     return health.status;
  *   }
  * }
  * ```
