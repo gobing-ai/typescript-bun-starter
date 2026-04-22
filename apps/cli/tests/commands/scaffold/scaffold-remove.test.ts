@@ -134,6 +134,111 @@ describe('ScaffoldRemoveCommand', () => {
         });
     });
 
+    describe('shouldBlockStarterWebappRemoval', () => {
+        it('should block webapp removal in the starter repository via package name', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const shouldBlockStarterWebappRemoval = (
+                cmd as unknown as {
+                    shouldBlockStarterWebappRemoval: (
+                        s: {
+                            exists: (path: string) => boolean;
+                            readJson: (path: string) => unknown;
+                        },
+                        feature: string,
+                    ) => boolean;
+                }
+            ).shouldBlockStarterWebappRemoval;
+
+            const mockService = {
+                exists: (path: string) => path === 'package.json',
+                readJson: (path: string) =>
+                    path === 'package.json' ? { name: '@gobing-ai/typescript-bun-starter' } : {},
+            };
+
+            expect(shouldBlockStarterWebappRemoval(mockService, 'webapp')).toBe(true);
+        });
+
+        it('should block webapp removal in the starter repository via contract identity', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const shouldBlockStarterWebappRemoval = (
+                cmd as unknown as {
+                    shouldBlockStarterWebappRemoval: (
+                        s: {
+                            exists: (path: string) => boolean;
+                            readJson: (path: string) => unknown;
+                        },
+                        feature: string,
+                    ) => boolean;
+                }
+            ).shouldBlockStarterWebappRemoval;
+
+            const mockService = {
+                exists: (path: string) => path === 'package.json' || path === 'contracts/project-contracts.json',
+                readJson: (path: string) =>
+                    path === 'package.json'
+                        ? { name: '@acme/generated-project' }
+                        : {
+                              projectIdentity: {
+                                  rootPackageName: '@gobing-ai/typescript-bun-starter',
+                              },
+                          },
+            };
+
+            expect(shouldBlockStarterWebappRemoval(mockService, 'webapp')).toBe(true);
+        });
+
+        it('should allow webapp removal in generated projects', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const shouldBlockStarterWebappRemoval = (
+                cmd as unknown as {
+                    shouldBlockStarterWebappRemoval: (
+                        s: {
+                            exists: (path: string) => boolean;
+                            readJson: (path: string) => unknown;
+                        },
+                        feature: string,
+                    ) => boolean;
+                }
+            ).shouldBlockStarterWebappRemoval;
+
+            const mockService = {
+                exists: (path: string) => path === 'package.json' || path === 'contracts/project-contracts.json',
+                readJson: (path: string) =>
+                    path === 'package.json'
+                        ? { name: '@acme/generated-project' }
+                        : {
+                              projectIdentity: {
+                                  rootPackageName: '@acme/generated-project',
+                              },
+                          },
+            };
+
+            expect(shouldBlockStarterWebappRemoval(mockService, 'webapp')).toBe(false);
+        });
+
+        it('should not block other features', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const shouldBlockStarterWebappRemoval = (
+                cmd as unknown as {
+                    shouldBlockStarterWebappRemoval: (
+                        s: {
+                            exists: (path: string) => boolean;
+                            readJson: (path: string) => unknown;
+                        },
+                        feature: string,
+                    ) => boolean;
+                }
+            ).shouldBlockStarterWebappRemoval;
+
+            const mockService = {
+                exists: (_path: string) => true,
+                readJson: () => ({ name: '@gobing-ai/typescript-bun-starter' }),
+            };
+
+            expect(shouldBlockStarterWebappRemoval(mockService, 'server')).toBe(false);
+        });
+    });
+
     describe('stageChanges', () => {
         it('should return empty arrays when no files exist', () => {
             const cmd = new ScaffoldRemoveCommand();
@@ -210,6 +315,33 @@ describe('ScaffoldRemoveCommand', () => {
 
             const result = stageChanges(mockService, featureDef);
             expect(result.filesToDelete).toEqual(['file1.ts']);
+        });
+
+        it('should delete the entire workspace when workspacePath exists', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            (cmd as unknown as { feature: string }).feature = 'server';
+            const stageChanges = (
+                cmd as unknown as {
+                    stageChanges: (
+                        this: { feature: string },
+                        s: { exists: (p: string) => boolean },
+                        f: FeatureDefinition,
+                    ) => { filesToDelete: string[]; filesToRewrite: Array<[string, string]> };
+                }
+            ).stageChanges.bind(cmd);
+
+            const mockService = { exists: (p: string) => p === 'apps/server' };
+            const featureDef: FeatureDefinition = {
+                name: 'server',
+                description: 'Server feature',
+                files: ['apps/server/src/index.ts', 'apps/server/package.json'],
+                rewrites: {},
+                workspacePath: 'apps/server',
+            };
+
+            const result = stageChanges(mockService, featureDef);
+            expect(result.filesToDelete).toEqual(['apps/server']);
+            expect(result.filesToRewrite).toEqual([]);
         });
     });
 
@@ -315,7 +447,129 @@ describe('ScaffoldRemoveCommand', () => {
         });
     });
 
+    describe('updateContracts', () => {
+        it('should remove the workspace and dependency rules for the feature', async () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const updateContracts = (
+                cmd as unknown as {
+                    updateContracts: (
+                        s: {
+                            exists: (path: string) => boolean;
+                            readJson: (path: string) => Record<string, unknown>;
+                            writeJson: (path: string, data: unknown) => void;
+                        },
+                        feature: string,
+                    ) => Promise<void>;
+                }
+            ).updateContracts;
+
+            const writes: Array<{ path: string; data: unknown }> = [];
+            const mockService = {
+                exists: (path: string) => path === 'contracts/project-contracts.json',
+                readJson: () => ({
+                    optionalWorkspaces: {
+                        'apps/server': '@starter/server',
+                    },
+                    workspaceDependencyRules: {
+                        '@starter/server': ['@starter/contracts', '@starter/core'],
+                    },
+                }),
+                writeJson: (path: string, data: unknown) => {
+                    writes.push({ path, data });
+                },
+            };
+
+            await updateContracts(mockService, 'server');
+
+            expect(writes).toHaveLength(1);
+            expect(writes[0]?.path).toBe('contracts/project-contracts.json');
+            expect(writes[0]?.data).toEqual({
+                optionalWorkspaces: {},
+                workspaceDependencyRules: {},
+            });
+        });
+
+        it('should skip writes when the contract file does not exist', async () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const updateContracts = (
+                cmd as unknown as {
+                    updateContracts: (
+                        s: {
+                            exists: (path: string) => boolean;
+                            readJson: (path: string) => Record<string, unknown>;
+                            writeJson: (path: string, data: unknown) => void;
+                        },
+                        feature: string,
+                    ) => Promise<void>;
+                }
+            ).updateContracts;
+
+            let writeCount = 0;
+            const mockService = {
+                exists: () => false,
+                readJson: () => ({}),
+                writeJson: () => {
+                    writeCount += 1;
+                },
+            };
+
+            await updateContracts(mockService, 'server');
+            expect(writeCount).toBe(0);
+        });
+
+        it('should skip writes when removing an unknown feature', async () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const updateContracts = (
+                cmd as unknown as {
+                    updateContracts: (
+                        s: {
+                            exists: (path: string) => boolean;
+                            readJson: (path: string) => Record<string, unknown>;
+                            writeJson: (path: string, data: unknown) => void;
+                        },
+                        feature: string,
+                    ) => Promise<void>;
+                }
+            ).updateContracts;
+
+            let writeCount = 0;
+            const mockService = {
+                exists: () => true,
+                readJson: () => ({
+                    optionalWorkspaces: {
+                        'apps/server': '@starter/server',
+                    },
+                    workspaceDependencyRules: {
+                        '@starter/server': ['@starter/contracts', '@starter/core'],
+                    },
+                }),
+                writeJson: () => {
+                    writeCount += 1;
+                },
+            };
+
+            await updateContracts(mockService, 'unknown-feature');
+            expect(writeCount).toBe(0);
+        });
+    });
+
     describe('execute errors', () => {
+        it('should return error for webapp removal in the starter repository', async () => {
+            const stdout: string[] = [];
+            const cli = new Cli({ binaryName: 'tbs' });
+            cli.register(ScaffoldRemoveCommand);
+
+            const cmd = cli.process(['scaffold', 'remove', 'webapp', '--json'], {
+                stdout: createMockWritable(stdout),
+            }) as ScaffoldRemoveCommand;
+
+            const exitCode = await cmd.execute();
+            expect(exitCode).toBe(1);
+
+            const output = JSON.parse(stdout.join(''));
+            expect(output.error).toContain("Refusing to remove 'webapp' from the starter repository");
+        });
+
         it('should return error for unknown feature', async () => {
             const stdout: string[] = [];
             const cli = new Cli({ binaryName: 'tbs' });
