@@ -105,10 +105,12 @@ describe('BaseScaffoldCommand', () => {
 
         it('should return 1 for error in text mode', async () => {
             const cli = makeCli();
-            const cmd = cli.process([]) as TestScaffoldCommand;
+            const stderr: string[] = [];
+            const cmd = cli.process([], { stderr: createMockWritable(stderr) }) as TestScaffoldCommand;
 
             const exitCode = cmd.testWriteOutput(null, 'Something went wrong');
             expect(exitCode).toBe(1);
+            expect(stderr).toEqual(['Error: Something went wrong\n']);
         });
 
         it('should return 1 for error in JSON mode', async () => {

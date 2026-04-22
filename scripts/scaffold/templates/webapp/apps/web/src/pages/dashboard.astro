@@ -1,0 +1,57 @@
+---
+import { Counter } from '../components/Counter';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Dashboard | Bun Starter" description="Interactive dashboard with React islands">
+  <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="mb-12">
+      <h1 class="text-4xl font-bold text-gray-900">Dashboard</h1>
+      <p class="mt-2 text-gray-600">This page demonstrates Astro islands with an API-backed health check.</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <Counter client:load initialCount={42} label="Interactive Counter" />
+
+      <div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+        <h2 class="mb-4 text-xl font-semibold">API Integration</h2>
+        <p class="mb-4 text-gray-600">
+          The API client uses shared types from <code class="rounded bg-gray-100 px-2 py-1">@starter/contracts</code>.
+        </p>
+        <button
+          id="fetch-data-btn"
+          class="rounded-lg bg-primary-600 px-4 py-2 text-white transition-colors hover:bg-primary-500"
+        >
+          Check Health
+        </button>
+        <div id="api-result" class="mt-4 hidden">
+          <pre class="overflow-auto rounded-lg bg-gray-50 p-4 text-sm"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { fetchHealth } from "../lib/api-client";
+
+    const button = document.getElementById("fetch-data-btn");
+    const result = document.getElementById("api-result");
+    const pre = result?.querySelector("pre");
+
+    button?.addEventListener("click", async () => {
+      if (!pre) return;
+
+      try {
+        const response = await fetchHealth();
+        if (!response.data) {
+          throw new Error(response.error ?? "Health request failed");
+        }
+        pre.textContent = JSON.stringify(response.data, null, 2);
+      } catch (error) {
+        pre.textContent = `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
+      }
+
+      result?.classList.remove("hidden");
+    });
+  </script>
+</BaseLayout>
