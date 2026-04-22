@@ -4,9 +4,9 @@ import { ScaffoldService } from './services/scaffold-service';
 import type { ContractFile, ProjectIdentity, ScaffoldInitOptions } from './types/scaffold';
 
 export class ScaffoldInitCommand extends BaseScaffoldCommand {
-    static paths = [['scaffold', 'init']];
+    static override paths = [['scaffold', 'init']];
 
-    static usage = Command.Usage({
+    static override usage = Command.Usage({
         category: 'Scaffold',
         description: 'Initialize project identity (name, scope, branding)',
         details: `
