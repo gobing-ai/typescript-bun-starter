@@ -6,6 +6,7 @@
         "module": "ESNext",
         "moduleResolution": "bundler",
         "types": ["bun"],
+        "verbatimModuleSyntax": true,
         "paths": {
             "@starter/contracts": ["packages/contracts/src/index.ts"],
             "@starter/core": ["packages/core/src/index.ts"]
@@ -19,6 +20,8 @@
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
+        "exactOptionalPropertyTypes": true,
+        "isolatedModules": true,
         "noFallthroughCasesInSwitch": true,
         "noImplicitOverride": true,
         "noImplicitReturns": true,
