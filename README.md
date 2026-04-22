@@ -1,248 +1,79 @@
 # TypeScript Bun Starter
 
-A production-ready monorepo starter for building **CLI**, **CLI + API**, or
-**CLI + API + Web** projects with TypeScript and Bun.
+Bun-first monorepo starter and scaffold CLI for building **CLI**, **CLI + API**, or **CLI + API + Web**
+projects with strict TypeScript, shared contracts, and a generated-project workflow exercised in CI.
 
-## What You Get
+## What It Is
 
-- **`packages/contracts`** -- Shared transport-safe contracts, API envelopes, error mappers,
-  and cross-tier DTOs
-- **`packages/core`** -- Shared business logic, database layer (Drizzle ORM + SQLite/D1),
-  validation (Zod), logging helpers, and services
-- **`apps/cli`** -- Type-safe CLI via Clipanion with dual-mode output (human + `--json`)
-- **`apps/server`** -- REST API with auto-generated OpenAPI docs (Hono + Swagger UI),
-  health endpoints, and optional static serving for the built web app
-- **`apps/web`** -- Astro 5 web app with React islands, Tailwind CSS v4, and a shared
-  typed API client
-- **Biome**, **LogTape**, and **strict TypeScript** throughout
+- **Primary product:** a starter repo you copy, initialize, and trim to the profile you want
+- **Secondary product:** a scaffold CLI you can compile into a standalone `tbs` binary later
+- **Architectural spine:** `@starter/contracts` for transport-safe types and `@starter/core` for shared logic,
+  persistence, logging, and adapters
 
-The project ships with a working "skills" CRUD example for the CLI and API tiers, plus an
-Astro dashboard that demonstrates React islands and a typed health check call.
+## Repo Map
+
+- **`packages/contracts`**: shared DTOs, API envelopes, and transport-safe contracts
+- **`packages/core`**: database adapters, Drizzle schema, logging helpers, and core business logic
+- **`apps/cli`**: the scaffold CLI built with Clipanion
+- **`apps/server`**: Hono API with Swagger UI and optional static serving of the built web app
+- **`apps/web`**: Astro 5 web app with React islands, Tailwind CSS v4, and a typed API client
+- **`scripts/scaffold/templates/webapp`**: scaffold source for restoring the web tier after removal
+
+## Starter Profiles
+
+Choose a profile, then use scaffold commands to keep the repo contract aligned:
+
+| Profile | Included workspaces | Typical command |
+| --- | --- | --- |
+| CLI + API + Web | `apps/cli`, `apps/server`, `apps/web` | default checkout |
+| CLI + API | `apps/cli`, `apps/server` | `bun run scaffold:remove -- webapp` |
+| CLI only | `apps/cli` | `bun run scaffold:remove -- webapp` then `bun run scaffold:remove -- server` |
 
 ## Quick Start
 
+### Use as a starter repo
+
 ```bash
-# via degit (recommended — clean copy, no git history)
 bunx degit gobing-ai/typescript-bun-starter my-project && cd my-project
 bun install
-
-# build the binary file first
-bun run build:cli
-
-./dist/tbs scaffold init --name my-project --scope @acme --title "My Project"
-bun run check        # lint + typecheck + test (all should pass)
-
-# or clone from GitHub
-git clone https://github.com/gobing-ai/typescript-bun-starter.git my-project && cd my-project
-bun install
-
-# build the binary file first
-bun run build:cli
-
-./dist/tbs scaffold init --name my-project --scope @acme --title "My Project"
+bun run scaffold:init -- --name my-project --scope @acme --title "My Project"
 bun run check
 ```
 
-> **npm package:** [`@gobing-ai/typescript-bun-starter`](https://www.npmjs.com/package/@gobing-ai/typescript-bun-starter)
-
-### Scaffold Commands
-
-Use `./dist/tbs scaffold` to manage project features and identity:
+### Use as a compiled CLI later
 
 ```bash
-# Initialize project identity
-./dist/tbs scaffold init --name my-project --scope @acme
-
-# Preview without applying
-./dist/tbs scaffold init --name my-project --scope @acme --dry-run
-
-# Customize CLI binary name
-./dist/tbs scaffold init --name my-project --scope @acme --bin mp
-
-# Customize branding
-./dist/tbs scaffold init --name my-project --scope @acme --title "My Project Platform" --brand "My Project"
-
-# Skip post-init verification
-./dist/tbs scaffold init --name my-project --scope @acme --skip-check
-
-# List all features with status
-./dist/tbs scaffold list
-
-# Add optional features
-./dist/tbs scaffold add cli        # Clipanion CLI tool
-./dist/tbs scaffold add server     # Hono REST API server
-./dist/tbs scaffold add webapp     # Astro web application
-
-# Skills CRUD domain is built-in (always installed)
-
-# Remove optional features
-./dist/tbs scaffold remove webapp
-
-# Validate project contracts
-./dist/tbs scaffold validate --fix
+bun run build:cli
+./dist/tbs scaffold init --name my-project --scope @acme --title "My Project"
 ```
-
-Run `./dist/tbs scaffold --help` for all options.
-
-### Clean Demo Code
-
-The starter ships with a "skills" CRUD demo across all three tiers. Remove it to get a clean skeleton:
-
-```bash
-bun run clean-demo
-```
-
-> **Deprecated:** `bun run clean-demo` and `bun run bootstrap` are deprecated. Use `./dist/tbs scaffold init` instead.
 
 ## Local Development
 
 ```bash
-# API server only
+bun run dev:cli
 bun run dev:server
-
-# Web app only (expects the API server on localhost:3000)
 bun run dev:web
-
-# Both together
 bun run dev:all
 ```
 
-Notes:
-
-- `bun run dev:web` starts Astro on `http://localhost:4321`
-- During web development, `/api/*` is proxied to `http://localhost:3000`
-- `bun run dev:all` is the simplest way to use the web dashboard against the local API
-- To serve the built web app from the Bun server on port `3000`, run
-  `bun run build:web && bun run dev:server`
-
-### Try the CLI Demo
+## Verification
 
 ```bash
-bun run dev:cli -- skill create --name "my-skill" --json
-bun run dev:cli -- skill list --json
-bun run dev:cli -- skill get --id <id> --json
-bun run dev:cli -- skill delete --id <id> --json
-```
-
-### Try the API Demo
-
-```bash
-bun run dev:server
-# http://localhost:3000/api/skills
-# http://localhost:3000/api/health  (JSON health envelope)
-# http://localhost:3000/            (simple health JSON)
-# http://localhost:3000/swagger    (Swagger UI)
-# http://localhost:3000/doc        (OpenAPI JSON)
-```
-
-### Try the Web Demo
-
-```bash
-bun run dev:all
-# http://localhost:4321/
-# http://localhost:4321/dashboard
-```
-
-The dashboard includes a `Check Healthy` button that calls the shared web API client,
-hits `/api/health` through the Astro dev proxy, and renders the typed health payload.
-
-## Removing Optional Tiers
-
-### Keep CLI + API, remove the web app
-
-```bash
-rm -rf apps/web
-
-bun --eval 'const fs = require("node:fs"); const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); delete pkg.scripts["dev:web"]; delete pkg.scripts["build:web"]; delete pkg.scripts["dev:all"]; fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");'
-
 bun run check
+bun run smoke:generated
 ```
 
-Optional cleanup:
-
-- Remove the static serving block from `apps/server/src/index.ts` if you want a pure API server
-- Remove web-related notes from your own project docs once you decide the web tier is gone
-
-### Keep CLI only, remove the API and web tiers
-
-```bash
-rm -rf apps/server apps/web
-
-bun --eval 'const fs = require("node:fs"); const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); delete pkg.scripts["dev:server"]; delete pkg.scripts["dev:web"]; delete pkg.scripts["dev:all"]; delete pkg.scripts["build:web"]; fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");'
-
-bun run check
-```
-
-### Keep the web app but remove the local API
-
-That is possible, but the current web demo assumes a backend is available at `/api`.
-If you want to keep `apps/web` and remove `apps/server`, do this first:
-
-1. Set `PUBLIC_API_URL` to your external backend
-2. Update `apps/web/src/pages/dashboard.astro` if you do not want the local `Check Healthy` demo
-3. Remove `dev:server` and `dev:all` from `package.json`
-
-## Adding a New Domain
-
-Follow the pattern established by the "skills" example, or run `bun run clean-demo`
-first and build your own domain from scratch:
-
-1. **Schema** -- `packages/core/src/db/schema.ts` (add table)
-2. **Validation** -- `packages/core/src/schemas/my-domain.ts` (Zod + `.openapi()`)
-3. **Service** -- `packages/core/src/services/my-service.ts` (CRUD with `Result<T>`)
-4. **Export** -- `packages/core/src/index.ts` (barrel export)
-5. **CLI** -- `apps/cli/src/commands/my-*.ts` (4 commands: create, list, get, delete)
-6. **API** -- `apps/server/src/routes/my-domain.ts` (OpenAPI routes)
-7. **Web (optional)** -- `apps/web/src/pages/`, `apps/web/src/components/`, and
-   `apps/web/src/lib/api-client.ts`
-8. **Tests** -- `tests/` at package root (in-memory SQLite for unit tests)
-
-## Commands
-
-```bash
-bun run check          # lint + typecheck + test (pre-commit gate)
-bun run test           # full suite with coverage
-bun run format         # biome format
-bun run lint-fix       # biome lint --write
-bun run typecheck      # tsc --noEmit
-bun run db:push        # push schema to dev database
-bun run db:generate    # generate migration files
-bun run dev:cli        # run CLI in dev mode
-bun run dev:server     # run API with hot reload
-bun run dev:web        # run Astro web app on localhost:4321
-bun run dev:all        # run API + web together for local development
-bun run build:web      # build Astro web app into apps/web/dist
-bun run build:cli      # compile CLI to standalone binary
-bun run pub2npmjs      # publish to npm
-
-# Scaffold commands (see "Scaffold Commands" section above)
-./dist/tbs scaffold init      # initialize or update project identity
-./dist/tbs scaffold add       # install an optional feature
-./dist/tbs scaffold remove    # uninstall an optional feature
-./dist/tbs scaffold list      # show all features with status
-./dist/tbs scaffold validate  # validate project contracts
-```
-
-## Tech Stack
-
-| Layer | Choice |
-|-------|--------|
-| Runtime | Bun |
-| Language | TypeScript (strict, no `any`) |
-| Database | SQLite via Drizzle ORM (bun:sqlite or Cloudflare D1) |
-| Validation | Zod (`@hono/zod-openapi`) |
-| CLI | Clipanion |
-| API | Hono + OpenAPI |
-| Web | Astro 5 + React islands + Tailwind CSS v4 |
-| Lint/Format | Biome |
-| Logging | LogTape |
+- `bun run check` runs format/lint checks, scaffold validation, docs validation, typecheck, and tests
+- `bun run smoke:generated` copies the repo into a temp project and exercises the full-stack, CLI + API, and CLI-only generated profiles
 
 ## Documentation
 
-- [Architecture Spec](docs/01_ARCHITECTURE_SPEC.md) -- full system design and ADRs
-- [Developer Spec](docs/02_DEVELOPER_SPEC.md) -- implementation patterns and conventions
-- [Existing Project Migration Guide](docs/existing-project-migration-guide.md) -- AI-assisted migration model for adopting starter capabilities into existing repos
-- [User Manual](docs/03_USER_MANUAL.md) -- CLI and API reference
+- [Architecture Spec](docs/01_ARCHITECTURE_SPEC.md)
+- [Developer Spec](docs/02_DEVELOPER_SPEC.md)
+- [Scaffold Guide](docs/04_SCAFFOLD_GUIDE.md)
+- [Existing Project Migration Guide](docs/existing-project-migration-guide.md)
 
 ## References
-- [The Fastest Way to Build the Best TypeScript Development Environment: Autumn 2025](https://zenn.dev/somnicattus/articles/3c1f3756aec24a?locale=en)
+
+- [Bun workspaces](https://bun.sh/docs/pm/workspaces)
+- [Install Bun in GitHub Actions](https://bun.sh/docs/guides/install/cicd)
