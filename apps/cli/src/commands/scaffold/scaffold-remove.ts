@@ -2,7 +2,9 @@ import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
 import { getFeature, isRequiredFeature, REQUIRED_FEATURES, SCAFFOLD_FEATURES } from './features/registry';
 import { ScaffoldService } from './services/scaffold-service';
-import type { FeatureDefinition } from './types/scaffold';
+import type { ContractFile, FeatureDefinition } from './types/scaffold';
+
+const STARTER_ROOT_PACKAGE_NAME = '@gobing-ai/typescript-bun-starter';
 
 export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
     constructor() {
@@ -50,6 +52,13 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
         // 2. Check if required feature
         if (isRequiredFeature(this.feature)) {
             return this.writeOutput(null, `Cannot remove required feature: ${this.feature}`);
+        }
+
+        if (this.shouldBlockStarterWebappRemoval(service, this.feature)) {
+            return this.writeOutput(
+                null,
+                "Refusing to remove 'webapp' from the starter repository. Run this in a generated project instead.",
+            );
         }
 
         // 3. Check if feature exists (is installed)
@@ -104,6 +113,24 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
         return false;
     }
 
+    private shouldBlockStarterWebappRemoval(service: ScaffoldService, feature: string): boolean {
+        if (feature !== 'webapp' || !service.exists('package.json')) {
+            return false;
+        }
+
+        const packageJson = service.readJson<{ name?: string }>('package.json');
+        if (packageJson.name === STARTER_ROOT_PACKAGE_NAME) {
+            return true;
+        }
+
+        if (!service.exists('contracts/project-contracts.json')) {
+            return false;
+        }
+
+        const contract = service.readJson<ContractFile>('contracts/project-contracts.json');
+        return contract.projectIdentity.rootPackageName === STARTER_ROOT_PACKAGE_NAME;
+    }
+
     /**
      * Stage file deletions and rewrites for the feature removal.
      */
@@ -116,6 +143,11 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
     } {
         const filesToDelete: string[] = [];
         const filesToRewrite: Array<[string, string]> = [];
+
+        if (featureDef.workspacePath && service.exists(featureDef.workspacePath)) {
+            filesToDelete.push(featureDef.workspacePath);
+            return { filesToDelete, filesToRewrite };
+        }
 
         // 1. Collect files to delete
         for (const file of featureDef.files) {
