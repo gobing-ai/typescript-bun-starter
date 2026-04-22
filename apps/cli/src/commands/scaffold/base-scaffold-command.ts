@@ -26,7 +26,12 @@ export abstract class BaseScaffoldCommand extends Command {
      */
     protected writeOutput(data: unknown, error?: string): number {
         if (this.json) {
-            const output = error ? { error } : data;
+            const output =
+                error && data && typeof data === 'object'
+                    ? { error, ...(data as Record<string, unknown>) }
+                    : error
+                      ? { error, data }
+                      : data;
             this.context.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
         } else if (error) {
             this.context.stderr.write(`Error: ${error}\n`);
