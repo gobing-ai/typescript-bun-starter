@@ -10,9 +10,9 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
         super();
     }
 
-    static paths = [['scaffold', 'add']];
+    static override paths = [['scaffold', 'add']];
 
-    static usage = Command.Usage({
+    static override usage = Command.Usage({
         category: 'Scaffold',
         description: 'Add optional feature modules',
         details: `
