@@ -3,6 +3,9 @@
     "version": "0.1.0",
     "private": true,
     "type": "module",
+    "scripts": {
+        "dev": "bun run src/index.ts"
+    },
     "dependencies": {
         "@logtape/logtape": "^2.0.5",
         "@starter/core": "workspace:*",
