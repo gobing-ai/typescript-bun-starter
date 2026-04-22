@@ -244,6 +244,5 @@ bun run pub2npmjs      # publish to npm
 - [Existing Project Migration Guide](docs/existing-project-migration-guide.md) -- AI-assisted migration model for adopting starter capabilities into existing repos
 - [User Manual](docs/03_USER_MANUAL.md) -- CLI and API reference
 
-## License
-
-Apache 2.0
+## References
+- [The Fastest Way to Build the Best TypeScript Development Environment: Autumn 2025](https://zenn.dev/somnicattus/articles/3c1f3756aec24a?locale=en)
