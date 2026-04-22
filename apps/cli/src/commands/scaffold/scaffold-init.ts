@@ -103,12 +103,12 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
         if (this.json) {
             // JSON mode: all required
             return {
-                name: this.name,
-                title: this.title,
-                brand: this.brand,
-                scope: this.scope,
-                repoUrl: this.repoUrl,
-                bin: this.bin,
+                ...(this.name ? { name: this.name } : {}),
+                ...(this.title ? { title: this.title } : {}),
+                ...(this.brand ? { brand: this.brand } : {}),
+                ...(this.scope ? { scope: this.scope } : {}),
+                ...(this.repoUrl ? { repoUrl: this.repoUrl } : {}),
+                ...(this.bin ? { bin: this.bin } : {}),
                 dryRun: this.dryRun,
                 skipCheck: this.skipCheck,
             };
@@ -127,8 +127,8 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
             title: displayTitle,
             brand: brandName,
             scope: npmScope,
-            repoUrl: this.repoUrl,
-            bin: this.bin,
+            ...(this.repoUrl ? { repoUrl: this.repoUrl } : {}),
+            ...(this.bin ? { bin: this.bin } : {}),
             dryRun: this.dryRun,
             skipCheck: this.skipCheck,
         };
