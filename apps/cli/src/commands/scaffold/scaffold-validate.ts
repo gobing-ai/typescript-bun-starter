@@ -12,9 +12,9 @@ export class ScaffoldValidateCommand extends BaseScaffoldCommand {
         super();
     }
 
-    static paths = [['scaffold', 'validate']];
+    static override paths = [['scaffold', 'validate']];
 
-    static usage = Command.Usage({
+    static override usage = Command.Usage({
         category: 'Scaffold',
         description: 'Validate project contracts and structure',
         details: `
