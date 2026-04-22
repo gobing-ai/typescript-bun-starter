@@ -742,8 +742,8 @@ describe('ScaffoldValidateCommand', () => {
 
     describe('--fix path', () => {
         it('should attempt fixes when --fix is passed with fixable issues', async () => {
-            // Missing AGENTS.md is fixable; --fix will try to run generate:instructions
-            // which will fail, but we verify the code path is exercised
+            // Missing AGENTS.md is fixable; stub the child process so the test
+            // verifies the fix path without emitting external command noise.
             setupTestProject({ includeAgentsMd: false });
             process.chdir(TEST_DIR);
 
@@ -752,10 +752,16 @@ describe('ScaffoldValidateCommand', () => {
             const cmd = cli.process(['scaffold', 'validate', '--fix', '--json'], {
                 stdout: createMockWritable(stdout),
             }) as ScaffoldValidateCommand;
+            const runSyncCalls: Array<{ command: string; args: string[] }> = [];
+            const runSync = Reflect.get(cmd, 'runSync') as (command: string, args: string[]) => void;
+            Reflect.set(cmd, 'runSync', (command: string, args: string[]) => {
+                runSyncCalls.push({ command, args });
+            });
 
-            // execute() should not throw even if generate:instructions fails
             const exitCode = await cmd.execute();
             expect(typeof exitCode).toBe('number');
+            expect(runSyncCalls).toEqual([{ command: 'bun', args: ['run', 'generate:instructions'] }]);
+            Reflect.set(cmd, 'runSync', runSync);
         });
 
         it('should re-validate after fixes are applied', async () => {
