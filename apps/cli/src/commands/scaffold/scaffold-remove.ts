@@ -11,9 +11,9 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
         super();
     }
 
-    static paths = [['scaffold', 'remove']];
+    static override paths = [['scaffold', 'remove']];
 
-    static usage = Command.Usage({
+    static override usage = Command.Usage({
         category: 'Scaffold',
         description: 'Remove optional feature modules',
         details: `
