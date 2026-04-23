@@ -1,6 +1,6 @@
+import { describe, expect, it } from 'bun:test';
 import { Writable } from 'node:stream';
 import { Cli } from 'clipanion';
-import { describe, expect, it } from 'vitest';
 import { ScaffoldListCommand } from '../../../src/commands/scaffold/scaffold-list';
 import type { ScaffoldService } from '../../../src/commands/scaffold/services/scaffold-service';
 import type { FeatureStatus } from '../../../src/commands/scaffold/types/scaffold';
