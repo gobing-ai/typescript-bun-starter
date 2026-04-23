@@ -1,6 +1,6 @@
+import { describe, expect, it } from 'bun:test';
 import { Writable } from 'node:stream';
 import { Cli } from 'clipanion';
-import { describe, expect, it } from 'vitest';
 import { REQUIRED_FEATURES, SCAFFOLD_FEATURES } from '../../../src/commands/scaffold/features/registry';
 import { ScaffoldRemoveCommand } from '../../../src/commands/scaffold/scaffold-remove';
 import type { FeatureDefinition } from '../../../src/commands/scaffold/types/scaffold';
