@@ -6,8 +6,8 @@ import { Writable } from 'node:stream';
 import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
-import type { Database, DbAdapterConfig } from '@starter/core';
-import { createDbAdapter, createLoggerSinks, getLoggerConfig, skills } from '@starter/core';
+import type { DbAdapterConfig, DbClient } from '@starter/core';
+import { createDbAdapter, createLoggerSinks, getLoggerConfig, SkillsDao } from '@starter/core';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 
@@ -19,7 +19,7 @@ type ServerEnv = {
         DB?: D1Binding;
     };
     Variables: {
-        db: Database;
+        db: DbClient;
     };
 };
 
@@ -39,11 +39,11 @@ await configure({
 /**
  * Create an OpenAPI Hono application.
  *
- * @param localDb - Optional pre-built drizzle Database to inject per-request.
+ * @param localDb - Optional pre-built DB client to inject per-request.
  *                   When omitted, the middleware resolves a D1 binding from the
  *                   request env or falls back to a local bun-sqlite adapter.
  */
-export function createApp(localDb?: Database) {
+export function createApp(localDb?: DbClient) {
     const app = new OpenAPIHono<ServerEnv>();
 
     // ── Error & Not-Found ────────────────────────────────────────────────
@@ -92,19 +92,16 @@ export function createApp(localDb?: Database) {
 
     // ── Skill CRUD ───────────────────────────────────────────────────────
     app.post('/api/skills', async (c) => {
-        const db = c.get('db');
+        const skillsDao = new SkillsDao(c.get('db'));
         const body = await c.req.json<{ name: string }>();
-        const now = Date.now();
-        const id = crypto.randomUUID();
+        const created = await skillsDao.createSkill({ name: body.name });
 
-        await db.insert(skills).values({ id, name: body.name, createdAt: now, updatedAt: now });
-
-        return c.json({ data: { name: body.name } }, 201);
+        return c.json({ data: { name: created.name } }, 201);
     });
 
     app.get('/api/skills', async (c) => {
-        const db = c.get('db');
-        const rows = await db.select().from(skills);
+        const skillsDao = new SkillsDao(c.get('db'));
+        const rows = await skillsDao.listSkills();
         return c.json({ data: rows });
     });
 
