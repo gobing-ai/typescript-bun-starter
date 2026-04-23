@@ -14,6 +14,7 @@ const markdownFiles = [
     'docs/01_ARCHITECTURE_SPEC.md',
     'docs/02_DEVELOPER_SPEC.md',
     'docs/04_SCAFFOLD_GUIDE.md',
+    'docs/05_DATABASE_ACCESS.md',
 ];
 
 const docRules: DocRule[] = [
@@ -41,6 +42,11 @@ const docRules: DocRule[] = [
         path: 'docs/04_SCAFFOLD_GUIDE.md',
         required: ['Compiled Binary Workflow', 'Starter Profiles', 'scaffold validate --fix'],
         forbidden: ['build the binary file first', 'skill create'],
+    },
+    {
+        path: 'docs/05_DATABASE_ACCESS.md',
+        required: ['DbClient', 'BaseDao', 'bun run check:db-boundaries', 'schema re-export leaks'],
+        forbidden: ['Universal CRUD base for all DAOs', 'Expose Drizzle database types through public APIs'],
     },
 ];
 
