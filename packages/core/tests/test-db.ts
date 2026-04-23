@@ -1,6 +1,4 @@
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
-import * as schema from '../src/db/schema';
+import { createDbAdapter } from '../src/db/adapter';
 
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS skills (
@@ -14,11 +12,8 @@ const CREATE_TABLE_SQL = `
   )
 `;
 
-export function createTestDb() {
-    const sqlite = new Database(':memory:');
-    sqlite.run('PRAGMA journal_mode = WAL');
-    sqlite.run('PRAGMA foreign_keys = ON');
-    sqlite.run(CREATE_TABLE_SQL);
-    const db = drizzle(sqlite, { schema });
-    return { sqlite, db };
+export async function createTestDb() {
+    const adapter = await createDbAdapter({ driver: 'bun-sqlite', url: ':memory:' });
+    await adapter.exec(CREATE_TABLE_SQL);
+    return { adapter, db: adapter.getDb() };
 }
