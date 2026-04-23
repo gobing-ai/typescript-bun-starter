@@ -18,4 +18,4 @@
 - Keep services transport-agnostic: no Hono, Clipanion, Astro, or UI code in services.
 - Validation belongs in schemas or service boundaries, not in callers.
 - Prefer returning shared result/error types instead of transport-specific responses.
-- Database access stays behind the adapter and service layer.
+- Database access stays behind the adapter and DAO or service layer.
