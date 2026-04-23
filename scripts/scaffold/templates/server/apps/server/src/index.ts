@@ -5,7 +5,7 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
 import type { Database, DbAdapterConfig } from '@starter/core';
-import { createDbAdapter, getLoggerConfig } from '@starter/core';
+import { createDbAdapter, createLoggerSinks, getLoggerConfig } from '@starter/core';
 import { SERVER_CONFIG } from './config';
 import { errorHandler } from './middleware/error';
 
@@ -21,10 +21,14 @@ type ServerEnv = {
     };
 };
 
+const loggerConfig = getLoggerConfig(process.env);
+
 // Configure LogTape — always to stderr so stdout is never polluted
 await configure({
-    ...getLoggerConfig(process.env),
-    sinks: { console: getStreamSink(Writable.toWeb(process.stderr)) },
+    ...loggerConfig,
+    sinks: createLoggerSinks(loggerConfig, {
+        consoleSink: getStreamSink(Writable.toWeb(process.stderr)),
+    }),
 });
 
 export function createApp(localDb?: Database) {
