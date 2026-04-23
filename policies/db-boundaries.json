@@ -1,0 +1,49 @@
+{
+    "id": "db-boundaries",
+    "description": "Enforces database access boundaries - prevents bun:sqlite and drizzle-orm imports outside the core/db package boundary.",
+    "rationale": [
+        "Database access should be encapsulated behind DbClient and DAO interfaces.",
+        "Direct use of bun:sqlite or drizzle-orm outside the DB layer couples application code to SQLite implementation details.",
+        "Schema re-exports leak internal implementation across package boundaries."
+    ],
+    "notes": [
+        "This policy replaces the check-db-boundaries.ts script.",
+        "Only packages/core/src/db/* and packages/core/tests/db/* are allowed to import database primitives."
+    ],
+    "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
+    "rules": [
+        {
+            "id": "no-bun-sqlite-import",
+            "engine": "rg",
+            "message": "bun:sqlite imports must be in packages/core/src/db/** or packages/core/tests/db/**",
+            "severity": "error",
+            "allow": ["packages/core/src/db/", "packages/core/tests/db/"],
+            "match": {
+                "kind": "rg",
+                "pattern": "from ['\"]bun:sqlite['\"]"
+            }
+        },
+        {
+            "id": "no-drizzle-import",
+            "engine": "rg",
+            "message": "drizzle-orm imports must be in packages/core/src/db/** or packages/core/tests/db/**",
+            "severity": "error",
+            "allow": ["packages/core/src/db/", "packages/core/tests/db/"],
+            "match": {
+                "kind": "rg",
+                "pattern": "from ['\"]drizzle-orm"
+            }
+        },
+        {
+            "id": "no-schema-re-export",
+            "engine": "rg",
+            "message": "Schema re-exports must remain inside the DB boundary",
+            "severity": "error",
+            "allow": ["packages/core/src/db/", "packages/core/tests/db/"],
+            "match": {
+                "kind": "rg",
+                "pattern": "export.*from ['\"]\\.\\.?/db/schema['\"]"
+            }
+        }
+    ]
+}
