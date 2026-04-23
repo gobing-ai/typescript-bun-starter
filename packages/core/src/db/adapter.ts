@@ -1,12 +1,27 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
-import type { DrizzleD1Database } from 'drizzle-orm/d1';
-import type * as schema from './schema';
 
-export type Database = BunSQLiteDatabase<typeof schema> | DrizzleD1Database<typeof schema>;
+export interface DbTable<TSelect, TInsert = TSelect> {
+    readonly $inferSelect: TSelect;
+    readonly $inferInsert: TInsert;
+}
+
+type DbInsertBuilder<TTable extends DbTable<unknown, unknown>> = {
+    values(values: TTable['$inferInsert'] | TTable['$inferInsert'][]): PromiseLike<unknown>;
+};
+
+type DbSelectBuilder = {
+    from<TTable extends DbTable<unknown, unknown>>(table: TTable): PromiseLike<TTable['$inferSelect'][]>;
+};
+
+export interface DbClient {
+    insert<TTable extends DbTable<unknown, unknown>>(table: TTable): DbInsertBuilder<TTable>;
+    select(): DbSelectBuilder;
+}
 
 export interface DbAdapter {
-    getDb(): Database;
+    getDb(): DbClient;
+    exec(sql: string): Promise<void>;
+    queryFirst<T>(sql: string): Promise<T | undefined>;
     close(): void;
 }
 
