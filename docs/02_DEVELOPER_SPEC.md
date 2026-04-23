@@ -126,6 +126,9 @@ bun run smoke:generated
 - shared API-facing types belong in `@starter/contracts`
 - server handlers stay thin; business logic belongs in `@starter/core`
 - browser-safe fetching and API helpers stay under `apps/web/src/lib`
+- database runtime wiring lives under `packages/core/src/db/adapters` and `packages/core/src/db/client.ts`
+- query composition belongs in `packages/core/src/db/*-dao.ts`; app code should consume DAOs instead of importing drizzle directly
+- `docs/05_DATABASE_ACCESS.md` is the canonical database access guide; follow it before changing DB boundaries or DAO patterns
 
 ## 9. Script Conventions
 
@@ -142,6 +145,7 @@ The canonical docs checked by `bun run check:docs` are:
 - `docs/01_ARCHITECTURE_SPEC.md`
 - `docs/02_DEVELOPER_SPEC.md`
 - `docs/04_SCAFFOLD_GUIDE.md`
+- `docs/05_DATABASE_ACCESS.md`
 
 These files must stay aligned on:
 
