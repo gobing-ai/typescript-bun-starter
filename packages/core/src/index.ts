@@ -2,11 +2,13 @@
 
 // Config
 export { CORE_CONFIG } from './config';
-export type { Database, DbAdapter, DbAdapterConfig } from './db/adapter';
+export type { DbAdapter, DbAdapterConfig, DbClient, DbTable } from './db/adapter';
 export { createDbAdapter } from './db/adapter';
 // Database
+export { BaseDao } from './db/base-dao';
 export { _resetAdapter, getDb, getDefaultAdapter } from './db/client';
-export { skills } from './db/schema';
+export type { CreateSkillInput, SkillRecord } from './db/skills-dao';
+export { SkillsDao } from './db/skills-dao';
 export type { ErrorCode } from './errors';
 // Errors
 export {
