@@ -19,6 +19,6 @@ export {
 } from './errors';
 // Logger
 export { logger } from './logger';
-export { getLoggerConfig } from './logging';
+export { createLoggerSinks, getLoggerConfig } from './logging';
 // Types
 export type { Result } from './types/result';
