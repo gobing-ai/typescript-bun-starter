@@ -6,6 +6,7 @@ dist/
 
 # Database files
 data/
+logs/
 *.db
 
 # Drizzle migrations (generated)
