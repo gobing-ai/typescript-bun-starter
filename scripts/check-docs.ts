@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { echo, echoError } from '@starter/core';
 
 type DocRule = {
     path: string;
@@ -94,11 +95,11 @@ for (const path of [...markdownFiles, 'bunfig.toml']) {
 }
 
 if (failures.length > 0) {
-    process.stderr.write(`Documentation checks failed (${failures.length}):\n`);
+    echoError(`Documentation checks failed (${failures.length}):`);
     for (const failure of failures) {
-        process.stderr.write(`- ${failure}\n`);
+        echoError(`- ${failure}`);
     }
     process.exit(1);
 }
 
-process.stdout.write('Documentation checks passed.\n');
+echo('Documentation checks passed.');
