@@ -22,8 +22,8 @@ export {
 // Logger
 export { logger } from './logger';
 export { createLoggerSinks, getLoggerConfig } from './logging';
+export type { WriteTarget } from './output';
 // Output
 export { echo, echoError } from './output';
-export type { WriteTarget } from './output';
 // Types
 export type { Result } from './types/result';
