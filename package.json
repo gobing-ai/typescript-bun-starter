@@ -28,6 +28,7 @@
         "format": "biome format --write .",
         "lint-fix": "biome lint --write .",
         "autofix": "bun run format && bun run lint-fix",
+        "autofix2": "bun run autofix && bun run scripts/policy-check.ts --fix",
         "typecheck": "tsc --noEmit",
         "db:push": "drizzle-kit push",
         "db:generate": "drizzle-kit generate",
