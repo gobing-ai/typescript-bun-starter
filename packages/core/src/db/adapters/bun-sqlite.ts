@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { type BunSQLiteDatabase, drizzle } from 'drizzle-orm/bun-sqlite';
 import { CORE_CONFIG } from '../../config';
-import type { Database as AppDatabase, DbAdapter } from '../adapter';
+import type { DbAdapter, DbClient } from '../adapter';
 import * as schema from '../schema';
 
 export class BunSqliteAdapter implements DbAdapter {
@@ -30,8 +30,16 @@ export class BunSqliteAdapter implements DbAdapter {
         this.drizzleDb = drizzle({ client: this.sqlite, schema });
     }
 
-    getDb(): AppDatabase {
-        return this.drizzleDb;
+    getDb(): DbClient {
+        return this.drizzleDb as unknown as DbClient;
+    }
+
+    async exec(sql: string): Promise<void> {
+        this.sqlite.run(sql);
+    }
+
+    async queryFirst<T>(sql: string): Promise<T | undefined> {
+        return this.sqlite.query(sql).get() as T | undefined;
     }
 
     close(): void {
