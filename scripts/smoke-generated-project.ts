@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { echo, echoError } from '@starter/core';
 
 const repoRoot = resolve(import.meta.dir, '..');
 const scratchRoot = mkdtempSync(join(tmpdir(), 'tbs-generated-smoke-'));
@@ -10,7 +11,7 @@ const projectRoot = join(scratchRoot, 'project');
 const projectTempDir = join(projectRoot, '.tmp');
 
 function writeLine(message: string): void {
-    process.stderr.write(`${message}\n`);
+    echoError(message);
 }
 
 function cleanup(): void {
@@ -93,4 +94,4 @@ try {
     cleanup();
 }
 
-process.stdout.write('Generated-project smoke test passed.\n');
+echo('Generated-project smoke test passed.');
