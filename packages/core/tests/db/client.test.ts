@@ -4,12 +4,6 @@ import { _resetAdapter, getDb, getDefaultAdapter } from '../../src/db/client';
 const originalDatabaseUrl = process.env.DATABASE_URL;
 let adaptersToClose: Array<{ close: () => void }> = [];
 
-function extractRawSqlite() {
-    const db = getDb();
-    const session = Reflect.get(db, 'session');
-    return Reflect.get(session, 'client') as { query: (sql: string) => { get: () => unknown } };
-}
-
 beforeEach(() => {
     process.env.DATABASE_URL = ':memory:';
     _resetAdapter();
@@ -42,15 +36,15 @@ describe('db client singleton', () => {
         expect(first).toBe(second);
     });
 
-    test('getDb returns the singleton drizzle instance', () => {
+    test('getDb returns the singleton DB client instance', async () => {
         const adapter = getDefaultAdapter();
         adaptersToClose.push(adapter);
         const db = getDb();
 
         expect(db).toBe(adapter.getDb());
 
-        const raw = extractRawSqlite();
-        const pragma = raw.query('PRAGMA foreign_keys').get() as { foreign_keys: number };
+        const pragma = await adapter.queryFirst<{ foreign_keys: number }>('PRAGMA foreign_keys');
+        expect(pragma).toBeDefined();
         expect(pragma.foreign_keys).toBe(1);
     });
 
