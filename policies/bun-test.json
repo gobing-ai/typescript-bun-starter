@@ -1,0 +1,92 @@
+{
+    "id": "bun-test",
+    "description": "Enforces using Bun test instead of Vitest",
+    "rationale": [
+        "Bun test is faster and built-in",
+        "Avoids external dependency",
+        "Consistent testing with Bun runtime"
+    ],
+    "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
+    "rules": [
+        {
+            "id": "no-vitest-import",
+            "engine": "rg",
+            "message": "Use bun:test instead of vitest",
+            "severity": "error",
+            "match": {
+                "kind": "rg",
+                "pattern": "from ['\"]vitest['\"]"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/vitest/bun:test/g' {path}"
+            }
+        },
+        {
+            "id": "no-vi.fn",
+            "engine": "rg",
+            "message": "vi.fn() is vitest-specific",
+            "severity": "error",
+            "match": {
+                "kind": "rg",
+                "pattern": "vi\\.fn\\("
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/vi\\.fn(/bun.fn(/g' {path}"
+            }
+        },
+        {
+            "id": "no-vi.spyOn",
+            "engine": "rg",
+            "message": "vi.spyOn is vitest-specific",
+            "severity": "error",
+            "match": {
+                "kind": "rg",
+                "pattern": "vi\\.spyOn"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/vi\\.spyOn/bun.spyOn/g' {path}"
+            }
+        },
+        {
+            "id": "no-vi.mock",
+            "engine": "rg",
+            "message": "vi.mock is vitest-specific",
+            "severity": "error",
+            "match": {
+                "kind": "rg",
+                "pattern": "vi\\.mock"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/vi\\.mock/bun.mock/g' {path}"
+            }
+        },
+        {
+            "id": "no-vi.stub",
+            "engine": "rg",
+            "message": "vi.stub is vitest-specific",
+            "severity": "error",
+            "match": {
+                "kind": "rg",
+                "pattern": "vi\\.stub"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/vi\\.stub/bun.stub/g' {path}"
+            }
+        },
+        {
+            "id": "no-vitest-config",
+            "engine": "rg",
+            "message": "vitest.config.ts should be removed",
+            "severity": "error",
+            "match": {
+                "kind": "rg",
+                "pattern": "vitest\\.config"
+            }
+        }
+    ]
+}
