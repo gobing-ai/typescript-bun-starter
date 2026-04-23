@@ -1,0 +1,43 @@
+{
+    "id": "output-boundaries",
+    "description": "Enforces proper boundaries for CLI output utilities - prevents output functions from being exported outside the output module.",
+    "rationale": [
+        "Output utilities should be consumed through the core barrel or specific module interfaces, not via direct exports from the output module.",
+        "This ensures consistent output behavior across the application."
+    ],
+    "notes": [
+        "This policy replaces the check-output-boundaries.ts script.",
+        "The allow list targets the core barrel where echo/echoError are intentionally exported."
+    ],
+    "targets": ["packages/*/src/**/*.ts", "apps/*/src/**/*.ts"],
+    "exclude": ["**/node_modules/**", "**/dist/**"],
+    "rules": [
+        {
+            "id": "no-direct-output-imports",
+            "engine": "rg",
+            "message": "Direct imports from output module should use core barrel instead",
+            "severity": "warning",
+            "allow": [
+                "apps/*/src/index.ts",
+                "apps/*/src/commands/*.ts",
+                "packages/core/src/index.ts",
+                "packages/core/src/output.ts"
+            ],
+            "match": {
+                "kind": "rg",
+                "pattern": "from ['\"]\\.\\.?/output['\"]"
+            }
+        },
+        {
+            "id": "no-echo-error-exports",
+            "engine": "rg",
+            "message": "echoError should not be exported from non-output modules",
+            "severity": "error",
+            "allow": ["packages/core/src/output.ts", "packages/core/src/index.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "export.*echoError"
+            }
+        }
+    ]
+}
