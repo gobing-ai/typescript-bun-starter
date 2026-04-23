@@ -2,6 +2,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { echo, echoError } from '@starter/core';
 import contract from '../contracts/project-contracts.json';
 
 interface InstructionPolicy {
@@ -76,18 +77,20 @@ for (const target of targets) {
 }
 
 if (mode === 'check' && outOfSyncTargets.length > 0) {
-    process.stderr.write('Generated instruction files are out of date.\n\n');
+    echoError('Generated instruction files are out of date.');
+    echoError('');
     for (const target of outOfSyncTargets) {
-        process.stderr.write(`- ${target}\n`);
+        echoError(`- ${target}`);
     }
-    process.stderr.write('\nRun `bun run generate:instructions`.\n');
+    echoError('');
+    echoError('Run `bun run generate:instructions`.');
     process.exit(1);
 }
 
 if (mode === 'write') {
-    process.stdout.write(`Generated ${targets.length} instruction files\n`);
+    echo(`Generated ${targets.length} instruction files`);
 } else {
-    process.stdout.write('Generated instruction files are in sync\n');
+    echo('Generated instruction files are in sync');
 }
 
 function renderInstructionFile(target: GeneratedTarget): string {
