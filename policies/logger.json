@@ -1,0 +1,133 @@
+{
+    "id": "logger",
+    "description": "Enforces using @logtape/logtape logger instead of console.*",
+    "rationale": [
+        "Consistent structured logging across the codebase",
+        "Logger supports log levels, sinks, and formatting",
+        "console.* bypasses the logging infrastructure"
+    ],
+    "notes": ["Fix uses sed for simple pattern replacement", "For complex cases, manual review may be needed"],
+    "targets": ["apps/**/*.ts", "packages/**/*.ts"],
+    "rules": [
+        {
+            "id": "no-console-log",
+            "engine": "rg",
+            "message": "Use logger.* instead of console.log",
+            "severity": "error",
+            "allow": ["scripts/policy-check.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "console\\.log"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/console\\.log/logger.log/g' {path}"
+            }
+        },
+        {
+            "id": "no-console-error",
+            "engine": "rg",
+            "message": "Use logger.error instead of console.error",
+            "severity": "error",
+            "allow": ["scripts/policy-check.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "console\\.error"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/console\\.error/logger.error/g' {path}"
+            }
+        },
+        {
+            "id": "no-console-warn",
+            "engine": "rg",
+            "message": "Use logger.warn instead of console.warn",
+            "severity": "warning",
+            "allow": ["scripts/policy-check.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "console\\.warn"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/console\\.warn/logger.warn/g' {path}"
+            }
+        },
+        {
+            "id": "no-console-debug",
+            "engine": "rg",
+            "message": "Use logger.debug instead of console.debug",
+            "severity": "warning",
+            "allow": ["scripts/policy-check.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "console\\.debug"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/console\\.debug/logger.debug/g' {path}"
+            }
+        },
+        {
+            "id": "no-console-info",
+            "engine": "rg",
+            "message": "Use logger.info instead of console.info",
+            "severity": "warning",
+            "allow": ["scripts/policy-check.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "console\\.info"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/console\\.info/logger.info/g' {path}"
+            }
+        },
+        {
+            "id": "no-console-dir",
+            "engine": "rg",
+            "message": "Use logger.debug with object instead of console.dir",
+            "severity": "warning",
+            "allow": ["scripts/policy-check.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "console\\.dir"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/console\\.dir/logger.debug/g' {path}"
+            }
+        },
+        {
+            "id": "no-console-time",
+            "engine": "rg",
+            "message": "Use logger with timing metadata instead of console.time",
+            "severity": "warning",
+            "allow": ["scripts/policy-check.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "console\\.time"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/console\\.time(/logger.debug(/g' {path}"
+            }
+        },
+        {
+            "id": "no-console-trace",
+            "engine": "rg",
+            "message": "Use logger.debug with stack trace instead of console.trace",
+            "severity": "warning",
+            "allow": ["scripts/policy-check.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "console\\.trace"
+            },
+            "fix": {
+                "mode": "command",
+                "command": "sed -i '' 's/console\\.trace/logger.debug/g' {path}"
+            }
+        }
+    ]
+}
