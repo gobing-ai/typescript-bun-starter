@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { type ChildProcess, spawn } from 'node:child_process';
+import { echoError } from '@starter/core';
 
 type ManagedProcess = {
     label: string;
@@ -7,7 +8,7 @@ type ManagedProcess = {
 };
 
 function writeLine(message: string): void {
-    process.stderr.write(`${message}\n`);
+    echoError(message);
 }
 
 function spawnManaged(label: string, args: string[]): ManagedProcess {
