@@ -661,7 +661,7 @@ function parseArgs(argv: string[]): Args {
             args.help = true;
         } else if (arg === '--fix') {
             args.fix = true;
-        } else if (arg === '--preview') {
+        } else if (arg === '--dry-run') {
             args.preview = true;
         } else if (arg === '--machine') {
             args.machine = true;
@@ -694,7 +694,7 @@ Options:
   -p, --policy <name>    Policy to run (can be specified multiple times)
                          If not specified, runs all policies in --policy-dir
   --fix                  Apply safe fixes where available
-  --preview              Preview fixes without applying them (dry-run)
+  --dry-run             Preview fixes without applying them
   --machine              Machine-readable JSON output
   --policy-dir <path>    Directory containing policy files (default: policies)
   --fail-fast            Stop on first policy error
@@ -726,7 +726,7 @@ Examples:
   bun scripts/policy-check.ts --policy db-boundaries
 
   # Preview fixes
-  bun scripts/policy-check.ts --fix --preview
+  bun scripts/policy-check.ts --fix --dry-run
 
   # Apply fixes
   bun scripts/policy-check.ts --fix
