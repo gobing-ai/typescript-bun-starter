@@ -1,3 +1,4 @@
+import { echo } from '@starter/core';
 import { Command } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
 import { OPTIONAL_FEATURES, REQUIRED_FEATURES, SCAFFOLD_FEATURES } from './features/registry';
@@ -79,7 +80,7 @@ export class ScaffoldListCommand extends BaseScaffoldCommand {
             false,
         );
 
-        this.context.stdout.write(`${output}\n`);
+        echo(output, this.context.stdout);
         return 0;
     }
 
