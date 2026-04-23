@@ -7,7 +7,7 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
 import type { Database, DbAdapterConfig } from '@starter/core';
-import { createDbAdapter, getLoggerConfig, skills } from '@starter/core';
+import { createDbAdapter, createLoggerSinks, getLoggerConfig, skills } from '@starter/core';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 
@@ -26,10 +26,14 @@ type ServerEnv = {
 /** Path to the built web assets served by the SPA fallback. */
 export const WEB_DIST_PATH = resolve(process.cwd(), 'apps/web/dist');
 
+const loggerConfig = getLoggerConfig(process.env);
+
 // Configure LogTape — always to stderr so stdout is never polluted
 await configure({
-    ...getLoggerConfig(process.env),
-    sinks: { console: getStreamSink(Writable.toWeb(process.stderr)) },
+    ...loggerConfig,
+    sinks: createLoggerSinks(loggerConfig, {
+        consoleSink: getStreamSink(Writable.toWeb(process.stderr)),
+    }),
 });
 
 /**
