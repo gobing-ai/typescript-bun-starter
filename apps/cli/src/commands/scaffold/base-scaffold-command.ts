@@ -1,3 +1,4 @@
+import { echo, echoError } from '@starter/core';
 import { Command, Option } from 'clipanion';
 
 /**
@@ -34,7 +35,7 @@ export abstract class BaseScaffoldCommand extends Command {
                       : data;
             this.context.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
         } else if (error) {
-            this.context.stderr.write(`Error: ${error}\n`);
+            echoError(`Error: ${error}`, this.context.stderr);
         }
         return error ? 1 : 0;
     }
@@ -65,7 +66,7 @@ export abstract class BaseScaffoldCommand extends Command {
      */
     protected writeSuccess(message: string): void {
         if (!this.json) {
-            this.context.stdout.write(`${message}\n`);
+            echo(message, this.context.stdout);
         }
     }
 }
