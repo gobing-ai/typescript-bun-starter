@@ -1,0 +1,42 @@
+{
+    "id": "bun-only",
+    "description": "Enforces using Bun instead of npm/pnpm/yarn",
+    "rationale": [
+        "Bun is faster and already the runtime",
+        "Avoids dependency resolution conflicts",
+        "Consistent tooling"
+    ],
+    "targets": ["package.json", "*.lock", "*.yaml", "*.yml"],
+    "rules": [
+        {
+            "id": "no-npm-scripts",
+            "engine": "rg",
+            "message": "Use bun scripts instead of npm scripts",
+            "severity": "warning",
+            "match": {
+                "kind": "rg",
+                "pattern": "npm run"
+            }
+        },
+        {
+            "id": "no-pnpm-scripts",
+            "engine": "rg",
+            "message": "Use bun scripts instead of pnpm scripts",
+            "severity": "warning",
+            "match": {
+                "kind": "rg",
+                "pattern": "pnpm"
+            }
+        },
+        {
+            "id": "no-yarn-scripts",
+            "engine": "rg",
+            "message": "Use bun scripts instead of yarn scripts",
+            "severity": "warning",
+            "match": {
+                "kind": "rg",
+                "pattern": "yarn"
+            }
+        }
+    ]
+}

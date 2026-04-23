@@ -1,0 +1,60 @@
+{
+    "id": "git-safety",
+    "description": "Blocks dangerous git operations in scripts",
+    "rationale": [
+        "Prevent accidental data loss",
+        "Block force-push and hard reset in CI/CD"
+    ],
+    "targets": ["**/*.sh", "**/*.bash", "scripts/**/*.ts", "package.json", ".github/**/*.yml", ".github/**/*.yaml"],
+    "rules": [
+        {
+            "id": "no-git-force-push",
+            "engine": "rg",
+            "message": "git --force push can overwrite history, use --force-with-lease instead",
+            "severity": "error",
+            "allow": ["**/node_modules/**"],
+            "match": {
+                "kind": "rg",
+                "pattern": "git.*--force.*push"
+            }
+        },
+        {
+            "id": "no-git-push-force",
+            "engine": "rg",
+            "message": "git push --force can overwrite history, use --force-with-lease instead",
+            "severity": "error",
+            "allow": ["**/node_modules/**"],
+            "match": {
+                "kind": "rg",
+                "pattern": "git.*push.*--force"
+            }
+        },
+        {
+            "id": "no-git-reset-hard",
+            "engine": "rg",
+            "message": "git reset --hard can cause data loss",
+            "severity": "error",
+            "allow": ["**/node_modules/**"],
+            "match": {
+                "kind": "rg",
+                "pattern": "git.*reset.*--hard"
+            }
+        },
+        {
+            "id": "no-git-reset-hard-flag",
+            "engine": "rg",
+            "message": "git reset --hard can cause data loss",
+            "severity": "error",
+            "allow": ["**/node_modules/**"],
+            "match": {
+                "kind": "rg",
+                "pattern": "git\\s+reset\\s+-H"
+            }
+        }
+    ],
+    "notes": [
+        "Use --force-with-lease instead of --force for push",
+        "Avoid reset --hard without backup",
+        "Consider git reflog for recovery"
+    ]
+}

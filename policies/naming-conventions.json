@@ -1,0 +1,47 @@
+{
+    "id": "naming-conventions",
+    "description": "Enforces consistent naming conventions",
+    "rationale": [
+        "Consistent naming improves code readability",
+        "Follows project conventions"
+    ],
+    "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
+    "rules": [
+        {
+            "id": "kebab-case-files",
+            "engine": "rg",
+            "message": "Source files should use kebab-case naming",
+            "severity": "warning",
+            "match": {
+                "kind": "rg",
+                "pattern": "^#.*\\.(ts|js|tsx|jsx)$",
+                "glob": "*.ts"
+            }
+        },
+        {
+            "id": "camelcase-classes",
+            "engine": "rg",
+            "message": "Class names should use PascalCase",
+            "severity": "warning",
+            "match": {
+                "kind": "rg",
+                "pattern": "^\\s*(abstract\\s+)?class\\s+[a-z]"
+            }
+        },
+        {
+            "id": "pascal-case-components",
+            "engine": "rg",
+            "message": "React/UI components should use PascalCase",
+            "severity": "warning",
+            "match": {
+                "kind": "rg",
+                "pattern": "^\\s*(export\\s+)?(const|function)\\s+[a-z][a-z0-9]*Component"
+            }
+        }
+    ],
+    "notes": [
+        "Source files: kebab-case (e.g., my-file.ts)",
+        "Classes/Components: PascalCase",
+        "Functions/variables: camelCase"
+    ]
+}
