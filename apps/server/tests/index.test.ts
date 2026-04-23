@@ -12,15 +12,15 @@ afterEach(() => {
     }
 });
 
-function makeApp() {
-    const { sqlite, db } = createTestDb();
-    cleanupFns.push(() => sqlite.close());
+async function makeApp() {
+    const { adapter, db } = await createTestDb();
+    cleanupFns.push(() => adapter.close());
     return createApp(db);
 }
 
 describe('server entry', () => {
     test('GET / returns health status', async () => {
-        const app = makeApp();
+        const app = await makeApp();
         const res = await app.request('/');
 
         expect(res.status).toBe(200);
@@ -34,7 +34,7 @@ describe('server entry', () => {
         const originalKey = process.env.API_KEY;
         process.env.API_KEY = 'test-secret';
 
-        const app = makeApp();
+        const app = await makeApp();
         const res = await app.request('/api/health');
 
         expect(res.status).toBe(200);
@@ -49,7 +49,7 @@ describe('server entry', () => {
     });
 
     test('GET /doc returns OpenAPI JSON', async () => {
-        const app = makeApp();
+        const app = await makeApp();
         const res = await app.request('/doc');
 
         expect(res.status).toBe(200);
@@ -60,7 +60,7 @@ describe('server entry', () => {
     });
 
     test('GET /swagger returns Swagger UI HTML', async () => {
-        const app = makeApp();
+        const app = await makeApp();
         const res = await app.request('/swagger');
 
         expect(res.status).toBe(200);
@@ -71,7 +71,7 @@ describe('server entry', () => {
     });
 
     test('serves skill routes using the app-scoped database resolver', async () => {
-        const app = makeApp();
+        const app = await makeApp();
 
         const res = await app.request('/api/skills', {
             method: 'POST',
@@ -86,7 +86,7 @@ describe('server entry', () => {
     });
 
     test('uses request D1 binding when available', async () => {
-        const app = makeApp();
+        const app = await makeApp();
         const binding = {} as D1Database;
 
         const res = await app.request('/', undefined, { DB: binding });
@@ -102,7 +102,7 @@ describe('server entry', () => {
     });
 
     test('SPA fallback returns index.html for non-API paths', async () => {
-        const app = makeApp();
+        const app = await makeApp();
         // SPA fallback only triggers when index.html exists at the static path
         // For test, we'll verify the route is mounted by checking it doesn't 404 on non-API paths
         const res = await app.request('/some-spa-route');
@@ -118,21 +118,21 @@ describe('server entry', () => {
             cleanupFns.push(() => renameSync(backupPath, indexPath));
         }
 
-        const app = makeApp();
+        const app = await makeApp();
         const res = await app.request('/missing-spa-route');
 
         expect(res.status).toBe(404);
     });
 
     test('SPA fallback skips API routes', async () => {
-        const app = makeApp();
+        const app = await makeApp();
         // /api routes should be handled by the skills router, not SPA fallback
         const res = await app.request('/api/skills');
         expect(res.status).toBe(200);
     });
 
     test('SPA fallback skips asset paths with extensions', async () => {
-        const app = makeApp();
+        const app = await makeApp();
         // Paths with extensions should skip SPA fallback
         const res = await app.request('/static/js/app.js');
         // Should return 404 (no such static file in test env) or pass through
