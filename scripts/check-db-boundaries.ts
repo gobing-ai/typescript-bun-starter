@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { echo, echoError, type WriteTarget } from '@starter/core';
 
 export interface BoundaryViolation {
     file: string;
@@ -6,7 +7,6 @@ export interface BoundaryViolation {
     detail: string;
 }
 
-type WriteTarget = Pick<typeof process.stdout, 'write'>;
 type SpawnSyncFn = typeof Bun.spawnSync;
 
 const importPattern = String.raw`^\s*import(?:\s+type)?[\s\S]*?from\s+['"](?<specifier>bun:sqlite|drizzle-orm(?:\/[^'"]+)*)['"]`;
@@ -118,7 +118,12 @@ export function runBoundaryCheck(
     );
 
     if (result.exitCode !== 0 && result.exitCode !== 1) {
-        stderr.write(decodeOutput(result.stderr) || 'DB boundary check failed to scan imports.\n');
+        const errorOutput = decodeOutput(result.stderr);
+        if (errorOutput) {
+            stderr.write(errorOutput);
+        } else {
+            echoError('DB boundary check failed to scan imports.', stderr);
+        }
         return result.exitCode;
     }
 
@@ -147,7 +152,12 @@ export function runBoundaryCheck(
     );
 
     if (schemaLeakResult.exitCode !== 0 && schemaLeakResult.exitCode !== 1) {
-        stderr.write(decodeOutput(schemaLeakResult.stderr) || 'DB boundary check failed to scan schema re-exports.\n');
+        const schemaLeakErrorOutput = decodeOutput(schemaLeakResult.stderr);
+        if (schemaLeakErrorOutput) {
+            stderr.write(schemaLeakErrorOutput);
+        } else {
+            echoError('DB boundary check failed to scan schema re-exports.', stderr);
+        }
         return schemaLeakResult.exitCode;
     }
 
@@ -158,14 +168,14 @@ export function runBoundaryCheck(
     violations.push(...collectSchemaLeakViolations(schemaLeakLines));
 
     if (violations.length > 0) {
-        stderr.write(`DB boundary checks failed (${violations.length}):\n`);
+        echoError(`DB boundary checks failed (${violations.length}):`, stderr);
         for (const violation of violations) {
-            stderr.write(`- ${violation.file}:${violation.line} ${violation.detail}\n`);
+            echoError(`- ${violation.file}:${violation.line} ${violation.detail}`, stderr);
         }
         return 1;
     }
 
-    stdout.write('DB boundary checks passed.\n');
+    echo('DB boundary checks passed.', stdout);
     return 0;
 }
 
