@@ -20,9 +20,13 @@ describe('createDbAdapter', () => {
     });
 
     test('creates d1 adapter with mock binding', async () => {
+        const calls = {
+            exec: [] as string[],
+            prepare: [] as string[],
+        };
         const stmt = {
             bind: (..._args: unknown[]) => stmt,
-            first: async <T>(): Promise<T | null> => null,
+            first: async <T>(): Promise<T | null> => ({ value: 1 }) as T,
             all: async <T>(): Promise<{
                 results: T[];
                 success: boolean;
@@ -45,12 +49,18 @@ describe('createDbAdapter', () => {
         };
 
         const mockBinding = {
-            prepare: (_query: string) => stmt,
+            prepare: (query: string) => {
+                calls.prepare.push(query);
+                return stmt;
+            },
             dump: async (): Promise<ArrayBuffer> => new ArrayBuffer(0),
-            exec: async (_query: string): Promise<{ count: number; duration: number }> => ({
-                count: 0,
-                duration: 0,
-            }),
+            exec: async (query: string): Promise<{ count: number; duration: number }> => {
+                calls.exec.push(query);
+                return {
+                    count: 0,
+                    duration: 0,
+                };
+            },
             batch: async <T>(): Promise<{ results: T[]; success: boolean; meta: Record<string, unknown> }[]> => [],
             withSession: () => mockBinding,
         };
@@ -63,6 +73,12 @@ describe('createDbAdapter', () => {
         expect(adapter).toBeDefined();
         const db = adapter.getDb();
         expect(db).toBeDefined();
+        await adapter.exec('select 1');
+        const row = await adapter.queryFirst<{ value: number }>('select 2');
+
+        expect(calls.exec).toEqual(['select 1']);
+        expect(calls.prepare).toEqual(['select 2']);
+        expect(row).toEqual({ value: 1 });
         adapter.close();
     });
 });
