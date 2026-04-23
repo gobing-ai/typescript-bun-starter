@@ -4,7 +4,7 @@ import { Writable } from 'node:stream';
 import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
-import type { Database, DbAdapterConfig } from '@starter/core';
+import type { DbAdapterConfig, DbClient } from '@starter/core';
 import { createDbAdapter, createLoggerSinks, getLoggerConfig } from '@starter/core';
 import { SERVER_CONFIG } from './config';
 import { errorHandler } from './middleware/error';
@@ -17,7 +17,7 @@ type ServerEnv = {
         DB?: D1Binding;
     };
     Variables: {
-        db: Database;
+        db: DbClient;
     };
 };
 
@@ -31,7 +31,7 @@ await configure({
     }),
 });
 
-export function createApp(localDb?: Database) {
+export function createApp(localDb?: DbClient) {
     const app = new OpenAPIHono<ServerEnv>();
 
     app.onError(errorHandler());
