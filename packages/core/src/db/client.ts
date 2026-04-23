@@ -1,4 +1,4 @@
-import type { Database, DbAdapter } from './adapter';
+import type { DbAdapter, DbClient } from './adapter';
 
 let _adapter: DbAdapter | undefined;
 
@@ -23,13 +23,13 @@ export function getDefaultAdapter(): DbAdapter {
 }
 
 /**
- * Get the default Database instance (Bun SQLite).
+ * Get the default DB client instance (Bun SQLite).
  *
  * Convenience for tests and CLI commands.  Server entry points should
  * construct their own adapter via `createDbAdapter()` and inject it
- * into `SkillService` explicitly.
+ * into DAOs or services explicitly.
  */
-export function getDb(): Database {
+export function getDb(): DbClient {
     return getDefaultAdapter().getDb();
 }
 
