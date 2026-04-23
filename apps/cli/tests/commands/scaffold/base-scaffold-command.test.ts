@@ -1,6 +1,6 @@
+import { describe, expect, it } from 'bun:test';
 import { Writable } from 'node:stream';
 import { Cli, Option } from 'clipanion';
-import { describe, expect, it } from 'vitest';
 
 // Import the actual base class
 import { BaseScaffoldCommand } from '../../../src/commands/scaffold/base-scaffold-command';
