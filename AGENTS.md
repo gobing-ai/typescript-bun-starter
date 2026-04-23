@@ -117,11 +117,16 @@ Iterate with single-file runs. `bun run check` is the final gate before every co
 - Naming: Source files are kebab-case. Web components and layouts are PascalCase.
 - Imports: Cross-workspace dependencies must use the `workspace:*` protocol. App workspaces must not import from other apps. `packages/core` must not import from `apps/*`.
 - Tests: `bun:test` (`describe`/`it`/`expect`), arrange-act-assert, no shared mutable state.
+- Database access: app and non-DB package code must depend on `DbClient` and DAO classes, not Drizzle database types or `bun:sqlite`.
+- Database access: query composition belongs in `packages/core/src/db/*-dao.ts`; runtime driver wiring belongs in `packages/core/src/db/adapters/*` and `packages/core/src/db/client.ts`.
+- Database access: do not re-export `packages/core/src/db/schema.ts` outside the DB boundary; read `docs/05_DATABASE_ACCESS.md` before changing DB access patterns.
 
 ### Forbidden
 - `console.*` in `scripts/**` (use logger if available).
 - `as any`, non-null `!`, `// @ts-ignore`, `// @ts-expect-error`, or `biome-ignore` for `noExplicitAny`.
 - Introducing app business logic into CLI, server, or web transport layers.
+- Importing `drizzle-orm*` or `bun:sqlite` outside `packages/core/src/db/**` and targeted DB tests.
+- Re-exporting `packages/core/src/db/schema.ts` outside `packages/core/src/db/**`.
 - Direct edits under `node_modules/`, `dist/`, `coverage/`, `drizzle/`.
 - `git commit --no-verify`, `git push --force` to shared branches, `git reset --hard` on uncommitted work — without explicit user consent.
 
@@ -135,3 +140,4 @@ Append concrete one-liners ("Always use X for Y") when the user corrects you. Ti
 - Avoid `mock.module(...)` in source-level Bun tests when a local mock or direct dependency seam will do; module mocks can leak across suites and create false regressions.
 - When using `scripts/task-all-utest.ts fix`, stop after repeated no-progress rounds and inspect the remaining insufficiency set instead of trusting per-file "fixed" messages.
 - Treat `console.*` as a last resort. For production code, use `logger.*` for logs and the command/context writer for intentional CLI output; do not mix debugging prints into command handlers.
+- For DB changes, keep `bun run check:db-boundaries` green and align code with `docs/05_DATABASE_ACCESS.md`; never leak Drizzle or schema exports into client-facing code.
