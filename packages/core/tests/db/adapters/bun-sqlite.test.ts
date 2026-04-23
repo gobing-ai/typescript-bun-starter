@@ -13,12 +13,6 @@ const CREATE_TABLE_SQL = `
   )
 `;
 
-function extractRawSqlite(adapter: BunSqliteAdapter) {
-    const db = adapter.getDb();
-    const session = Reflect.get(db, 'session');
-    return Reflect.get(session, 'client');
-}
-
 describe('BunSqliteAdapter', () => {
     test('creates in-memory database', () => {
         const adapter = new BunSqliteAdapter(':memory:');
@@ -27,13 +21,13 @@ describe('BunSqliteAdapter', () => {
         adapter.close();
     });
 
-    test('getDb returns a usable drizzle instance', async () => {
+    test('getDb returns a usable DB client instance', async () => {
         const adapter = new BunSqliteAdapter(':memory:');
         const db = adapter.getDb();
-        const raw = extractRawSqlite(adapter);
-
-        raw.run(CREATE_TABLE_SQL);
-        raw.run(`INSERT INTO skills (id, name, created_at, updated_at) VALUES ('test-id', 'test-name', 0, 0)`);
+        await adapter.exec(CREATE_TABLE_SQL);
+        await adapter.exec(
+            `INSERT INTO skills (id, name, created_at, updated_at) VALUES ('test-id', 'test-name', 0, 0)`,
+        );
 
         const { skills } = await import('../../../src/db/schema');
         const rows = await db.select().from(skills);
@@ -46,12 +40,12 @@ describe('BunSqliteAdapter', () => {
         adapter.close();
     });
 
-    test('sets WAL pragma on file-based db', () => {
+    test('sets WAL pragma on file-based db', async () => {
         const tmpPath = `${import.meta.dir}/.tmp-wal-test-${Date.now()}.db`;
         const adapter = new BunSqliteAdapter(tmpPath);
         try {
-            const raw = extractRawSqlite(adapter);
-            const result = raw.query('PRAGMA journal_mode').get() as Record<string, string>;
+            const result = await adapter.queryFirst<Record<string, string>>('PRAGMA journal_mode');
+            expect(result).toBeDefined();
             expect(result.journal_mode).toBe('wal');
         } finally {
             adapter.close();
@@ -64,10 +58,10 @@ describe('BunSqliteAdapter', () => {
         }
     });
 
-    test('sets foreign_keys pragma', () => {
+    test('sets foreign_keys pragma', async () => {
         const adapter = new BunSqliteAdapter(':memory:');
-        const raw = extractRawSqlite(adapter);
-        const result = raw.query('PRAGMA foreign_keys').get() as Record<string, number>;
+        const result = await adapter.queryFirst<Record<string, number>>('PRAGMA foreign_keys');
+        expect(result).toBeDefined();
         expect(result.foreign_keys).toBe(1);
         adapter.close();
     });
