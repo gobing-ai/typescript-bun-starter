@@ -1,5 +1,4 @@
-import type { Database } from 'bun:sqlite';
-import { getDb } from '@starter/core';
+import { getDefaultAdapter } from '@starter/core';
 
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS skills (
@@ -20,10 +19,8 @@ process.env.DATABASE_URL = ':memory:';
  * Initialize the default in-memory DB with schema and clean state.
  * Must be called in beforeAll() of each CLI test file.
  */
-export function setupCliTestDb() {
-    const db = getDb();
-    const session = Reflect.get(db, 'session');
-    const raw = Reflect.get(session, 'client') as Database;
-    raw.run(CREATE_TABLE_SQL);
-    raw.run('DELETE FROM skills');
+export async function setupCliTestDb() {
+    const adapter = getDefaultAdapter();
+    await adapter.exec(CREATE_TABLE_SQL);
+    await adapter.exec('DELETE FROM skills');
 }
