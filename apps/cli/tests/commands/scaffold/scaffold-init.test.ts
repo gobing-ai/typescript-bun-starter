@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { Writable } from 'node:stream';
 import { Cli } from 'clipanion';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ScaffoldInitCommand } from '../../../src/commands/scaffold/scaffold-init';
 import { ScaffoldService } from '../../../src/commands/scaffold/services/scaffold-service';
 import type { ScaffoldInitOptions } from '../../../src/commands/scaffold/types/scaffold';
