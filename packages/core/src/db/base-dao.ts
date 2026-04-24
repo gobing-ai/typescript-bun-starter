@@ -1,6 +1,7 @@
 import { getDbOperationDuration, getDbOperationErrors, getDbOperationTotal } from '../telemetry/metrics';
 import { traceAsync } from '../telemetry/tracing';
 import type { DbClient } from './adapter';
+import { runWithDbSpan } from './span-context';
 
 /**
  * DB span naming convention: `db.{collection}.{operation}`
@@ -48,7 +49,7 @@ export abstract class BaseDao {
         try {
             const result = await traceAsync(spanName, async (span) => {
                 span.setAttributes(attrs);
-                return await fn();
+                return await runWithDbSpan(span, fn);
             });
             return result;
         } catch (error) {
