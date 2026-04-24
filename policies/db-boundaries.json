@@ -17,7 +17,7 @@
             "engine": "rg",
             "message": "bun:sqlite imports must be in packages/core/src/db/** or packages/core/tests/db/**",
             "severity": "error",
-            "allow": ["packages/core/src/db/", "packages/core/tests/db/"],
+            "allow": ["packages/core/src/db/**", "packages/core/tests/db/**"],
             "match": {
                 "kind": "rg",
                 "pattern": "from ['\"]bun:sqlite['\"]"
@@ -28,7 +28,7 @@
             "engine": "rg",
             "message": "drizzle-orm imports must be in packages/core/src/db/** or packages/core/tests/db/**",
             "severity": "error",
-            "allow": ["packages/core/src/db/", "packages/core/tests/db/"],
+            "allow": ["packages/core/src/db/**", "packages/core/tests/db/**"],
             "match": {
                 "kind": "rg",
                 "pattern": "from ['\"]drizzle-orm"
@@ -39,7 +39,7 @@
             "engine": "rg",
             "message": "Schema re-exports must remain inside the DB boundary",
             "severity": "error",
-            "allow": ["packages/core/src/db/", "packages/core/tests/db/"],
+            "allow": ["packages/core/src/db/**", "packages/core/tests/db/**"],
             "match": {
                 "kind": "rg",
                 "pattern": "export.*from ['\"]\\.\\.?/db/schema['\"]"
