@@ -17,6 +17,16 @@ export interface TelemetryConfig {
     exporterEndpoint?: string | undefined;
     /** Export protocol — only `http` is supported in v1. */
     exporterProtocol: 'http';
+    /**
+     * Debug-only DB statement capture.
+     *
+     * When true, DB spans may include sanitized SQL text in a `db.statement`
+     * attribute. SQL text is redacted — parameter values, literals, and
+     * identifiers are stripped before capture.
+     *
+     * Default: `false`. Controlled by `OTEL_DB_STATEMENT_DEBUG` env var.
+     */
+    dbStatementDebug: boolean;
 }
 
 type Environment = Record<string, string | undefined>;
@@ -54,5 +64,6 @@ export function getTelemetryConfig(env: Environment = process.env): TelemetryCon
         environment: env.OTEL_ENVIRONMENT ?? env.NODE_ENV ?? DEFAULTS.environment,
         exporterEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT ?? env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
         exporterProtocol: (env.OTEL_EXPORTER_OTLP_PROTOCOL as 'http') ?? DEFAULTS.exporterProtocol,
+        dbStatementDebug: parseBooleanEnv(env.OTEL_DB_STATEMENT_DEBUG) ?? false,
     };
 }
