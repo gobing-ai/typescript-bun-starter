@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { echoError } from '@starter/core';
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
 import { SCAFFOLD_FEATURES } from './features/registry';
@@ -397,12 +398,22 @@ export class ScaffoldValidateCommand extends BaseScaffoldCommand {
     }
 
     /**
-     * Run a synchronous command.
+     * Run a synchronous command and surface non-zero exits as warnings so
+     * fix-up steps don't silently fail.
      */
     private runSync(cmd: string, args: string[]): void {
-        spawnSync(cmd, args, {
+        const result = spawnSync(cmd, args, {
             cwd: process.cwd(),
             stdio: 'inherit',
         });
+        const label = `${cmd} ${args.join(' ')}`.trim();
+        if (result.error) {
+            echoError(`Warning: "${label}" failed to start: ${result.error.message}`, this.context.stderr);
+            return;
+        }
+        const status = result.status ?? 1;
+        if (status !== 0) {
+            echoError(`Warning: "${label}" exited with code ${status}.`, this.context.stderr);
+        }
     }
 }
