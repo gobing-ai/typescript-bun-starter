@@ -17,23 +17,27 @@ export class SkillsDao extends BaseDao {
     }
 
     async createSkill(input: CreateSkillInput): Promise<SkillRecord> {
-        const now = this.now();
-        const record: SkillRecord = {
-            id: crypto.randomUUID(),
-            name: input.name,
-            description: input.description ?? null,
-            version: input.version ?? 1,
-            config: input.config ?? null,
-            createdAt: now,
-            updatedAt: now,
-        };
+        return this.withMetrics('insert', 'skills', async () => {
+            const now = this.now();
+            const record: SkillRecord = {
+                id: crypto.randomUUID(),
+                name: input.name,
+                description: input.description ?? null,
+                version: input.version ?? 1,
+                config: input.config ?? null,
+                createdAt: now,
+                updatedAt: now,
+            };
 
-        await this.db.insert(skills).values(record);
+            await this.db.insert(skills).values(record);
 
-        return record;
+            return record;
+        });
     }
 
     async listSkills(): Promise<SkillRecord[]> {
-        return this.db.select().from(skills);
+        return this.withMetrics('select', 'skills', async () => {
+            return this.db.select().from(skills);
+        });
     }
 }
