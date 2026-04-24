@@ -140,6 +140,31 @@ describe('createApiClient', () => {
         expect(requests[2]?.input).toBe('https://example.com/api/skills/1');
         expect(requests[2]?.init?.method).toBe('DELETE');
         expect(requests[2]?.init?.body).toBeUndefined();
+
+        const postHeaders = new Headers(requests[0]?.init?.headers);
+        const putHeaders = new Headers(requests[1]?.init?.headers);
+        const deleteHeaders = new Headers(requests[2]?.init?.headers);
+        expect(postHeaders.get('Content-Type')).toBe('application/json');
+        expect(putHeaders.get('Content-Type')).toBe('application/json');
+        expect(deleteHeaders.has('Content-Type')).toBe(false);
+    });
+
+    test('does not send JSON Content-Type for GET requests without a body', async () => {
+        const requests: Array<{ input: string | URL | Request; init?: RequestInit }> = [];
+        globalThis.fetch = async (input, init) => {
+            requests.push({ input, init });
+            return new Response(JSON.stringify({ data: { ok: true } }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        };
+
+        const api = createApiClient('https://example.com');
+        await api.get('/api/health');
+
+        const getHeaders = new Headers(requests[0]?.init?.headers);
+        expect(requests[0]?.init?.method).toBe('GET');
+        expect(getHeaders.has('Content-Type')).toBe(false);
     });
 });
 
