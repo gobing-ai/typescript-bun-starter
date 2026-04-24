@@ -11,6 +11,23 @@
 export type { Span, SpanOptions, Tracer } from '@opentelemetry/api';
 // Configuration
 export { getTelemetryConfig, type TelemetryConfig } from './config';
+// Metrics
+export {
+    _resetMetrics,
+    getDbOperationDuration,
+    getDbOperationErrors,
+    getDbOperationTotal,
+    getHttpClientRequestDuration,
+    getHttpClientRequestErrors,
+    getHttpClientRequestTotal,
+    getHttpServerRequestDuration,
+    getHttpServerRequestErrors,
+    getHttpServerRequestTotal,
+    getMeterProvider,
+    initMetrics,
+    isMetricsInitialized,
+    shutdownMetrics,
+} from './metrics';
 // SDK lifecycle
 // Re-export core OTel API types for convenience
 export {
