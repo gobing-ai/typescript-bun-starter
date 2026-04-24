@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { cwd } from 'node:process';
@@ -93,17 +93,17 @@ export class ScaffoldService {
     }
 
     /**
-     * Run a shell command in the project root.
+     * Run a command in the project root without spawning a shell.
+     * Pass the executable as `command` and arguments as `args` to avoid
+     * shell-quoting issues and command-injection vectors.
      * Returns the exit code (0 = success).
      */
-    runShell(command: string): number {
-        try {
-            execSync(command, { cwd: this.root, stdio: 'pipe' });
-            return 0;
-        } catch (err: unknown) {
-            const error = err as { status?: number };
-            return error.status ?? 1;
+    runShell(command: string, args: string[] = []): number {
+        const result = spawnSync(command, args, { cwd: this.root, stdio: 'pipe' });
+        if (result.error) {
+            return 1;
         }
+        return result.status ?? 1;
     }
 
     /**
