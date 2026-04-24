@@ -6,6 +6,10 @@
         "Avoids external dependency",
         "Consistent testing with Bun runtime"
     ],
+    "notes": [
+        "These fixes are intentionally first-pass migrations for existing projects.",
+        "They can introduce compile errors or semantic gaps that need manual cleanup after the mechanical rewrite."
+    ],
     "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
     "rules": [
         {
@@ -18,8 +22,8 @@
                 "pattern": "from ['\"]vitest['\"]"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/vitest/bun:test/g' {path}"
+                "mode": "rewrite",
+                "replace": "from 'bun:test'"
             }
         },
         {
@@ -32,8 +36,8 @@
                 "pattern": "vi\\.fn\\("
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/vi\\.fn(/bun.fn(/g' {path}"
+                "mode": "rewrite",
+                "replace": "bun.fn("
             }
         },
         {
@@ -46,8 +50,8 @@
                 "pattern": "vi\\.spyOn"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/vi\\.spyOn/bun.spyOn/g' {path}"
+                "mode": "rewrite",
+                "replace": "bun.spyOn"
             }
         },
         {
@@ -60,8 +64,8 @@
                 "pattern": "vi\\.mock"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/vi\\.mock/bun.mock/g' {path}"
+                "mode": "rewrite",
+                "replace": "bun.mock"
             }
         },
         {
@@ -74,8 +78,8 @@
                 "pattern": "vi\\.stub"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/vi\\.stub/bun.stub/g' {path}"
+                "mode": "rewrite",
+                "replace": "bun.stub"
             }
         },
         {
