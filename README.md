@@ -66,6 +66,40 @@ bun run smoke:generated
 - `bun run check` runs format/lint checks, scaffold validation, docs validation, typecheck, and tests
 - `bun run smoke:generated` copies the repo into a temp project and exercises the full-stack, CLI + API, and CLI-only generated profiles
 
+## Telemetry
+
+The starter includes a shared OpenTelemetry helper layer in `@starter/core` for server-side tracing.
+
+### Enable it
+
+Set the standard OpenTelemetry env vars before starting the server:
+
+```bash
+export TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=my-service
+export OTEL_ENVIRONMENT=development
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
+```
+
+`apps/server/src/index.ts` initializes telemetry during server bootstrap. If `OTEL_EXPORTER_OTLP_ENDPOINT` is not set, the server still runs normally and no remote trace export is attempted.
+
+### Emit custom spans
+
+Application code should import telemetry helpers from `@starter/core`, not from `@opentelemetry/*` directly.
+
+```ts
+import { addSpanAttributes, addSpanEvent, traceAsync } from '@starter/core';
+
+const skill = await traceAsync('skills.create', async (span) => {
+    span.setAttribute('skill.name', input.name);
+    addSpanAttributes({ 'app.operation': 'skills.create' });
+    addSpanEvent('skills.create.requested', { 'skill.name': input.name });
+    return await skillsDao.createSkill(input);
+});
+```
+
+Use `traceAsync()` for most application work. Reach for lower-level tracer APIs only when the shared helpers are not sufficient.
+
 ## Documentation
 
 - [Architecture Spec](docs/01_ARCHITECTURE_SPEC.md)
