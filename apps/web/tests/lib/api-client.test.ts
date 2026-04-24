@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { createApiClient, fetchHealth } from '../../src/lib/api-client';
+import { createBrowserApiClient, fetchHealth } from '../../src/lib/browser-api-client';
 
 const originalFetch = globalThis.fetch;
 
@@ -7,7 +7,7 @@ afterEach(() => {
     globalThis.fetch = originalFetch;
 });
 
-describe('createApiClient', () => {
+describe('createBrowserApiClient', () => {
     test('unwraps data envelopes for successful API responses', async () => {
         globalThis.fetch = async () =>
             new Response(
@@ -23,7 +23,7 @@ describe('createApiClient', () => {
                 },
             );
 
-        const api = createApiClient('https://example.com');
+        const api = createBrowserApiClient('https://example.com');
         const response = await api.get<{ status: string; timestamp: string }>('/api/health');
 
         expect(response.status).toBe(200);
@@ -47,7 +47,7 @@ describe('createApiClient', () => {
                 },
             );
 
-        const api = createApiClient('https://example.com');
+        const api = createBrowserApiClient('https://example.com');
         const response = await api.get<{ status: string; timestamp: string }>('/');
 
         expect(response.status).toBe(200);
@@ -65,7 +65,7 @@ describe('createApiClient', () => {
                 statusText: 'Unauthorized',
             });
 
-        const api = createApiClient('https://example.com');
+        const api = createBrowserApiClient('https://example.com');
         const response = await api.get('/api/skills');
 
         expect(response.status).toBe(401);
@@ -81,7 +81,7 @@ describe('createApiClient', () => {
                 statusText: 'Internal Server Error',
             });
 
-        const api = createApiClient('https://example.com');
+        const api = createBrowserApiClient('https://example.com');
         const response = await api.get('/api/skills');
 
         expect(response.status).toBe(500);
@@ -95,7 +95,7 @@ describe('createApiClient', () => {
                 headers: { 'Content-Type': 'text/plain' },
             });
 
-        const api = createApiClient('https://example.com');
+        const api = createBrowserApiClient('https://example.com');
         const response = await api.get<string>('/plain-text');
 
         expect(response.status).toBe(200);
@@ -107,7 +107,7 @@ describe('createApiClient', () => {
             throw new Error('socket hang up');
         };
 
-        const api = createApiClient('https://example.com');
+        const api = createBrowserApiClient('https://example.com');
         const response = await api.get('/api/skills');
 
         expect(response.status).toBe(0);
@@ -124,7 +124,7 @@ describe('createApiClient', () => {
             });
         };
 
-        const api = createApiClient('https://example.com');
+        const api = createBrowserApiClient('https://example.com');
 
         await api.post('/api/skills', { name: 'post-skill' });
         await api.put('/api/skills/1', { name: 'put-skill' });
@@ -159,7 +159,7 @@ describe('createApiClient', () => {
             });
         };
 
-        const api = createApiClient('https://example.com');
+        const api = createBrowserApiClient('https://example.com');
         await api.get('/api/health');
 
         const getHeaders = new Headers(requests[0]?.init?.headers);
