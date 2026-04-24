@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-04-24
+
+### New Features
+
+- **Project bootstrap overhaul**: Added a fuller project initialization flow so generated repos start from a more complete, ready-to-customize baseline
+- **Scaffold-first workflow**: Replaced the older skill-centric setup flow with scaffold commands, making project setup and iteration more consistent
+- **Shared database boundary**: Introduced `DbClient` and `BaseDao` patterns to centralize data access and keep database concerns behind a stable abstraction
+- **Policy enforcement CLI**: Added `scripts/policy-check.ts` plus repo policies to enforce architectural boundaries such as DB access, logging, output handling, and external API centralization
+- **Telemetry by default**: Added OpenTelemetry-based tracing and metrics across server and client HTTP paths, database operations, and shared runtime helpers
+
+### Improvements
+
+- **Stronger output model**: Expanded shared output handling so CLI and script output is more consistent and easier to validate in tests
+- **Hardened starter defaults**: Tightened project configuration, workspace conventions, and generated templates to reduce drift and improve out-of-the-box reliability
+- **Centralized API access**: Consolidated shared HTTP behavior and clarified browser-vs-core client responsibilities to reduce duplicate transport code and inconsistent request handling
+- **Modernized web stack**: Upgraded the web tier to Astro 6, `@astrojs/react` 5, and `@astrojs/cloudflare` 13
+- **TypeScript 6 upgrade**: Updated the workspace to TypeScript 6.0.3 and aligned the configuration for the newer compiler behavior
+- **CI dependency refresh**: Upgraded `actions/checkout` from v4 to v6
+
+### Bug Fixes
+
+- **Logging stability**: Fixed logger initialization issues so shared logging works more reliably across app and script entry points
+- **HTTP client correctness**: Fixed duplicated API-client responsibilities and aligned response parsing, empty-body handling, and browser request behavior
+- **Template consistency**: Updated generated web templates and project instructions to match the new scaffold, policy, and client boundaries
+
 ## [0.1.5] - 2026-04-15
 
 ### New Features
