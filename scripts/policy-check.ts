@@ -266,7 +266,7 @@ async function executePolicies(
     policyDir: string,
     selectedPolicies: string[],
     options: ExecuteOptions,
-): Promise<{ violations: Violation[]; fixes: FixResult[]; summary: Summary; errors: string[] }> {
+): Promise<{ violations: Violation[]; fixes: FixResult[]; summary: Summary; errors: string[]; policyIds: string[] }> {
     const violations: Violation[] = [];
     const fixes: FixResult[] = [];
     const errors: string[] = [];
@@ -327,7 +327,7 @@ async function executePolicies(
 
     const summary = computeSummary(violations, fixes, policies.length);
 
-    return { violations, fixes, summary, errors };
+    return { violations, fixes, summary, errors, policyIds: policies.map((p) => p.id) };
 }
 
 function executePolicy(
@@ -542,10 +542,40 @@ function printReport(
     console.log(`\nPolicies: ${policies.join(', ')}`);
     console.log('─'.repeat(60));
 
-    if (violations.length > 0) {
-        console.log('\nViolations:');
+    // Group violations by policy
+    const violationsByPolicy = new Map<string, Violation[]>();
+    for (const v of violations) {
+        const list = violationsByPolicy.get(v.policy) ?? [];
+        list.push(v);
+        violationsByPolicy.set(v.policy, list);
+    }
+
+    // Show failed policies (with violations)
+    const failedPolicies = [...violationsByPolicy.keys()];
+    if (failedPolicies.length > 0) {
+        console.log('\n✗ Failed policies:');
+        for (const policy of failedPolicies) {
+            const pViolations = violationsByPolicy.get(policy) ?? [];
+            const errors = pViolations.filter((v) => v.severity === 'error').length;
+            const warnings = pViolations.filter((v) => v.severity === 'warning').length;
+            console.log(
+                `  ${color ? '\x1b[31m✗\x1b[0m' : '✗'} ${policy}: ${pViolations.length} violation(s) (${errors} errors, ${warnings} warnings)`,
+            );
+        }
+        console.log('');
+        console.log('Violations:');
         for (const v of violations) {
             console.log(formatViolation(v, color));
+        }
+        console.log('');
+    }
+
+    // Show passed policies (no violations)
+    const passedPolicies = policies.filter((p) => !failedPolicies.includes(p));
+    if (passedPolicies.length > 0) {
+        console.log('\x1b[32m✓\x1b[0m Passed policies:');
+        for (const policy of passedPolicies) {
+            console.log(`  \x1b[32m✓\x1b[0m ${policy}`);
         }
         console.log('');
     }
@@ -565,6 +595,7 @@ function printReport(
     console.log(`  ${summary.total} violations (${summary.errors} errors, ${summary.warnings} warnings)`);
     console.log(`  ${summary.fixesApplied} fixes applied, ${summary.fixesFailed} fixes failed`);
     console.log(`  Checked ${summary.filesChecked} files across ${summary.policies} policies`);
+    console.log(`  ${passedPolicies.length}/${summary.policies} policies passed`);
 }
 
 function printJson(
@@ -753,7 +784,7 @@ executePolicies(args.policyDir, args.policy, {
     preview: args.preview,
     failFast: args.failFast,
 })
-    .then(({ violations, fixes, summary, errors }) => {
+    .then(({ violations, fixes, summary, errors, policyIds }) => {
         // Print errors
         for (const error of errors) {
             echoError(`[error] ${error}`);
@@ -764,11 +795,9 @@ executePolicies(args.policyDir, args.policy, {
         }
 
         if (args.machine) {
-            const policyIds = violations.length > 0 ? [...new Set(violations.map((v) => v.policy))] : [];
             printJson(violations, fixes, policyIds, summary, errors);
         } else {
             const color = process.stdout.isTTY;
-            const policyIds = violations.length > 0 ? [...new Set(violations.map((v) => v.policy))] : [];
             printReport(violations, fixes, policyIds, summary, color);
         }
 
