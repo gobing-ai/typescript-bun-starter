@@ -83,6 +83,41 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
 
 `apps/server/src/index.ts` initializes telemetry during server bootstrap. If `OTEL_EXPORTER_OTLP_ENDPOINT` is not set, the server still runs normally and no remote trace export is attempted.
 
+Runtime modes:
+
+- `TELEMETRY_ENABLED=false`
+  - telemetry is disabled and the server runs normally
+- `TELEMETRY_ENABLED=true` with no `OTEL_EXPORTER_OTLP_ENDPOINT`
+  - spans can still be created in-process, but nothing is exported remotely
+- `TELEMETRY_ENABLED=true` with `OTEL_EXPORTER_OTLP_ENDPOINT` set
+  - traces are exported when a collector/backend is available
+
+The observability stack is optional. You can run the server directly without OpenTelemetry services and enable the collector/Jaeger stack only when you need trace inspection.
+
+### Local observability stack
+
+For local tracing during development or manual testing, bring up the bundled collector + Jaeger stack:
+
+```bash
+bun run dev:observability
+export TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=my-service
+export OTEL_ENVIRONMENT=development
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
+```
+
+Then start the server and open Jaeger at `http://localhost:16686`.
+
+Useful commands:
+
+```bash
+bun run dev:observability
+bun run dev:observability:logs
+bun run dev:observability:down
+```
+
+The compose stack lives under `dockers/` and routes OTLP traffic through the OpenTelemetry Collector into Jaeger.
+
 ### Emit custom spans
 
 Application code should import telemetry helpers from `@starter/core`, not from `@opentelemetry/*` directly.
