@@ -44,4 +44,58 @@ describe('SkillsDao', () => {
             adapter.close();
         }
     });
+
+    test('listSkills honors limit and offset', async () => {
+        const { adapter, db } = await createTestDb();
+
+        try {
+            const dao = new SkillsDao(db);
+            for (let i = 0; i < 5; i++) {
+                await dao.createSkill({ name: `skill-${i}` });
+            }
+
+            const firstPage = await dao.listSkills({ limit: 2 });
+            const secondPage = await dao.listSkills({ limit: 2, offset: 2 });
+            const thirdPage = await dao.listSkills({ limit: 2, offset: 4 });
+
+            expect(firstPage).toHaveLength(2);
+            expect(secondPage).toHaveLength(2);
+            expect(thirdPage).toHaveLength(1);
+
+            const allNames = [...firstPage, ...secondPage, ...thirdPage].map((r) => r.name);
+            expect(new Set(allNames).size).toBe(5);
+        } finally {
+            adapter.close();
+        }
+    });
+
+    test('listSkills clamps oversized limit to MAX_LIST_SKILLS_LIMIT', async () => {
+        const { adapter, db } = await createTestDb();
+
+        try {
+            const dao = new SkillsDao(db);
+            await dao.createSkill({ name: 'only-one' });
+
+            // Asking for far more than the cap is clamped silently — query succeeds.
+            const rows = await dao.listSkills({ limit: 10_000 });
+            expect(rows).toHaveLength(1);
+        } finally {
+            adapter.close();
+        }
+    });
+
+    test('listSkills clamps negative limit/offset to safe values', async () => {
+        const { adapter, db } = await createTestDb();
+
+        try {
+            const dao = new SkillsDao(db);
+            await dao.createSkill({ name: 'a' });
+            await dao.createSkill({ name: 'b' });
+
+            const rows = await dao.listSkills({ limit: -5, offset: -10 });
+            expect(rows).toHaveLength(1); // limit clamped to 1, offset to 0
+        } finally {
+            adapter.close();
+        }
+    });
 });
