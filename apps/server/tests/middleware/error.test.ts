@@ -1,7 +1,36 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { ConflictError, InternalError, NotFoundError, ValidationError } from '@starter/core';
+import { ConflictError, InternalError, logger, NotFoundError, ValidationError } from '@starter/core';
 import { errorHandler } from '../../src/middleware/error';
+
+type LogCall = { level: 'warn' | 'error'; template: string; props: Record<string, unknown> };
+
+function captureLogger(): { calls: LogCall[]; restore: () => void } {
+    const calls: LogCall[] = [];
+    const originalWarn = logger.warn;
+    const originalError = logger.error;
+
+    (logger as unknown as { warn: (template: string, props: Record<string, unknown>) => void }).warn = (
+        template: string,
+        props: Record<string, unknown>,
+    ) => {
+        calls.push({ level: 'warn', template, props });
+    };
+    (logger as unknown as { error: (template: string, props: Record<string, unknown>) => void }).error = (
+        template: string,
+        props: Record<string, unknown>,
+    ) => {
+        calls.push({ level: 'error', template, props });
+    };
+
+    return {
+        calls,
+        restore: () => {
+            (logger as unknown as { warn: unknown }).warn = originalWarn;
+            (logger as unknown as { error: unknown }).error = originalError;
+        },
+    };
+}
 
 describe('errorHandler', () => {
     test('returns 500 with sanitized message for generic Error', async () => {
@@ -104,5 +133,51 @@ describe('errorHandler', () => {
 
         const body = (await res.json()) as { error: string };
         expect(body.error).toBe('Internal Server Error');
+    });
+
+    describe('log levels', () => {
+        let restore: (() => void) | undefined;
+
+        afterEach(() => {
+            restore?.();
+            restore = undefined;
+        });
+
+        test('logs known AppErrors at warn level without stack', async () => {
+            const captured = captureLogger();
+            restore = captured.restore;
+
+            const app = new OpenAPIHono();
+            app.onError(errorHandler());
+            app.get('/fail', () => {
+                throw new NotFoundError('missing');
+            });
+
+            await app.request('/fail');
+
+            expect(captured.calls).toHaveLength(1);
+            const call = captured.calls[0];
+            expect(call?.level).toBe('warn');
+            expect(call?.props).not.toHaveProperty('stack');
+            expect(call?.props.code).toBeDefined();
+        });
+
+        test('logs unknown errors at error level with stack', async () => {
+            const captured = captureLogger();
+            restore = captured.restore;
+
+            const app = new OpenAPIHono();
+            app.onError(errorHandler());
+            app.get('/fail', () => {
+                throw new Error('boom');
+            });
+
+            await app.request('/fail');
+
+            expect(captured.calls).toHaveLength(1);
+            const call = captured.calls[0];
+            expect(call?.level).toBe('error');
+            expect(call?.props).toHaveProperty('stack');
+        });
     });
 });
