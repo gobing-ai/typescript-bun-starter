@@ -19,6 +19,13 @@ export interface ApiError {
     details?: unknown;
 }
 
+export {
+    createJsonRequestHeaders,
+    getApiErrorMessage,
+    readResponsePayload,
+    unwrapApiResponseData,
+} from './http-client';
+
 // ─── Zod Schemas for Transport Layer ────────────────────────────────────────
 
 /**
