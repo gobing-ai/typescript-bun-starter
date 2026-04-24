@@ -7,7 +7,17 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
 import type { DbAdapterConfig, DbClient } from '@starter/core';
-import { createDbAdapter, createLoggerSinks, getLoggerConfig, SkillsDao, traceAsync } from '@starter/core';
+import {
+    createDbAdapter,
+    createLoggerSinks,
+    getHttpServerRequestDuration,
+    getHttpServerRequestErrors,
+    getHttpServerRequestTotal,
+    getLoggerConfig,
+    initMetrics,
+    SkillsDao,
+    traceAsync,
+} from '@starter/core';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 import { initServerTelemetry } from './telemetry';
@@ -38,6 +48,7 @@ await configure({
 });
 
 initServerTelemetry();
+initMetrics();
 
 /**
  * Create an OpenAPI Hono application.
@@ -55,20 +66,55 @@ export function createApp(localDb?: DbClient) {
 
     // ── Database middleware ──────────────────────────────────────────────
     app.use('*', async (c, next) => {
-        await traceAsync(`${c.req.method} ${c.req.path}`, async (span) => {
+        const startTime = performance.now();
+        const requestUrl = new URL(c.req.url);
+        // Normalized span naming: `HTTP {METHOD} {path}`
+        const spanName = `HTTP ${c.req.method} ${c.req.path}`;
+
+        await traceAsync(spanName, async (span) => {
+            let responseStatus = 500;
+            let errorType: string | undefined;
+
             span.setAttributes({
                 'http.request.method': c.req.method,
                 'url.path': c.req.path,
+                'server.address': requestUrl.hostname,
             });
 
-            await next();
-
-            span.setAttribute('http.response.status_code', c.res.status);
-            if (c.res.status >= 500) {
+            try {
+                await next();
+                responseStatus = c.res.status;
+                span.setAttribute('http.response.status_code', responseStatus);
+                if (responseStatus >= 500) {
+                    span.setStatus({
+                        code: 2,
+                        message: `HTTP ${responseStatus}`,
+                    });
+                }
+            } catch (error) {
+                responseStatus = c.res.status >= 400 ? c.res.status : 500;
+                errorType = error instanceof Error ? error.name : 'Unknown';
+                span.setAttribute('http.response.status_code', responseStatus);
+                span.recordException(error instanceof Error ? error : new Error(String(error)));
                 span.setStatus({
                     code: 2,
-                    message: `HTTP ${c.res.status}`,
+                    message: `HTTP ${responseStatus}`,
                 });
+                throw error;
+            } finally {
+                const duration = performance.now() - startTime;
+                const metricAttrs = {
+                    'http.request.method': c.req.method,
+                    'http.response.status_code': responseStatus,
+                };
+                getHttpServerRequestTotal().add(1, metricAttrs);
+                getHttpServerRequestDuration().record(duration, metricAttrs);
+                if (responseStatus >= 500 || errorType !== undefined) {
+                    getHttpServerRequestErrors().add(1, {
+                        ...metricAttrs,
+                        ...(errorType !== undefined ? { 'error.type': errorType } : {}),
+                    });
+                }
             }
         });
     });
