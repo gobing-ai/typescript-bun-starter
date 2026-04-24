@@ -161,6 +161,30 @@ describe('APIClient.delete', () => {
         expect(state.captured?.method).toBe('DELETE');
         expect(state.captured?.body).toBeUndefined();
     });
+
+    test('returns undefined for 204 no-content responses', async () => {
+        const client = makeClient({
+            fetch: async () => new Response(null, { status: 204 }),
+        });
+
+        const result = await client.delete<undefined>('/users/1');
+        expect(result).toBeUndefined();
+    });
+});
+
+describe('successful empty-body responses', () => {
+    test('returns undefined for 200 responses with an empty body', async () => {
+        const client = makeClient({
+            fetch: async () =>
+                new Response('', {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }),
+        });
+
+        const result = await client.get<undefined>('/empty');
+        expect(result).toBeUndefined();
+    });
 });
 
 // ---------------------------------------------------------------------------
