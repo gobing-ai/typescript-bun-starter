@@ -6,7 +6,10 @@
         "Logger supports log levels, sinks, and formatting",
         "console.* bypasses the logging infrastructure"
     ],
-    "notes": ["Fix uses sed for simple pattern replacement", "For complex cases, manual review may be needed"],
+    "notes": [
+        "These fixes are intentionally first-pass migrations for existing projects.",
+        "They may leave compile errors behind because imports and API semantics can still need manual follow-up."
+    ],
     "targets": ["apps/**/*.ts", "packages/**/*.ts"],
     "rules": [
         {
@@ -20,8 +23,8 @@
                 "pattern": "console\\.log"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/console\\.log/logger.log/g' {path}"
+                "mode": "rewrite",
+                "replace": "logger.log"
             }
         },
         {
@@ -35,8 +38,8 @@
                 "pattern": "console\\.error"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/console\\.error/logger.error/g' {path}"
+                "mode": "rewrite",
+                "replace": "logger.error"
             }
         },
         {
@@ -50,8 +53,8 @@
                 "pattern": "console\\.warn"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/console\\.warn/logger.warn/g' {path}"
+                "mode": "rewrite",
+                "replace": "logger.warn"
             }
         },
         {
@@ -65,8 +68,8 @@
                 "pattern": "console\\.debug"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/console\\.debug/logger.debug/g' {path}"
+                "mode": "rewrite",
+                "replace": "logger.debug"
             }
         },
         {
@@ -80,8 +83,8 @@
                 "pattern": "console\\.info"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/console\\.info/logger.info/g' {path}"
+                "mode": "rewrite",
+                "replace": "logger.info"
             }
         },
         {
@@ -95,8 +98,8 @@
                 "pattern": "console\\.dir"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/console\\.dir/logger.debug/g' {path}"
+                "mode": "rewrite",
+                "replace": "logger.debug"
             }
         },
         {
@@ -110,8 +113,8 @@
                 "pattern": "console\\.time"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/console\\.time(/logger.debug(/g' {path}"
+                "mode": "rewrite",
+                "replace": "logger.debug"
             }
         },
         {
@@ -125,8 +128,8 @@
                 "pattern": "console\\.trace"
             },
             "fix": {
-                "mode": "command",
-                "command": "sed -i '' 's/console\\.trace/logger.debug/g' {path}"
+                "mode": "rewrite",
+                "replace": "logger.debug"
             }
         }
     ]
