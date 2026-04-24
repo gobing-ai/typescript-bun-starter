@@ -1,0 +1,64 @@
+{
+    "id": "external-api-boundaries",
+    "description": "Enforces centralized external API access through the shared HTTP client wrappers.",
+    "rationale": [
+        "Outbound HTTP behavior should be centralized for consistent headers, timeouts, error handling, and telemetry.",
+        "Direct fetch and ad hoc HTTP clients make browser/server behavior diverge and bypass shared policy decisions.",
+        "A narrow set of approved wrappers keeps transport changes localized."
+    ],
+    "notes": [
+        "Use packages/core/src/api-client.ts for traced generic outbound HTTP access.",
+        "Use apps/web/src/lib/browser-api-client.ts for browser-facing API access that returns ApiResponse envelopes.",
+        "Tests are excluded so they can stub or exercise low-level transports directly."
+    ],
+    "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
+    "exclude": ["**/tests/**", "**/*.test.ts", "**/node_modules/**", "**/dist/**"],
+    "rules": [
+        {
+            "id": "no-direct-fetch",
+            "engine": "rg",
+            "message": "Use the centralized API clients instead of direct fetch(...) calls",
+            "severity": "error",
+            "allow": [
+                "packages/core/src/api-client.ts",
+                "apps/web/src/lib/browser-api-client.ts",
+                "scripts/scaffold/templates/webapp/apps/web/src/lib/browser-api-client.ts"
+            ],
+            "match": {
+                "kind": "rg",
+                "pattern": "(^|[^.[:alnum:]_])fetch\\("
+            }
+        },
+        {
+            "id": "no-globalthis-fetch",
+            "engine": "rg",
+            "message": "Use the centralized API clients instead of globalThis.fetch(...)",
+            "severity": "error",
+            "allow": ["packages/core/src/api-client.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "globalThis\\.fetch\\("
+            }
+        },
+        {
+            "id": "no-xml-http-request",
+            "engine": "rg",
+            "message": "Use the centralized API clients instead of XMLHttpRequest",
+            "severity": "error",
+            "match": {
+                "kind": "rg",
+                "pattern": "new\\s+XMLHttpRequest\\("
+            }
+        },
+        {
+            "id": "no-third-party-http-clients",
+            "engine": "rg",
+            "message": "Use the centralized API clients instead of ad hoc HTTP client libraries",
+            "severity": "error",
+            "match": {
+                "kind": "rg",
+                "pattern": "from ['\"](axios|got|ky|ofetch|undici)['\"]"
+            }
+        }
+    ]
+}
