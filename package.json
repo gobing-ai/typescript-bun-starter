@@ -63,6 +63,8 @@
         "check:instructions": "bun run scaffold:validate",
         "generate:instructions": "bun run scripts/generate-instructions.ts",
         "check:policy": "bun run scripts/policy-check.ts",
+        "migrate:analyze": "bun run scripts/apply-migration.ts --analyze",
+        "migrate:apply": "bun run scripts/apply-migration.ts --apply",
         "smoke:generated": "bun run scripts/smoke-generated-project.ts",
         "test": "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage && bun run scripts/check-coverage.ts",
         "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage --reporter=dots && bun run scripts/check-coverage.ts",
