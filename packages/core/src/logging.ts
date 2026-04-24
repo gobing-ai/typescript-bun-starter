@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync } from 'node:fs';
+import { createWriteStream, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import {
     configureSync,
@@ -127,9 +127,7 @@ function ensureLogDirectory(filePath: string): string {
     const resolvedPath = resolve(filePath);
     const directory = dirname(resolvedPath);
 
-    if (!existsSync(directory)) {
-        mkdirSync(directory, { recursive: true });
-    }
+    mkdirSync(directory, { recursive: true });
 
     return resolvedPath;
 }
@@ -216,6 +214,12 @@ export function createLoggerSinks(
 
     if (config.file) {
         const logFilePath = ensureLogDirectory(config.filePath);
+        // Close any existing stream before reassigning so we don't leak the
+        // descriptor when the helper is called twice (e.g. tests, reconfig).
+        if (fileStream) {
+            fileStream.end();
+            fileStream = null;
+        }
         fileStream = createWriteStream(logFilePath, { flags: 'a' });
         const formatter = config.json ? getJsonLinesFormatter() : getTextFormatter();
 
