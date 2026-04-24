@@ -22,6 +22,7 @@ export interface ApiError {
 export {
     createJsonRequestHeaders,
     getApiErrorMessage,
+    MAX_RESPONSE_PAYLOAD_BYTES,
     readResponsePayload,
     unwrapApiResponseData,
 } from './http-client';
