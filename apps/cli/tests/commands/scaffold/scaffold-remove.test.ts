@@ -426,24 +426,60 @@ describe('ScaffoldRemoveCommand', () => {
     });
 
     describe('runPostRemoveScripts', () => {
-        it('should run bun install and generate:instructions', () => {
+        it('should run bun install and generate:instructions with array args', () => {
             const cmd = new ScaffoldRemoveCommand();
+            const stderr: string[] = [];
+            (cmd as unknown as { context: { stderr: Writable } }).context = {
+                stderr: createMockWritable(stderr),
+            };
             const runPostRemoveScripts = (
                 cmd as unknown as {
-                    runPostRemoveScripts: (s: { runShell: (cmd: string) => number }) => void;
+                    runPostRemoveScripts: (s: { runShell: (cmd: string, args: string[]) => number }) => void;
                 }
-            ).runPostRemoveScripts;
+            ).runPostRemoveScripts.bind(cmd);
 
-            const commands: string[] = [];
+            const calls: Array<{ cmd: string; args: string[] }> = [];
             const mockService = {
-                runShell: (c: string) => {
-                    commands.push(c);
+                runShell: (c: string, args: string[]) => {
+                    calls.push({ cmd: c, args });
                     return 0;
                 },
             };
 
             runPostRemoveScripts(mockService);
-            expect(commands).toEqual(['bun install', 'bun run generate:instructions']);
+            expect(calls).toEqual([
+                { cmd: 'bun', args: ['install'] },
+                { cmd: 'bun', args: ['run', 'generate:instructions'] },
+            ]);
+            expect(stderr.join('')).toBe('');
+        });
+
+        it('should warn on non-zero exit codes without aborting', () => {
+            const cmd = new ScaffoldRemoveCommand();
+            const stderr: string[] = [];
+            (cmd as unknown as { context: { stderr: Writable } }).context = {
+                stderr: createMockWritable(stderr),
+            };
+            const runPostRemoveScripts = (
+                cmd as unknown as {
+                    runPostRemoveScripts: (s: { runShell: (cmd: string, args: string[]) => number }) => void;
+                }
+            ).runPostRemoveScripts.bind(cmd);
+
+            let invocations = 0;
+            const mockService = {
+                runShell: () => {
+                    invocations += 1;
+                    return invocations === 1 ? 7 : 0;
+                },
+            };
+
+            runPostRemoveScripts(mockService);
+            const out = stderr.join('');
+            expect(invocations).toBe(2);
+            expect(out).toContain('bun install');
+            expect(out).toContain('exited with code 7');
+            expect(out).not.toContain('generate:instructions');
         });
     });
 
