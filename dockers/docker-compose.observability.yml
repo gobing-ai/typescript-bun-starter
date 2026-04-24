@@ -1,0 +1,18 @@
+services:
+    otel-collector:
+        image: otel/opentelemetry-collector-contrib:0.126.0
+        command:
+            - '--config=/etc/otelcol-contrib/config.yaml'
+        volumes:
+            - ./otel-collector.config.yml:/etc/otelcol-contrib/config.yaml:ro
+        ports:
+            - '4317:4317'
+            - '4318:4318'
+        depends_on:
+            - jaeger
+
+    jaeger:
+        image: jaegertracing/jaeger:2.8.0
+        ports:
+            - '16686:16686'
+            - '4319:4317'
