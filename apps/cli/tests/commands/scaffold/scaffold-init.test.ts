@@ -265,6 +265,18 @@ describe('ScaffoldInitCommand', () => {
             const result = cmd.replaceInContent(content, replacements);
             expect(result).toBe('NewProject Framework v2.0');
         });
+
+        it('should skip tokens shorter than the minimum replacement length', () => {
+            const cmd = new ScaffoldInitCommand();
+            const stderr: string[] = [];
+            (cmd as unknown as { context: { stderr: NodeJS.WritableStream } }).context = {
+                stderr: createMockWritable(stderr),
+            };
+            // 'a' is 1 char — should be skipped to avoid corrupting unrelated identifiers.
+            const result = cmd.replaceInContent('apple banana cabbage', [['a', 'X']]);
+            expect(result).toBe('apple banana cabbage');
+            expect(stderr.join('')).toContain('shorter than');
+        });
     });
 
     describe('stageChanges', () => {
