@@ -1,5 +1,5 @@
 import { Database } from 'bun:sqlite';
-import { existsSync, mkdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { trace } from '@opentelemetry/api';
 import { type BunSQLiteDatabase, drizzle } from 'drizzle-orm/bun-sqlite';
@@ -110,7 +110,7 @@ export class BunSqliteAdapter implements DbAdapter {
         // Ensure parent directory exists for file-based databases
         if (dbPath !== ':memory:') {
             const dir = dirname(dbPath);
-            if (dir && dir !== '.' && !existsSync(dir)) {
+            if (dir && dir !== '.') {
                 mkdirSync(dir, { recursive: true });
             }
         }
@@ -129,7 +129,11 @@ export class BunSqliteAdapter implements DbAdapter {
     }
 
     async exec(sql: string): Promise<void> {
-        this.sqlite.run(sql);
+        // Route through the instrumented prepare path so DDL/raw statements
+        // emit the same span enrichment as ORM-issued queries. Database.run
+        // is not wrapped by instrumentDatabaseClient, so calling it directly
+        // would silently bypass telemetry.
+        this.sqlite.prepare(sql).run();
     }
 
     async queryFirst<T>(sql: string): Promise<T | undefined> {
