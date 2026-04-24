@@ -1,42 +1,59 @@
 {
     "id": "output-boundaries",
-    "description": "Enforces proper boundaries for CLI output utilities - prevents output functions from being exported outside the output module.",
+    "description": "Enforces plain-output boundaries by preventing direct stdout/stderr writes outside approved exceptions.",
     "rationale": [
-        "Output utilities should be consumed through the core barrel or specific module interfaces, not via direct exports from the output module.",
-        "This ensures consistent output behavior across the application."
+        "Human-facing plain output should flow through echo/echoError for consistency and testability.",
+        "Direct stdout/stderr writes should be limited to explicit passthrough and JSON serialization exceptions."
     ],
     "notes": [
-        "This policy replaces the check-output-boundaries.ts script.",
-        "The allow list targets the core barrel where echo/echoError are intentionally exported."
+        "Allow lists cover the intentional exceptions discussed during implementation.",
+        "JSON serialization and raw subprocess passthrough stay explicit at their call sites."
     ],
-    "targets": ["packages/*/src/**/*.ts", "apps/*/src/**/*.ts"],
-    "exclude": ["**/node_modules/**", "**/dist/**"],
+    "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
+    "exclude": ["**/tests/**", "**/node_modules/**", "**/dist/**"],
     "rules": [
         {
-            "id": "no-direct-output-imports",
+            "id": "no-process-stdout-write",
             "engine": "rg",
-            "message": "Direct imports from output module should use core barrel instead",
-            "severity": "warning",
-            "allow": [
-                "apps/*/src/index.ts",
-                "apps/*/src/commands/*.ts",
-                "packages/core/src/index.ts",
-                "packages/core/src/output.ts"
-            ],
+            "message": "Use echo(...) instead of process.stdout.write(...)",
+            "severity": "error",
+            "allow": ["scripts/smoke-generated-project.ts", "scripts/policy-check.ts"],
             "match": {
                 "kind": "rg",
-                "pattern": "from ['\"]\\.\\.?/output['\"]"
+                "pattern": "process\\.stdout\\.write\\("
             }
         },
         {
-            "id": "no-echo-error-exports",
+            "id": "no-process-stderr-write",
             "engine": "rg",
-            "message": "echoError should not be exported from non-output modules",
+            "message": "Use echoError(...) instead of process.stderr.write(...)",
             "severity": "error",
-            "allow": ["packages/core/src/output.ts", "packages/core/src/index.ts"],
+            "allow": ["scripts/smoke-generated-project.ts"],
             "match": {
                 "kind": "rg",
-                "pattern": "export.*echoError"
+                "pattern": "process\\.stderr\\.write\\("
+            }
+        },
+        {
+            "id": "no-context-stdout-write",
+            "engine": "rg",
+            "message": "Use echo(...) instead of direct text-mode context.stdout.write(...)",
+            "severity": "error",
+            "allow": ["apps/cli/src/commands/scaffold/base-scaffold-command.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "context\\.stdout\\.write\\("
+            }
+        },
+        {
+            "id": "no-context-stderr-write",
+            "engine": "rg",
+            "message": "Use echoError(...) instead of direct text-mode context.stderr.write(...)",
+            "severity": "error",
+            "allow": ["apps/cli/src/commands/scaffold/base-scaffold-command.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "context\\.stderr\\.write\\("
             }
         }
     ]
