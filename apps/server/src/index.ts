@@ -7,9 +7,10 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
 import type { DbAdapterConfig, DbClient } from '@starter/core';
-import { createDbAdapter, createLoggerSinks, getLoggerConfig, SkillsDao } from '@starter/core';
+import { createDbAdapter, createLoggerSinks, getLoggerConfig, SkillsDao, traceAsync } from '@starter/core';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
+import { initServerTelemetry } from './telemetry';
 
 type D1Binding = Extract<DbAdapterConfig, { driver: 'd1' }>['binding'];
 
@@ -36,6 +37,8 @@ await configure({
     }),
 });
 
+initServerTelemetry();
+
 /**
  * Create an OpenAPI Hono application.
  *
@@ -51,6 +54,25 @@ export function createApp(localDb?: DbClient) {
     app.notFound(() => new Response(null, { status: 404 }));
 
     // ── Database middleware ──────────────────────────────────────────────
+    app.use('*', async (c, next) => {
+        await traceAsync(`${c.req.method} ${c.req.path}`, async (span) => {
+            span.setAttributes({
+                'http.request.method': c.req.method,
+                'url.path': c.req.path,
+            });
+
+            await next();
+
+            span.setAttribute('http.response.status_code', c.res.status);
+            if (c.res.status >= 500) {
+                span.setStatus({
+                    code: 2,
+                    message: `HTTP ${c.res.status}`,
+                });
+            }
+        });
+    });
+
     app.use('*', async (c, next) => {
         if (localDb) {
             c.set('db', localDb);
