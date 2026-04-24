@@ -2,7 +2,7 @@
  * API validation helpers.
  *
  * These are optional utilities for consumers who need Zod schema validation.
- * Import from this module explicitly rather than from api-client.ts to avoid
+ * Import from this module explicitly rather than from browser-api-client.ts to avoid
  * pulling zod into the default browser bundle.
  */
 
