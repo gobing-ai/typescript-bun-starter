@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { _resetTelemetry, initTelemetry, shutdownTelemetry } from '@starter/core';
 import { createTestDb } from '@starter/core/tests/test-db';
 import serverEntry, { createApp, WEB_DIST_PATH } from '../src/index';
 
@@ -172,5 +174,42 @@ describe('server entry', () => {
 
         const body = (await res.json()) as { status: string };
         expect(body.status).toBe('ok');
+    });
+
+    test('emits a server request span when telemetry is initialized', async () => {
+        _resetTelemetry();
+        const exporter = new InMemorySpanExporter();
+        initTelemetry(
+            {
+                enabled: true,
+                serviceName: 'server-test',
+            },
+            {
+                spanProcessors: [new SimpleSpanProcessor(exporter)],
+            },
+        );
+
+        const app = await makeApp();
+        const res = await app.request('/api/health');
+
+        expect(res.status).toBe(200);
+
+        const spans = exporter.getFinishedSpans();
+        expect(spans.length).toBeGreaterThan(0);
+        expect(spans.some((span) => span.name === 'GET /api/health')).toBe(true);
+
+        await shutdownTelemetry();
+    });
+
+    test('still serves requests when telemetry is disabled', async () => {
+        _resetTelemetry();
+        initTelemetry({ enabled: false });
+
+        const app = await makeApp();
+        const res = await app.request('/api/health');
+
+        expect(res.status).toBe(200);
+
+        await shutdownTelemetry();
     });
 });
