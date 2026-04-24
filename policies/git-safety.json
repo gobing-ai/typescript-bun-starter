@@ -1,10 +1,7 @@
 {
     "id": "git-safety",
     "description": "Blocks dangerous git operations in scripts",
-    "rationale": [
-        "Prevent accidental data loss",
-        "Block force-push and hard reset in CI/CD"
-    ],
+    "rationale": ["Prevent accidental data loss", "Block force-push and hard reset in CI/CD"],
     "targets": ["**/*.sh", "**/*.bash", "scripts/**/*.ts", "package.json", ".github/**/*.yml", ".github/**/*.yaml"],
     "rules": [
         {
