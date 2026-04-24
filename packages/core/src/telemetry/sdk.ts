@@ -128,5 +128,15 @@ export function isTelemetryInitialized(): boolean {
     return initialized;
 }
 
+/**
+ * Get the resolved telemetry config.
+ *
+ * Returns the config used during the last `initTelemetry()` call,
+ * or falls back to reading from env if telemetry has not been initialized.
+ */
+export function getResolvedConfig(): TelemetryConfig {
+    return resolvedConfig ?? getTelemetryConfig();
+}
+
 // Re-export propagation utilities for downstream use
 export { context, diag, propagation, trace };
