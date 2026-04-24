@@ -1,3 +1,4 @@
+import { echoError } from '@starter/core';
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
 import { getFeature, isRequiredFeature, REQUIRED_FEATURES, SCAFFOLD_FEATURES } from './features/registry';
@@ -239,9 +240,24 @@ export class ScaffoldRemoveCommand extends BaseScaffoldCommand {
 
     /**
      * Run post-remove shell commands to keep workspace in sync.
+     * Warns on non-zero exits but does not abort — scaffold removal already
+     * succeeded by this point and the user can rerun the steps manually.
      */
     private runPostRemoveScripts(service: ScaffoldService): void {
-        service.runShell('bun install');
-        service.runShell('bun run generate:instructions');
+        const steps: Array<{ label: string; cmd: string; args: string[] }> = [
+            { label: 'bun install', cmd: 'bun', args: ['install'] },
+            { label: 'bun run generate:instructions', cmd: 'bun', args: ['run', 'generate:instructions'] },
+        ];
+
+        for (const step of steps) {
+            const code = service.runShell(step.cmd, step.args);
+            if (code !== 0) {
+                echoError(
+                    `Warning: post-remove step "${step.label}" exited with code ${code}. ` +
+                        'Run it manually to keep the workspace in sync.',
+                    this.context.stderr,
+                );
+            }
+        }
     }
 }
