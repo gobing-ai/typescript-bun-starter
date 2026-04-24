@@ -9,8 +9,13 @@ type DbInsertBuilder<TTable extends DbTable<unknown, unknown>> = {
     values(values: TTable['$inferInsert'] | TTable['$inferInsert'][]): PromiseLike<unknown>;
 };
 
+type DbSelectFromResult<TTable extends DbTable<unknown, unknown>> = PromiseLike<TTable['$inferSelect'][]> & {
+    limit(value: number): DbSelectFromResult<TTable>;
+    offset(value: number): DbSelectFromResult<TTable>;
+};
+
 type DbSelectBuilder = {
-    from<TTable extends DbTable<unknown, unknown>>(table: TTable): PromiseLike<TTable['$inferSelect'][]>;
+    from<TTable extends DbTable<unknown, unknown>>(table: TTable): DbSelectFromResult<TTable>;
 };
 
 export interface DbClient {
