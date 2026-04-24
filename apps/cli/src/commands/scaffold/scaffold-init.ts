@@ -1,3 +1,4 @@
+import { echoError } from '@starter/core';
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
 import { ScaffoldService } from './services/scaffold-service';
@@ -225,13 +226,30 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
         return pendingWrites;
     }
 
+    /**
+     * Minimum length for a replacement token. Very short tokens (e.g. a
+     * single-letter slug) match too aggressively and would corrupt unrelated
+     * identifiers when applied across every text file in the project.
+     * @internal
+     */
+    public static readonly MIN_REPLACEMENT_LENGTH = 3;
+
     /** @internal */
     public replaceInContent(content: string, replacements: Array<[string, string]>): string {
         let updated = content;
         for (const [from, to] of replacements) {
-            if (from && from !== to) {
-                updated = updated.replaceAll(from, to);
+            if (!from || from === to) {
+                continue;
             }
+            if (from.length < ScaffoldInitCommand.MIN_REPLACEMENT_LENGTH) {
+                echoError(
+                    `Warning: skipping replacement of "${from}" → "${to}" — token shorter than ` +
+                        `${ScaffoldInitCommand.MIN_REPLACEMENT_LENGTH} chars would match too aggressively.`,
+                    this.context.stderr,
+                );
+                continue;
+            }
+            updated = updated.replaceAll(from, to);
         }
         return updated;
     }
@@ -244,28 +262,33 @@ export class ScaffoldInitCommand extends BaseScaffoldCommand {
 
         const { spawnSync } = await import('node:child_process');
 
-        // Run bun install
-        spawnSync('bun', ['install'], {
-            cwd: service.getRoot(),
-            stdio: 'inherit',
-        });
+        const steps: Array<{ label: string; cmd: string; args: string[] }> = [
+            { label: 'bun install', cmd: 'bun', args: ['install'] },
+            { label: 'bun run generate:instructions', cmd: 'bun', args: ['run', 'generate:instructions'] },
+            { label: 'biome format --write .', cmd: './node_modules/.bin/biome', args: ['format', '--write', '.'] },
+            { label: 'bun run check', cmd: 'bun', args: ['run', 'check'] },
+        ];
 
-        // Run generate:instructions
-        spawnSync('bun', ['run', 'generate:instructions'], {
-            cwd: service.getRoot(),
-            stdio: 'inherit',
-        });
-
-        // Run biome format
-        spawnSync('./node_modules/.bin/biome', ['format', '--write', '.'], {
-            cwd: service.getRoot(),
-            stdio: 'inherit',
-        });
-
-        // Run full project check (lint + typecheck + test + coverage)
-        spawnSync('bun', ['run', 'check'], {
-            cwd: service.getRoot(),
-            stdio: 'inherit',
-        });
+        for (const step of steps) {
+            const result = spawnSync(step.cmd, step.args, {
+                cwd: service.getRoot(),
+                stdio: 'inherit',
+            });
+            if (result.error) {
+                echoError(
+                    `Warning: post-init step "${step.label}" failed to start: ${result.error.message}`,
+                    this.context.stderr,
+                );
+                continue;
+            }
+            const status = result.status ?? 1;
+            if (status !== 0) {
+                echoError(
+                    `Warning: post-init step "${step.label}" exited with code ${status}. ` +
+                        'Run it manually to finish project initialization.',
+                    this.context.stderr,
+                );
+            }
+        }
     }
 }
