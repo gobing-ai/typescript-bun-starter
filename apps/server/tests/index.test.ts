@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, renameSync } from 'node:fs';
+import { existsSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { _resetMetrics, _resetTelemetry, initTelemetry, shutdownMetrics, shutdownTelemetry } from '@starter/core';
+import {
+    _resetMetrics,
+    _resetTelemetry,
+    createDbAdapter,
+    initTelemetry,
+    shutdownMetrics,
+    shutdownTelemetry,
+} from '@starter/core';
 import { createTestMetricsProvider, flushAndCollect } from '@starter/core/tests/telemetry/metrics-test-helpers';
 import { createTestDb } from '@starter/core/tests/test-db';
 import serverEntry, { createApp, WEB_DIST_PATH } from '../src/index';
@@ -19,6 +26,15 @@ async function makeApp() {
     const { adapter, db } = await createTestDb();
     cleanupFns.push(() => adapter.close());
     return createApp(db);
+}
+
+function ensureSpaIndexFixture() {
+    const indexPath = resolve(WEB_DIST_PATH, 'index.html');
+    if (!existsSync(indexPath)) {
+        writeFileSync(indexPath, '<!doctype html><html><body>spa fixture</body></html>');
+        cleanupFns.push(() => unlinkSync(indexPath));
+    }
+    return indexPath;
 }
 
 describe('server entry', () => {
@@ -57,9 +73,15 @@ describe('server entry', () => {
 
         expect(res.status).toBe(200);
 
-        const body = (await res.json()) as { openapi: string; info: { title: string } };
+        const body = (await res.json()) as {
+            openapi: string;
+            info: { title: string };
+            paths: Record<string, unknown>;
+        };
         expect(body.openapi).toBe('3.0.0');
         expect(body.info.title).toBe('TypeScript Bun Starter API');
+        expect(body.paths['/api/health']).toBeDefined();
+        expect(body.paths['/api/skills']).toBeDefined();
     });
 
     test('GET /swagger returns Swagger UI HTML', async () => {
@@ -88,6 +110,49 @@ describe('server entry', () => {
         expect(body.data.name).toBe('entrypoint-skill');
     });
 
+    test('reuses the local Bun SQLite adapter across requests', async () => {
+        const originalDbUrl = process.env.DATABASE_URL;
+        const dbPath = resolve(process.cwd(), `.tmp/test-${crypto.randomUUID()}.sqlite`);
+        const bootstrapAdapter = await createDbAdapter({ driver: 'bun-sqlite', url: dbPath });
+        await bootstrapAdapter.exec(`
+            CREATE TABLE IF NOT EXISTS skills (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                version INTEGER NOT NULL DEFAULT 1,
+                config TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+        `);
+        bootstrapAdapter.close();
+
+        process.env.DATABASE_URL = dbPath;
+        cleanupFns.push(() => {
+            if (originalDbUrl === undefined) {
+                delete process.env.DATABASE_URL;
+            } else {
+                process.env.DATABASE_URL = originalDbUrl;
+            }
+            rmSync(dbPath, { force: true });
+        });
+
+        const app = createApp();
+
+        const createRes = await app.request('/api/skills', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'reused-adapter-skill' }),
+        });
+        expect(createRes.status).toBe(201);
+
+        const listRes = await app.request('/api/skills');
+        expect(listRes.status).toBe(200);
+
+        const body = (await listRes.json()) as { data: Array<{ name: string }> };
+        expect(body.data).toContainEqual(expect.objectContaining({ name: 'reused-adapter-skill' }));
+    });
+
     test('uses request D1 binding when available', async () => {
         const app = await makeApp();
         const binding = {} as D1Database;
@@ -105,12 +170,11 @@ describe('server entry', () => {
     });
 
     test('SPA fallback returns index.html for non-API paths', async () => {
+        ensureSpaIndexFixture();
         const app = await makeApp();
-        // SPA fallback only triggers when index.html exists at the static path
-        // For test, we'll verify the route is mounted by checking it doesn't 404 on non-API paths
         const res = await app.request('/some-spa-route');
-        // Either returns index.html or falls through — both are valid SPA behavior
-        expect(res.status).toBeGreaterThanOrEqual(200);
+        expect(res.status).toBe(200);
+        expect(await res.text()).toContain('spa fixture');
     });
 
     test('SPA fallback falls through when index.html is unavailable', async () => {
@@ -134,12 +198,19 @@ describe('server entry', () => {
         expect(res.status).toBe(200);
     });
 
-    test('SPA fallback skips asset paths with extensions', async () => {
+    test('SPA fallback skips asset paths with known static extensions', async () => {
         const app = await makeApp();
-        // Paths with extensions should skip SPA fallback
         const res = await app.request('/static/js/app.js');
-        // Should return 404 (no such static file in test env) or pass through
-        expect(res.status).toBeGreaterThanOrEqual(200);
+        expect(res.status).toBe(404);
+    });
+
+    test('SPA fallback still serves client routes with dots in the last segment', async () => {
+        ensureSpaIndexFixture();
+        const app = await makeApp();
+        const res = await app.request('/users/jane.doe');
+
+        expect(res.status).toBe(200);
+        expect(await res.text()).toContain('spa fixture');
     });
 
     test('default export lazily creates and reuses the local app', async () => {
@@ -217,7 +288,7 @@ describe('server entry', () => {
         await shutdownTelemetry();
     });
 
-    test('records request metrics even when a handler throws', async () => {
+    test('records request metrics for validation failures', async () => {
         _resetMetrics();
         const { reader } = createTestMetricsProvider();
 
@@ -228,12 +299,12 @@ describe('server entry', () => {
             body: '{',
         });
 
-        expect(res.status).toBe(500);
+        expect(res.status).toBe(400);
 
         const counts = await flushAndCollect(reader);
         expect(counts.get('http.server.request.total')).toBe(1);
         expect(counts.get('http.server.request.duration')).toBe(1);
-        expect(counts.get('http.server.request.errors')).toBe(1);
+        expect(counts.get('http.server.request.errors')).toBeUndefined();
 
         await shutdownMetrics();
     });
