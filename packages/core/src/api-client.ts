@@ -39,7 +39,7 @@ export interface RequestOptions {
     timeout?: number;
     /**
      * Semantic span name (e.g. `'users.list'`).
-     * Defaults to `'http.client.request'`.
+     * Defaults to `HTTP {METHOD} {host}` when omitted.
      */
     operationName?: string;
     /** External abort signal combined with the timeout signal. */
@@ -148,7 +148,10 @@ export class APIClient {
     async request<T>(method: string, path: string, options?: RequestOptions & { body?: unknown }): Promise<T> {
         const url = this.buildUrl(path);
         const timeout = options?.timeout ?? this.defaultTimeout;
-        const spanName = options?.operationName ?? 'http.client.request';
+        // Default span name follows convention: HTTP {METHOD} {host}
+        const urlObj = new URL(url);
+        const defaultSpanName = `HTTP ${method} ${urlObj.hostname}`;
+        const spanName = options?.operationName ?? defaultSpanName;
 
         const startTime = performance.now();
 
