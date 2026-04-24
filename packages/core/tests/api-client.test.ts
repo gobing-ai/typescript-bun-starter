@@ -120,8 +120,8 @@ describe('APIClient.post', () => {
         await client.post('/users', { name: 'Ada' });
         expect(state.captured?.method).toBe('POST');
         expect(state.captured?.body).toBe(JSON.stringify({ name: 'Ada' }));
-        const headers = state.captured?.headers as Record<string, string>;
-        expect(headers['Content-Type']).toBe('application/json');
+        const headers = new Headers(state.captured?.headers);
+        expect(headers.get('Content-Type')).toBe('application/json');
     });
 
     test('does not set Content-Type when body is undefined', async () => {
@@ -129,8 +129,8 @@ describe('APIClient.post', () => {
         const client = makeClient({ fetch: capFetch });
         await client.post('/action');
         expect(state.captured?.body).toBeUndefined();
-        const headers = state.captured?.headers as Record<string, string>;
-        expect(headers['Content-Type']).toBeUndefined();
+        const headers = new Headers(state.captured?.headers);
+        expect(headers.has('Content-Type')).toBe(false);
     });
 });
 
@@ -199,9 +199,9 @@ describe('headers', () => {
             defaultHeaders: { Authorization: 'Bearer token123', 'X-App': 'test' },
         });
         await client.get('/data');
-        const headers = state.captured?.headers as Record<string, string>;
-        expect(headers.Authorization).toBe('Bearer token123');
-        expect(headers['X-App']).toBe('test');
+        const headers = new Headers(state.captured?.headers);
+        expect(headers.get('Authorization')).toBe('Bearer token123');
+        expect(headers.get('X-App')).toBe('test');
     });
 
     test('per-request headers override defaults', async () => {
@@ -211,8 +211,8 @@ describe('headers', () => {
             defaultHeaders: { Authorization: 'Bearer old' },
         });
         await client.get('/data', { headers: { Authorization: 'Bearer new' } });
-        const headers = state.captured?.headers as Record<string, string>;
-        expect(headers.Authorization).toBe('Bearer new');
+        const headers = new Headers(state.captured?.headers);
+        expect(headers.get('Authorization')).toBe('Bearer new');
     });
 
     test('per-request headers merge with defaults', async () => {
@@ -222,18 +222,18 @@ describe('headers', () => {
             defaultHeaders: { 'X-Default': 'yes' },
         });
         await client.get('/data', { headers: { 'X-Custom': 'extra' } });
-        const headers = state.captured?.headers as Record<string, string>;
-        expect(headers['X-Default']).toBe('yes');
-        expect(headers['X-Custom']).toBe('extra');
+        const headers = new Headers(state.captured?.headers);
+        expect(headers.get('X-Default')).toBe('yes');
+        expect(headers.get('X-Custom')).toBe('extra');
     });
 
     test('does not overwrite explicit Content-Type in body requests', async () => {
         const { state, fetch: capFetch } = capturingFetch();
         const client = makeClient({ fetch: capFetch });
         await client.post('/data', { key: 'val' }, { headers: { 'Content-Type': 'text/plain' } });
-        const headers = state.captured?.headers as Record<string, string>;
+        const headers = new Headers(state.captured?.headers);
         // Explicit Content-Type should be preserved, not overwritten
-        expect(headers['Content-Type']).toBe('text/plain');
+        expect(headers.get('Content-Type')).toBe('text/plain');
     });
 });
 
