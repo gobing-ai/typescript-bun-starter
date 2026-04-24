@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'bun:test';
 import {
     createErrorResponse,
+    createJsonRequestHeaders,
     ErrorCode,
     type ErrorResponse,
     ErrorResponseSchema,
     errorCodeToExitCode,
     errorCodeToHttpStatus,
+    getApiErrorMessage,
     HealthResponseSchema,
+    readResponsePayload,
     toTransportError,
+    unwrapApiResponseData,
 } from '../src/index';
 
 describe('contracts', () => {
@@ -159,6 +163,55 @@ describe('contracts', () => {
             expect(response.data).toBeUndefined();
             expect(response.error).toBe('Something went wrong');
             expect(response.status).toBe(500);
+        });
+    });
+
+    describe('http-client helpers', () => {
+        it('should add JSON content type only when a body is present', () => {
+            const withoutBody = createJsonRequestHeaders(undefined, false);
+            const withBody = createJsonRequestHeaders(undefined, true);
+
+            expect(withoutBody.has('Content-Type')).toBe(false);
+            expect(withBody.get('Content-Type')).toBe('application/json');
+        });
+
+        it('should preserve explicit content type headers', () => {
+            const headers = createJsonRequestHeaders({ 'Content-Type': 'text/plain' }, true);
+            expect(headers.get('Content-Type')).toBe('text/plain');
+        });
+
+        it('should parse JSON response payloads', async () => {
+            const payload = await readResponsePayload(
+                new Response(JSON.stringify({ data: { ok: true } }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }),
+            );
+
+            expect(payload).toEqual({ data: { ok: true } });
+        });
+
+        it('should return undefined for empty successful payloads', async () => {
+            const payload = await readResponsePayload(new Response(null, { status: 204 }));
+            expect(payload).toBeUndefined();
+        });
+
+        it('should return undefined when reading the response body fails', async () => {
+            const payload = await readResponsePayload({
+                status: 200,
+                text: async () => Promise.reject(new Error('body read failed')),
+            } as Response);
+
+            expect(payload).toBeUndefined();
+        });
+
+        it('should unwrap data envelopes', () => {
+            expect(unwrapApiResponseData<{ ok: boolean }>({ data: { ok: true } })).toEqual({ ok: true });
+        });
+
+        it('should extract API error messages', () => {
+            expect(getApiErrorMessage({ error: 'boom' }, 'fallback')).toBe('boom');
+            expect(getApiErrorMessage({ message: 'ignored' }, 'fallback')).toBe('fallback');
         });
     });
 
