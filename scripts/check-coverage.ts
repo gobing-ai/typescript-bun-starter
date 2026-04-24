@@ -11,9 +11,7 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { getLogger } from '@logtape/logtape';
-
-const logger = getLogger(['tbs']);
+import { echo, echoError } from '@starter/core';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -98,8 +96,8 @@ const projectRoot = resolve(import.meta.dir, '..');
 // ---- Part 1: Coverage threshold check ----
 
 if (!existsSync(COVERAGE_FILE)) {
-    logger.error(`No coverage file found at ${COVERAGE_FILE}`);
-    logger.error('Run `bun test --coverage` first.');
+    echoError(`No coverage file found at ${COVERAGE_FILE}`);
+    echoError('Run `bun test --coverage` first.');
     process.exit(1);
 }
 
@@ -196,21 +194,21 @@ for (const srcFile of allSourceFiles) {
 let failed = false;
 
 if (coverageFailures.length > 0) {
-    logger.error(`Coverage gate failed: ${coverageFailures.length} file(s) below ${THRESHOLD}%`);
+    echoError(`Coverage gate failed: ${coverageFailures.length} file(s) below ${THRESHOLD}%`);
     for (const { file, pct } of coverageFailures) {
-        logger.error(`${pct}% ${file}`);
+        echoError(`${pct}% ${file}`);
     }
     failed = true;
 }
 
 if (missingTests.length > 0) {
-    logger.error(`Missing tests: ${missingTests.length} source file(s) have no test file`);
+    echoError(`Missing tests: ${missingTests.length} source file(s) have no test file`);
     for (const srcFile of missingTests) {
         const testPath = expectedTestPath(srcFile);
-        logger.error(srcFile);
-        logger.error(`expected: ${testPath}`);
+        echoError(srcFile);
+        echoError(`expected: ${testPath}`);
     }
-    logger.error('If this is intentional, add the file to NO_TEST_REQUIRED in scripts/check-coverage.ts');
+    echoError('If this is intentional, add the file to NO_TEST_REQUIRED in scripts/check-coverage.ts');
     failed = true;
 }
 
@@ -218,4 +216,4 @@ if (failed) {
     process.exit(1);
 }
 
-logger.info(`Coverage gate passed: all source files >= ${THRESHOLD}% and all testable files have tests`);
+echo(`Coverage gate passed: all source files >= ${THRESHOLD}% and all testable files have tests`);
