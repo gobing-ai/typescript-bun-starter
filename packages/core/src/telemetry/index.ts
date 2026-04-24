@@ -11,6 +11,8 @@
 export type { Span, SpanOptions, Tracer } from '@opentelemetry/api';
 // Configuration
 export { getTelemetryConfig, type TelemetryConfig } from './config';
+// SQL sanitization (debug-mode DB statement capture)
+export { extractSqlOperation, sanitizeSql } from './db-sanitize';
 // Metrics
 export {
     _resetMetrics,
@@ -33,6 +35,7 @@ export {
 export {
     _resetTelemetry,
     context,
+    getResolvedConfig,
     initTelemetry,
     isTelemetryInitialized,
     propagation,
