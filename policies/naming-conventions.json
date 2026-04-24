@@ -1,10 +1,7 @@
 {
     "id": "naming-conventions",
     "description": "Enforces consistent naming conventions",
-    "rationale": [
-        "Consistent naming improves code readability",
-        "Follows project conventions"
-    ],
+    "rationale": ["Consistent naming improves code readability", "Follows project conventions"],
     "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
     "rules": [
         {
