@@ -187,8 +187,16 @@ export class APIClient {
                         throw error;
                     }
 
-                    const data = await response.json();
-                    return data as T;
+                    if (response.status === 204 || response.status === 205) {
+                        return undefined as T;
+                    }
+
+                    const text = await response.text();
+                    if (text === '') {
+                        return undefined as T;
+                    }
+
+                    return JSON.parse(text) as T;
                 } catch (error) {
                     errorType = error instanceof Error ? error.name : 'Unknown';
                     getHttpClientRequestErrors().add(1, {
