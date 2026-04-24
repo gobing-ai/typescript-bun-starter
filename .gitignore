@@ -35,6 +35,4 @@ coverage/
 .astro/
 /docs/.workflow-runs
 /docs/tasks/kanban.md
-/CLAUDE.md
-/GEMINI.md
 .ant-colony/
