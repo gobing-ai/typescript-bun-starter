@@ -1,12 +1,35 @@
 import type { MiddlewareHandler } from 'hono';
 
+/**
+ * Build the API-key auth middleware.
+ *
+ * Configuration is resolved from `process.env`:
+ * - `API_KEY` (required in production): the expected secret. If set, requests
+ *   must present a matching `X-API-Key` header.
+ * - `AUTH_DISABLED=1` (non-production only): explicitly skip auth even when
+ *   `API_KEY` is unset. Without this, missing `API_KEY` outside production
+ *   returns 401 — auth never silently fails open.
+ *
+ * Throws at construction time when `NODE_ENV=production` and no `API_KEY` is
+ * configured, so a misconfigured deploy fails fast instead of running open.
+ */
 export function authMiddleware(): MiddlewareHandler {
-    return async (c, next) => {
-        const expectedKey = process.env.API_KEY ?? (c.env as Record<string, string>)?.API_KEY;
+    const isProduction = process.env.NODE_ENV === 'production';
+    const envKey = process.env.API_KEY;
+    const explicitlyDisabled = process.env.AUTH_DISABLED === '1';
 
-        // Dev mode: skip auth when API_KEY is not configured
+    if (isProduction && !envKey) {
+        throw new Error('API_KEY must be set when NODE_ENV=production');
+    }
+
+    return async (c, next) => {
+        const expectedKey = envKey ?? (c.env as Record<string, string> | undefined)?.API_KEY;
+
         if (!expectedKey) {
-            return next();
+            if (!isProduction && explicitlyDisabled) {
+                return next();
+            }
+            return c.json({ error: 'Unauthorized' }, 401);
         }
 
         const providedKey = c.req.header('X-API-Key');
