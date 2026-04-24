@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
@@ -12,7 +12,13 @@ import {
 } from '@starter/core';
 import { createTestMetricsProvider, flushAndCollect } from '@starter/core/tests/telemetry/metrics-test-helpers';
 import { createTestDb } from '@starter/core/tests/test-db';
-import serverEntry, { createApp, WEB_DIST_PATH } from '../src/index';
+import serverEntry, { createApp, resetIndexHtmlCache, WEB_DIST_PATH } from '../src/index';
+
+beforeAll(() => {
+    // Auth middleware now requires API_KEY or explicit AUTH_DISABLED in non-prod.
+    // Tests that exercise auth set/unset API_KEY locally; everything else opts out.
+    process.env.AUTH_DISABLED = '1';
+});
 
 const cleanupFns: Array<() => void> = [];
 
@@ -34,6 +40,9 @@ function ensureSpaIndexFixture() {
         writeFileSync(indexPath, '<!doctype html><html><body>spa fixture</body></html>');
         cleanupFns.push(() => unlinkSync(indexPath));
     }
+    // The cache is module-scoped; reset so tests that mutate the file see fresh state.
+    resetIndexHtmlCache();
+    cleanupFns.push(() => resetIndexHtmlCache());
     return indexPath;
 }
 
@@ -184,6 +193,9 @@ describe('server entry', () => {
             renameSync(indexPath, backupPath);
             cleanupFns.push(() => renameSync(backupPath, indexPath));
         }
+        // Drop any cached index.html before this case so the fallthrough is observed.
+        resetIndexHtmlCache();
+        cleanupFns.push(() => resetIndexHtmlCache());
 
         const app = await makeApp();
         const res = await app.request('/missing-spa-route');
@@ -211,6 +223,55 @@ describe('server entry', () => {
 
         expect(res.status).toBe(200);
         expect(await res.text()).toContain('spa fixture');
+    });
+
+    test('SPA fallback caches index.html so repeated misses skip disk reads', async () => {
+        const indexPath = ensureSpaIndexFixture();
+        const app = await makeApp();
+
+        // First request loads from disk.
+        const first = await app.request('/spa-route-a');
+        expect(first.status).toBe(200);
+
+        // Mutate the file on disk; cached value should win.
+        writeFileSync(indexPath, '<!doctype html><html><body>changed</body></html>');
+        // No cleanup push needed — ensureSpaIndexFixture either created it (and
+        // pushed cleanup) or it pre-existed (and we should leave it alone).
+
+        const second = await app.request('/spa-route-b');
+        expect(second.status).toBe(200);
+        const body = await second.text();
+        expect(body).toContain('spa fixture');
+        expect(body).not.toContain('changed');
+    });
+
+    test('GET /api/skills accepts limit/offset query params', async () => {
+        const app = await makeApp();
+
+        for (let i = 0; i < 3; i++) {
+            const create = await app.request('/api/skills', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: `paged-${i}` }),
+            });
+            expect(create.status).toBe(201);
+        }
+
+        const limited = await app.request('/api/skills?limit=2');
+        expect(limited.status).toBe(200);
+        const limitedBody = (await limited.json()) as { data: Array<{ name: string }> };
+        expect(limitedBody.data).toHaveLength(2);
+
+        const offset = await app.request('/api/skills?limit=2&offset=2');
+        expect(offset.status).toBe(200);
+        const offsetBody = (await offset.json()) as { data: Array<{ name: string }> };
+        expect(offsetBody.data).toHaveLength(1);
+    });
+
+    test('GET /api/skills rejects out-of-range limit', async () => {
+        const app = await makeApp();
+        const res = await app.request('/api/skills?limit=10000');
+        expect(res.status).toBe(400);
     });
 
     test('default export lazily creates and reuses the local app', async () => {
