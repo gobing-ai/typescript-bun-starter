@@ -8,15 +8,15 @@ projects with strict TypeScript, shared contracts, and a generated-project workf
 - **Primary product:** a starter repo you copy, initialize, and trim to the profile you want
 - **Secondary product:** a scaffold CLI you can compile into a standalone `tbs` binary later
 - **Architectural spine:** `@starter/contracts` for transport-safe types and `@starter/core` for shared logic,
-  persistence, logging, and adapters
+  persistence, logging, adapters, and shared transport helpers
 
 ## Repo Map
 
 - **`packages/contracts`**: shared DTOs, API envelopes, and transport-safe contracts
-- **`packages/core`**: database adapters, Drizzle schema, logging helpers, and core business logic
+- **`packages/core`**: database adapters, Drizzle schema, logging helpers, traced outbound HTTP client, and core business logic
 - **`apps/cli`**: the scaffold CLI built with Clipanion
 - **`apps/server`**: Hono API with Swagger UI and optional static serving of the built web app
-- **`apps/web`**: Astro 5 web app with React islands, Tailwind CSS v4, and a typed API client
+- **`apps/web`**: Astro 6 web app with React islands, Tailwind CSS v4, and a browser-specific API client wrapper
 - **`scripts/scaffold/templates/webapp`**: scaffold source for restoring the web tier after removal
 
 ## Starter Profiles
@@ -64,11 +64,20 @@ bun run smoke:generated
 ```
 
 - `bun run check` runs format/lint checks, scaffold validation, docs validation, typecheck, and tests
+- `bun run check:policy` runs the repository policy driver across all policy documents under `policies/`
 - `bun run smoke:generated` copies the repo into a temp project and exercises the full-stack, CLI + API, and CLI-only generated profiles
+
+## HTTP Client Boundaries
+
+- **`packages/core/src/api-client.ts`**: use this for generic outbound HTTP access in shared or server-side code. It includes timeout handling, OpenTelemetry spans, and throws `APIError` for non-2xx responses.
+- **`apps/web/src/lib/browser-api-client.ts`**: use this in the browser tier. It returns `ApiResponse<T>` envelopes and keeps browser-specific fetch behavior isolated from `@starter/core`.
+- **`packages/contracts/src/http-client.ts`**: shared browser-safe transport helpers used by both wrappers for header normalization and response parsing.
+
+Direct external API access is intentionally centralized through those wrappers. The repo enforces that with the `external-api-boundaries` policy.
 
 ## Telemetry
 
-The starter includes a shared OpenTelemetry helper layer in `@starter/core` for server-side tracing.
+The starter includes a shared OpenTelemetry helper layer in `@starter/core` for tracing and baseline metrics across inbound HTTP, outbound HTTP, and DB access.
 
 ### Enable it
 
@@ -81,14 +90,14 @@ export OTEL_ENVIRONMENT=development
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
 ```
 
-`apps/server/src/index.ts` initializes telemetry during server bootstrap. If `OTEL_EXPORTER_OTLP_ENDPOINT` is not set, the server still runs normally and no remote trace export is attempted.
+`apps/server/src/index.ts` initializes telemetry and metrics during server bootstrap. If `OTEL_EXPORTER_OTLP_ENDPOINT` is not set, the server still runs normally and no remote trace export is attempted.
 
 Runtime modes:
 
 - `TELEMETRY_ENABLED=false`
   - telemetry is disabled and the server runs normally
 - `TELEMETRY_ENABLED=true` with no `OTEL_EXPORTER_OTLP_ENDPOINT`
-  - spans can still be created in-process, but nothing is exported remotely
+  - spans and metrics can still be created in-process, but nothing is exported remotely
 - `TELEMETRY_ENABLED=true` with `OTEL_EXPORTER_OTLP_ENDPOINT` set
   - traces are exported when a collector/backend is available
 
@@ -140,6 +149,7 @@ Use `traceAsync()` for most application work. Reach for lower-level tracer APIs 
 - [Architecture Spec](docs/01_ARCHITECTURE_SPEC.md)
 - [Developer Spec](docs/02_DEVELOPER_SPEC.md)
 - [Scaffold Guide](docs/04_SCAFFOLD_GUIDE.md)
+- [Policy Driver Guide](docs/06_POLICY_CHECK.md)
 - [Existing Project Migration Guide](docs/existing-project-migration-guide.md)
 
 ## References
