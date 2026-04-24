@@ -45,6 +45,33 @@ describe('sanitizeSql', () => {
         expect(result).not.toContain('Alice');
         expect(result).not.toContain('Smith');
     });
+
+    test('handles SQL doubled-quote escape inside string literals', () => {
+        // 'O''Brien' is a single literal containing an escaped quote.
+        const result = sanitizeSql("SELECT * FROM users WHERE name = 'O''Brien'");
+        expect(result).toBe('SELECT * FROM users WHERE name = ?');
+        expect(result).not.toContain('Brien');
+    });
+
+    test('handles doubled-quote escape inside double-quoted identifiers', () => {
+        const result = sanitizeSql('SELECT "weird""name" FROM t');
+        expect(result).toBe('SELECT ? FROM t');
+        expect(result).not.toContain('weird');
+        expect(result).not.toContain('name');
+    });
+
+    test('does not strip digits that are part of identifiers', () => {
+        const result = sanitizeSql('SELECT col1, col2 FROM users3');
+        expect(result).toContain('col1');
+        expect(result).toContain('col2');
+        expect(result).toContain('users3');
+    });
+
+    test('handles unterminated string literal without leaking content', () => {
+        const result = sanitizeSql("SELECT * FROM users WHERE name = 'unterminated");
+        expect(result).not.toContain('unterminated');
+        expect(result).toContain('?');
+    });
 });
 
 describe('extractSqlOperation', () => {
