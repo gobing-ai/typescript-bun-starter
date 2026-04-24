@@ -42,6 +42,20 @@ The starter now has baseline OpenTelemetry support and request-span wiring, but 
 4. Preserve the shared telemetry boundary and avoid direct raw `@opentelemetry/*` imports outside `packages/core/src/telemetry/**` except targeted tests.
 5. Ensure the resulting trace tree is useful and not noisy. Spans should represent stable operational boundaries, not every helper call.
 6. Update developer-facing documentation/examples where the normalized tracing conventions become part of the default developer contract.
+7. For DB tracing specifically, implement a two-level model:
+   - default spans at DAO level for stable logical operations
+   - optional adapter-level enrichment inside `packages/core/src/db/adapters/**` for execution detail
+8. Keep raw SQL text capture disabled by default. If SQL text is captured at all, it must be behind an explicit debug flag and protected by sanitization/redaction rules.
+9. Define the parent/child tracing relationship explicitly:
+   - request spans should be parents of DAO-level DB spans when a request context exists
+   - adapter-level enrichment should enrich the active DAO span by default
+   - nested adapter-level child spans are allowed only when they add concrete debugging value
+10. Define the debug-mode configuration contract explicitly, including the env/config flag name, default value, and scope.
+11. Define per-adapter expectations explicitly:
+   - DAO-level spans are required for all supported DB adapters
+   - adapter-level enrichment is required for `bun-sqlite`
+   - adapter-level enrichment for `d1` is best-effort where runtime/runtime-surface constraints apply
+12. Add explicit tests for hierarchy, failure paths, default-off behavior, and data-sanitization behavior.
 
 ### Constraints
 
@@ -50,6 +64,13 @@ The starter now has baseline OpenTelemetry support and request-span wiring, but 
 - Do not duplicate the same logical span at multiple layers unless the nesting is intentionally meaningful.
 - Keep the first version runtime/server-first and aligned with the existing Bun + Hono + DAO structure.
 - Do not let this task drift into metrics implementation; that is covered separately by task `0019`.
+- Do not make raw `db.statement` a default attribute.
+- If debug-only SQL capture is introduced, it must:
+  - be opt-in through an explicit config/env flag
+  - avoid parameter values by default
+  - define sanitization/redaction rules before shipping
+- Do not introduce a heavy SQL parsing dependency in v1 solely for tracing enrichment.
+- Default-mode tracing must remain lightweight enough for normal request/DB flows; any expensive statement inspection belongs only in debug mode if it exists at all.
 
 
 ### Q&A
@@ -58,6 +79,10 @@ The starter now has baseline OpenTelemetry support and request-span wiring, but 
 
 At the centralized DB boundary already present in `packages/core/src/db/**`, not in random route handlers.
 
+### Q: Should DB tracing stop at the DAO layer only?
+
+No. DAO-level spans should remain the default because they give stable logical operations, but adapter-level enrichment is appropriate for execution details such as operation kind, row count, and sanitized statement metadata.
+
 ### Q: Should every internal helper get its own span?
 
 No. The trace tree should be operationally meaningful, not noisy.
@@ -65,6 +90,18 @@ No. The trace tree should be operationally meaningful, not noisy.
 ### Q: Should this task include external API tracing if task `0018` already adds outbound spans?
 
 This task is responsible for normalizing naming and attributes across all three span families. The outbound client may emit the spans, but this task aligns the conventions.
+
+### Q: Should we store raw SQL text in spans by default?
+
+No. Raw SQL is useful for debugging, but it is also high-cardinality and can expose sensitive values. The default should stay off. If supported, it must be debug-only and sanitized.
+
+### Q: What should the debug flag look like?
+
+The task should define a single explicit env/config flag, defaulting to off. A reasonable default contract is something like `OTEL_DB_STATEMENT_DEBUG=false`, but the exact name should be locked before implementation starts.
+
+### Q: Do we need the same low-level enrichment on every adapter?
+
+No. DAO-level spans are mandatory across adapters. Adapter-level enrichment is mandatory for `bun-sqlite` and best-effort for `d1`, because the runtime surface is not identical.
 
 
 ### Design
@@ -77,13 +114,105 @@ Without that normalization, future projects will produce inconsistent traces eve
 
 ## Recommended Boundaries
 
-Use the repo's existing centralized seams:
+Use the repo’s existing centralized seams:
 
 - inbound HTTP: `apps/server/src/index.ts` request middleware
 - DB: `packages/core/src/db/**`
 - outbound HTTP: shared client boundary from task `0018`
 
 These are the only places that should emit the default spans for their categories.
+
+## Recommended DB Tracing Model
+
+Use a layered DB tracing model.
+
+### Layer 1: DAO-level default spans
+
+DAO-level spans are the default and should represent stable logical operations such as:
+
+- `db.skills.select`
+- `db.skills.insert`
+- `db.skills.update`
+- `db.skills.delete`
+
+This keeps the trace tree readable and aligned with how application developers think about the DB boundary.
+
+### Layer 2: adapter-level enrichment
+
+Where practical, enrich DB spans inside `packages/core/src/db/adapters/**` with lower-level execution detail such as:
+
+- `db.operation`
+- `db.row_count`
+- sanitized statement metadata
+
+This enrichment should not replace the DAO-level logical spans. It should either:
+
+- enrich the active span, or
+- add intentionally meaningful nested spans if the added detail justifies the extra noise
+
+## Parent/Child Relationship Rules
+
+The implementation should preserve a readable trace tree.
+
+Recommended hierarchy:
+
+- inbound request span
+  - DAO-level DB span
+    - optional adapter-level nested span only if the extra detail is meaningful
+
+Default rule:
+
+- adapter-level code should enrich the active DAO span rather than creating a second span
+
+Exception:
+
+- create a nested adapter-level span only when the additional execution detail is materially useful for debugging and does not make the trace tree noisy
+
+### SQL text policy
+
+Raw `db.statement` capture is useful for debugging but should remain disabled by default.
+
+If SQL text capture is introduced, it must be:
+
+- opt-in
+- debug-oriented
+- sanitized/redacted
+- covered by tests that prove default-off behavior
+
+## Debug Configuration Contract
+
+The task must lock one explicit debug-mode contract before implementation begins.
+
+Required details:
+
+- env/config flag name
+- default value: off
+- whether the flag is global or adapter-specific
+
+Recommended initial contract:
+
+- `OTEL_DB_STATEMENT_DEBUG=false`
+
+This flag should enable debug-only SQL text capture or enrichment behavior only after sanitization rules are applied.
+
+## Sanitization and Redaction Policy
+
+“Sanitized statement metadata” must be concrete, not hand-wavy.
+
+Allowed by default:
+
+- operation kind
+- normalized table/collection name
+- row count when cheap and reliable
+- placeholder count or other low-cardinality statement metadata
+
+Forbidden by default:
+
+- raw parameter values
+- signed tokens
+- secrets or credentials
+- emails, IDs, or other user-specific literals
+- full raw SQL text in normal mode
 
 ## Span Naming Guidance
 
@@ -109,6 +238,8 @@ Recommended categories:
   - `db.system`
   - logical operation kind (`SELECT`, `INSERT`, `UPDATE`, `DELETE`)
   - collection/table name when stable and safe
+  - `db.row_count` when cheap and reliable
+  - sanitized statement metadata when adapter-level enrichment is enabled
 - outbound HTTP
   - method
   - target service/host
@@ -125,6 +256,10 @@ Tests should prove:
 - DB spans are created for representative DAO methods
 - outbound spans follow the normalized convention once task `0018` is in place
 - disabled-mode behavior remains safe and does not require call-site branching
+- request span → DAO span parent/child relationship is preserved when a request context exists
+- failed DB operations still produce the expected spans and error status
+- adapter enrichment default-off behavior does not leak SQL text
+- debug-mode SQL capture, if implemented, is both opt-in and sanitized
 
 
 ### Solution
@@ -135,13 +270,17 @@ Tests should prove:
 2. Inbound HTTP, DB, and outbound HTTP span names/attributes aligned to one documented convention.
 3. Source-matching tests for the newly instrumented boundaries.
 4. Documentation/examples updated where tracing conventions become part of the default developer workflow.
+5. DB tracing explicitly supports DAO-level defaults and optional adapter-level enrichment without enabling raw SQL capture by default.
+6. The task defines and enforces a concrete debug-mode config and sanitization policy before implementation.
 
 ## Recommended Implementation Strategy
 
 - start with DAO-level spans for the existing DAOs
 - use shared telemetry helpers rather than direct SDK calls
 - verify the trace tree stays readable before considering lower-level adapter spans
-- only add deeper DB instrumentation if DAO-level spans are insufficient
+- add adapter-level enrichment only where it provides concrete debugging value
+- keep SQL text capture off by default and behind an explicit debug flag if implemented
+- treat `bun-sqlite` enrichment as required and `d1` enrichment as best-effort
 
 ## Definition of Done
 
@@ -159,19 +298,25 @@ Tests should prove:
 1. Review current request-span behavior from task `0017`.
 2. Align the outbound naming/attribute strategy with task `0018`.
 3. Decide the DB span naming/attribute convention before coding.
+4. Decide the adapter-level enrichment policy and any debug-only SQL capture flag before coding.
+5. Lock the sanitization/redaction policy before any SQL text capture work begins.
 
 ## Phase 2: instrument centralized boundaries
 
 1. Add DB spans to DAO or DB execution boundaries.
 2. Adjust request-span naming/attributes if needed for consistency.
 3. Verify outbound span conventions through the shared API client integration.
+4. Where justified, add adapter-level enrichment for DB execution details.
+5. Keep adapter-level enrichment lightweight and default-safe.
 
 ## Phase 3: verify and document
 
 1. Add targeted tests for DB tracing and normalized span conventions.
 2. Confirm disabled-mode behavior remains safe.
 3. Update developer-facing docs/examples.
-4. Run `bun run check`.
+4. If debug-only SQL capture exists, test both default-off and sanitized debug-on paths.
+5. Document clearly that any SQL text capture mode is debug-only and not the default operational mode.
+6. Run `bun run check`.
 
 ## Exit Criteria
 
@@ -201,7 +346,7 @@ Updated server middleware in `apps/server/src/index.ts` to use normalized span n
 | Span Family | Convention | Example |
 |-------------|------------|---------|
 | HTTP Server | `HTTP {METHOD} {path}` | `HTTP GET /api/health` |
-| HTTP Client | `http.client.request` | (already aligned in task 0018) |
+| HTTP Client | `HTTP {METHOD} {operation-or-host}` | `HTTP GET api.example.com` |
 | DB | `db.{collection}.{operation}` | `db.skills.select` |
 
 ### Attributes Standardized
