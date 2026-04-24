@@ -43,8 +43,9 @@
         "pub2npmjs": "npm whoami >/dev/null 2>&1 || { echo 'Error: not logged in to npm. Run `npm login` first.'; exit 1; } && npm publish --access public"
     },
     "devDependencies": {
-        "@logtape/logtape": "^2.0.5",
         "@biomejs/biome": "^2.0.0",
+        "@logtape/logtape": "^2.0.5",
+        "@opentelemetry/sdk-trace-base": "2.7.0",
         "@types/bun": "^1.3.12",
         "better-sqlite3": "^12.8.0",
         "drizzle-kit": "^0.31.0",
