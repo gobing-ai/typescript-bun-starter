@@ -1,5 +1,6 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { echoError } from '@starter/core';
 import { Command, Option } from 'clipanion';
 import { BaseScaffoldCommand } from './base-scaffold-command';
 import { getFeature, isRequiredFeature, REQUIRED_FEATURES, SCAFFOLD_FEATURES } from './features/registry';
@@ -94,11 +95,14 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
         const copiedFiles: string[] = [];
 
         try {
-            // Create directories first
+            // Create directories first. mkdirSync(recursive: true) returns the
+            // first newly-created path or undefined if it already existed —
+            // use that to track only directories we actually created so the
+            // rollback path doesn't delete pre-existing ones.
             for (const dir of dirsToCreate) {
                 const absDir = resolve(service.getRoot(), dir);
-                if (!existsSync(absDir)) {
-                    mkdirSync(absDir, { recursive: true });
+                const created = mkdirSync(absDir, { recursive: true });
+                if (created !== undefined) {
                     createdDirs.push(dir);
                 }
             }
@@ -111,16 +115,23 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
                 copiedFiles.push(dest);
             }
         } catch (err) {
-            // Rollback: remove copied files and created directories
+            // Rollback: remove copied files and created directories. Surface
+            // any rollback failures so partially-applied state isn't silent.
             for (const file of copiedFiles) {
+                const absFile = resolve(service.getRoot(), file);
                 try {
-                    rmSync(resolve(service.getRoot(), file), { recursive: true, force: true });
-                } catch {}
+                    rmSync(absFile, { recursive: true, force: true });
+                } catch (rollbackErr) {
+                    echoError(`Warning: failed to roll back ${absFile}: ${String(rollbackErr)}`, this.context.stderr);
+                }
             }
             for (const dir of createdDirs.reverse()) {
+                const absDir = resolve(service.getRoot(), dir);
                 try {
-                    rmSync(resolve(service.getRoot(), dir), { recursive: true, force: true });
-                } catch {}
+                    rmSync(absDir, { recursive: true, force: true });
+                } catch (rollbackErr) {
+                    echoError(`Warning: failed to roll back ${absDir}: ${String(rollbackErr)}`, this.context.stderr);
+                }
             }
             return this.writeOutput(null, `Failed to add feature '${this.feature}': ${String(err)}`);
         }
@@ -264,17 +275,26 @@ export class ScaffoldAddCommand extends BaseScaffoldCommand {
             contract.optionalWorkspaces = optionalWorkspaces;
             service.writeJson(contractPath, contract);
         } catch (err) {
-            // Restore backup on failure
+            // Restore backup on failure; warn if restore fails so the user
+            // knows the contract file may be in an inconsistent state.
             try {
                 const content = service.readFile(`${contractPath}.bak`);
                 service.writeFile(contractPath, content);
-            } catch {}
+            } catch (restoreErr) {
+                echoError(
+                    `Warning: failed to restore ${contractPath} from backup: ${String(restoreErr)}`,
+                    this.context.stderr,
+                );
+            }
             throw err;
         } finally {
-            // Clean up backup
+            // Clean up backup; non-fatal but log so stale .bak files don't
+            // accumulate silently.
             try {
                 rmSync(backupPath, { force: true });
-            } catch {}
+            } catch (cleanupErr) {
+                echoError(`Warning: failed to remove backup ${backupPath}: ${String(cleanupErr)}`, this.context.stderr);
+            }
         }
     }
 }
