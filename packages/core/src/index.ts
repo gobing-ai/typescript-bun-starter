@@ -25,5 +25,23 @@ export { createLoggerSinks, getLoggerConfig } from './logging';
 export type { WriteTarget } from './output';
 // Output
 export { echo, echoError } from './output';
+export type { Span, SpanOptions, TelemetryConfig, Tracer } from './telemetry';
+// Telemetry
+export {
+    _resetTelemetry,
+    addSpanAttributes,
+    addSpanEvent,
+    context,
+    getActiveSpan,
+    getTelemetryConfig,
+    initTelemetry,
+    isTelemetryInitialized,
+    propagation,
+    shutdownTelemetry,
+    trace,
+    traceAsync,
+    traceSync,
+    withSpan,
+} from './telemetry';
 // Types
 export type { Result } from './types/result';
