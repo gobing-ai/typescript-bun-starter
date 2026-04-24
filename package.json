@@ -1,6 +1,47 @@
 {
     "name": "@gobing-ai/typescript-bun-starter",
     "version": "0.2.0",
+    "description": "Bun-first monorepo starter and scaffold CLI for building CLI, CLI+API, or CLI+API+Web projects with strict TypeScript, shared contracts, and a generated-project workflow exercised in CI.",
+    "keywords": [
+        "bun",
+        "typescript",
+        "monorepo",
+        "starter",
+        "scaffold",
+        "cli",
+        "hono",
+        "astro",
+        "drizzle",
+        "biome"
+    ],
+    "homepage": "https://github.com/gobing-ai/typescript-bun-starter",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/gobing-ai/typescript-bun-starter.git"
+    },
+    "bugs": {
+        "url": "https://github.com/gobing-ai/typescript-bun-starter/issues"
+    },
+    "license": "MIT",
+    "author": "Robin Min <minlongbing@gmail.com>",
+    "type": "module",
+    "engines": {
+        "bun": ">=1.3.0"
+    },
+    "files": [
+        "apps",
+        "packages",
+        "scripts",
+        "contracts",
+        "drizzle",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        "LICENSE",
+        "README.md",
+        "tsconfig.json",
+        "biome.json"
+    ],
     "publishConfig": {
         "access": "public"
     },
