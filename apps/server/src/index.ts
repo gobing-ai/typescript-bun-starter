@@ -127,9 +127,17 @@ const apiHealthRoute = createRoute({
     },
 });
 
+const listSkillsQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(500).optional(),
+    offset: z.coerce.number().int().min(0).optional(),
+});
+
 const listSkillsRoute = createRoute({
     method: 'get',
     path: '/api/skills',
+    request: {
+        query: listSkillsQuerySchema,
+    },
     responses: {
         200: {
             content: {
@@ -138,6 +146,14 @@ const listSkillsRoute = createRoute({
                 },
             },
             description: 'Returns the persisted skills.',
+        },
+        400: {
+            content: {
+                'application/json': {
+                    schema: errorResponseSchema,
+                },
+            },
+            description: 'Invalid query parameters.',
         },
     },
 });
@@ -323,7 +339,11 @@ export function createApp(localDb?: DbClient) {
 
     app.openapi(listSkillsRoute, async (c) => {
         const skillsDao = new SkillsDao(c.get('db'));
-        const rows = await skillsDao.listSkills();
+        const { limit, offset } = c.req.valid('query');
+        const rows = await skillsDao.listSkills({
+            ...(limit !== undefined ? { limit } : {}),
+            ...(offset !== undefined ? { offset } : {}),
+        });
         return c.json({ data: rows }, 200);
     });
 
@@ -348,13 +368,11 @@ export function createApp(localDb?: DbClient) {
             return c.notFound();
         }
 
-        const indexPath = resolve(WEB_DIST_PATH, 'index.html');
-        if (existsSync(indexPath)) {
-            const html = readFileSync(indexPath, 'utf-8');
-            return c.html(html);
+        const html = loadCachedIndexHtml();
+        if (html === undefined) {
+            return c.notFound();
         }
-
-        return c.notFound();
+        return c.html(html);
     });
 
     return app;
@@ -363,6 +381,33 @@ export function createApp(localDb?: DbClient) {
 function isStaticAssetPath(path: string): boolean {
     const extension = extname(path).toLowerCase();
     return STATIC_ASSET_EXTENSIONS.has(extension);
+}
+
+let cachedIndexHtml: string | undefined;
+let cachedIndexHtmlChecked = false;
+
+/**
+ * Load the SPA `index.html` once and cache the result so subsequent
+ * fallback misses don't hit the filesystem on every request.
+ *
+ * Returns `undefined` if the file doesn't exist (server runs without a
+ * built web bundle, e.g. API-only deploys).
+ */
+function loadCachedIndexHtml(): string | undefined {
+    if (!cachedIndexHtmlChecked) {
+        const indexPath = resolve(WEB_DIST_PATH, 'index.html');
+        if (existsSync(indexPath)) {
+            cachedIndexHtml = readFileSync(indexPath, 'utf-8');
+        }
+        cachedIndexHtmlChecked = true;
+    }
+    return cachedIndexHtml;
+}
+
+/** @internal — testing hook to discard the cache between cases. */
+export function resetIndexHtmlCache(): void {
+    cachedIndexHtml = undefined;
+    cachedIndexHtmlChecked = false;
 }
 
 // ── Default export: lazily-created singleton app ─────────────────────────
