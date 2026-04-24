@@ -778,6 +778,36 @@ describe('helpers', () => {
     });
 });
 
+describe('external-api-boundaries policy', () => {
+    test('allows approved wrappers and blocks direct fetch elsewhere', () => {
+        const cwd = makeTempDir();
+        mkdirSync(join(cwd, 'apps', 'web', 'src', 'lib'), { recursive: true });
+        mkdirSync(join(cwd, 'apps', 'server', 'src'), { recursive: true });
+
+        writeFileSync(
+            join(cwd, 'apps', 'web', 'src', 'lib', 'browser-api-client.ts'),
+            'export async function ok() { return fetch("https://example.com"); }\n',
+        );
+        writeFileSync(
+            join(cwd, 'apps', 'server', 'src', 'bad.ts'),
+            'export async function bad() { return fetch("https://example.com"); }\n',
+        );
+
+        const policy = loadPolicy(resolve(process.cwd(), 'policies', 'external-api-boundaries.json'));
+        const result = executePolicy(policy, {
+            cwd,
+            fix: false,
+            preview: false,
+            failFast: false,
+        });
+
+        expect(result.errors).toEqual([]);
+        expect(result.violations).toHaveLength(1);
+        expect(result.violations[0]?.rule).toBe('no-direct-fetch');
+        expect(result.violations[0]?.file).toBe(join(cwd, 'apps', 'server', 'src', 'bad.ts'));
+    });
+});
+
 describe('output and main', () => {
     test('prints usage', () => {
         const { stdout } = captureOutput(() => printUsage());
