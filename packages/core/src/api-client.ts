@@ -8,6 +8,7 @@ import {
     ATTR_URL_FULL,
     ATTR_URL_PATH,
 } from '@opentelemetry/semantic-conventions';
+import { createJsonRequestHeaders, readResponsePayload } from '@starter/contracts';
 import {
     getHttpClientRequestDuration,
     getHttpClientRequestErrors,
@@ -158,11 +159,8 @@ export class APIClient {
         return traceAsync(
             spanName,
             async (span: Span) => {
-                const headers: Record<string, string> = { ...this.defaultHeaders, ...options?.headers };
                 const hasBody = options?.body !== undefined;
-                if (hasBody) {
-                    headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
-                }
+                const headers = createJsonRequestHeaders({ ...this.defaultHeaders, ...options?.headers }, hasBody);
 
                 const signal = this.buildSignal(timeout, options?.signal);
 
@@ -187,16 +185,7 @@ export class APIClient {
                         throw error;
                     }
 
-                    if (response.status === 204 || response.status === 205) {
-                        return undefined as T;
-                    }
-
-                    const text = await response.text();
-                    if (text === '') {
-                        return undefined as T;
-                    }
-
-                    return JSON.parse(text) as T;
+                    return (await readResponsePayload(response)) as T;
                 } catch (error) {
                     errorType = error instanceof Error ? error.name : 'Unknown';
                     getHttpClientRequestErrors().add(1, {
