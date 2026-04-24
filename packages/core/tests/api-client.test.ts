@@ -309,7 +309,7 @@ describe('operationName', () => {
         await cleanupTestProvider(provider);
     });
 
-    test('defaults span name to http.client.request', async () => {
+    test('defaults span name to HTTP {METHOD} {host}', async () => {
         const { provider, exporter } = createTestProvider();
         const client = makeClient({ fetch: mockFetch(200, { ok: true }) });
 
@@ -318,7 +318,7 @@ describe('operationName', () => {
 
         const spans = exporter.getFinishedSpans();
         expect(spans.length).toBe(1);
-        expect(spans[0]?.name).toBe('http.client.request');
+        expect(spans[0]?.name).toBe('HTTP GET api.example.com');
 
         await cleanupTestProvider(provider);
     });
