@@ -1,65 +1,37 @@
 #!/usr/bin/env bun
 /**
- * Policy Driver - Reusable CLI for enforcing repository policies
+ * Policy Driver - Reusable CLI for enforcing repository policies.
  *
- * Single-file policy enforcement tool. Can be copied to any project.
- *
- * Usage:
- *   bun scripts/policy-check.ts                    # Run all policies
- *   bun scripts/policy-check.ts --policy db       # Run specific policy
- *   bun scripts/policy-check.ts --fix               # Apply fixes
- *   bun scripts/policy-check.ts --preview          # Preview fixes (dry-run)
- *   bun scripts/policy-check.ts --machine           # JSON output
- *   bun scripts/policy-check.ts --policy-dir ./pol # Custom policy directory
- *
- * Policy file format (JSON):
- *   {
- *     "id": "my-policy",
- *     "description": "What this policy enforces",
- *     "rationale": ["Why this matters"],
- *     "targets": ["src\/**\/*.ts"],
- *     "exclude": ["**\/*.test.ts"],
- *     "rules": [{
- *       "id": "no-banned-import",
- *       "engine": "rg",
- *       "message": "Don't use banned import",
- *       "severity": "error",
- *       "allow": ["src/whitelist.ts"],
- *       "match": { "kind": "rg", "pattern": "from 'banned'" }
- *     }]
- *   }
+ * This file is intentionally self-contained so it can be copied into another
+ * project without dragging in additional repo-specific runtime dependencies.
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { relative, resolve } from 'node:path';
 import { echo, echoError } from '@starter/core';
 
-// =============================================================================
-// Types
-// =============================================================================
-
-interface RgMatchSpec {
+export interface RgMatchSpec {
     kind: 'rg';
     pattern: string;
     flags?: string | undefined;
 }
 
-interface SgMatchSpec {
+export interface SgMatchSpec {
     kind: 'sg';
     pattern: string;
     rewrite?: string | undefined;
 }
 
-type MatchSpec = RgMatchSpec | SgMatchSpec;
+export type MatchSpec = RgMatchSpec | SgMatchSpec;
 
-interface FixSpec {
+export interface FixSpec {
     mode: 'command' | 'rewrite';
-    command?: string;
-    replace?: string;
+    command?: string | undefined;
+    replace?: string | undefined;
 }
 
-interface PolicyRule {
+export interface PolicyRule {
     id: string;
     engine: 'rg' | 'sg';
     message: string;
@@ -69,7 +41,7 @@ interface PolicyRule {
     fix?: FixSpec;
 }
 
-interface PolicyDocument {
+export interface PolicyDocument {
     id: string;
     description: string;
     rationale?: string[];
@@ -80,7 +52,7 @@ interface PolicyDocument {
     rules: PolicyRule[];
 }
 
-interface Violation {
+export interface Violation {
     policy: string;
     rule: string;
     file: string;
@@ -90,7 +62,7 @@ interface Violation {
     fixAvailable: boolean;
 }
 
-interface FixResult {
+export interface FixResult {
     rule: string;
     file: string;
     success: boolean;
@@ -98,7 +70,7 @@ interface FixResult {
     error?: string;
 }
 
-interface Summary {
+export interface Summary {
     total: number;
     errors: number;
     warnings: number;
@@ -106,20 +78,60 @@ interface Summary {
     fixesFailed: number;
     filesChecked: number;
     policies: number;
-    exitCode: 0 | 1 | 2;
+    engineErrors: number;
+    exitCode: 0 | 1;
 }
 
-// =============================================================================
-// Policy Loader (JSON)
-// =============================================================================
+interface RgResult {
+    matches: Array<{ file: string; line: number; text: string }>;
+    error?: string;
+}
 
-function loadPolicy(path: string): PolicyDocument {
+interface FileDiscoveryResult {
+    files: string[];
+    error?: string;
+}
+
+export interface ExecuteOptions {
+    cwd: string;
+    fix: boolean;
+    preview: boolean;
+    failFast: boolean;
+}
+
+export interface ExecutePoliciesResult {
+    violations: Violation[];
+    fixes: FixResult[];
+    summary: Summary;
+    errors: string[];
+    policyIds: string[];
+}
+
+interface ExecutePolicyResult {
+    violations: Violation[];
+    fixes: FixResult[];
+    errors: string[];
+    checkedFiles: number;
+}
+
+export interface Args {
+    policy: string[];
+    fix: boolean;
+    preview: boolean;
+    machine: boolean;
+    policyDir: string;
+    failFast: boolean;
+    cwd: string;
+    help: boolean;
+}
+
+export function loadPolicy(path: string): PolicyDocument {
     const content = readFileSync(path, 'utf-8');
     const parsed = JSON.parse(content) as Record<string, unknown>;
     return validatePolicy(parsed, path);
 }
 
-function validatePolicy(raw: unknown, file: string): PolicyDocument {
+export function validatePolicy(raw: unknown, file: string): PolicyDocument {
     if (!raw || typeof raw !== 'object') {
         throw new Error(`Policy file "${file}" must be an object`);
     }
@@ -132,36 +144,32 @@ function validatePolicy(raw: unknown, file: string): PolicyDocument {
     if (!Array.isArray(doc.targets) || doc.targets.length === 0) {
         throw new Error(`Policy "${file}" must have non-empty "targets" array`);
     }
-    for (const t of doc.targets) {
-        if (typeof t !== 'string') {
-            throw new Error(`Policy "${file}" targets must be strings`);
-        }
-    }
 
     if (!Array.isArray(doc.rules) || doc.rules.length === 0) {
         throw new Error(`Policy "${file}" must have non-empty "rules" array`);
     }
 
-    const rules = doc.rules.map((r, i) => validateRule(r, i, file));
-
     const result: PolicyDocument = {
         id,
         description,
-        targets: doc.targets as string[],
-        rules,
+        targets: validateStringArray(doc.targets, `${file}.targets`),
+        rules: doc.rules.map((rule, index) => validateRule(rule, index, file)),
     };
 
-    if (doc.rationale && Array.isArray(doc.rationale)) {
-        result.rationale = doc.rationale as string[];
+    if (doc.rationale !== undefined) {
+        result.rationale = validateStringArray(doc.rationale, `${file}.rationale`);
     }
-    if (doc.notes && Array.isArray(doc.notes)) {
-        result.notes = doc.notes as string[];
+
+    if (doc.notes !== undefined) {
+        result.notes = validateStringArray(doc.notes, `${file}.notes`);
     }
-    if (doc.include && Array.isArray(doc.include)) {
-        result.include = doc.include as string[];
+
+    if (doc.include !== undefined) {
+        result.include = validateStringArray(doc.include, `${file}.include`);
     }
-    if (doc.exclude && Array.isArray(doc.exclude)) {
-        result.exclude = doc.exclude as string[];
+
+    if (doc.exclude !== undefined) {
+        result.exclude = validateStringArray(doc.exclude, `${file}.exclude`);
     }
 
     return result;
@@ -173,14 +181,14 @@ function validateRule(raw: unknown, index: number, file: string): PolicyRule {
     }
 
     const rule = raw as Record<string, unknown>;
+    const context = `${file}[${index}]`;
+    const id = validateString(rule, 'id', context);
+    const message = validateString(rule, 'message', context);
 
-    const id = validateString(rule, 'id', `${file}[${index}]`);
     const engine = rule.engine;
     if (engine !== 'rg' && engine !== 'sg') {
         throw new Error(`Rule "${id}" in "${file}" must have engine "rg" or "sg"`);
     }
-
-    const message = validateString(rule, 'message', `${file}[${index}]`);
 
     const match = rule.match;
     if (!match || typeof match !== 'object') {
@@ -193,80 +201,93 @@ function validateRule(raw: unknown, index: number, file: string): PolicyRule {
         throw new Error(`Rule "${id}" in "${file}" match.kind must be "rg" or "sg"`);
     }
 
-    const pattern = validateString(matchObj, 'pattern', `${file}[${index}].match`);
+    if (matchKind !== engine) {
+        throw new Error(`Rule "${id}" in "${file}" must align engine "${engine}" with match.kind "${matchKind}"`);
+    }
 
-    const result: PolicyRule = {
+    const policyRule: PolicyRule = {
         id,
         engine,
         message,
-        severity: (rule.severity as 'error' | 'warning') ?? 'error',
+        severity: rule.severity === 'warning' ? 'warning' : 'error',
         match:
             matchKind === 'rg'
-                ? { kind: 'rg', pattern, flags: matchObj.flags === undefined ? undefined : (matchObj.flags as string) }
+                ? {
+                      kind: 'rg',
+                      pattern: validateString(matchObj, 'pattern', `${context}.match`),
+                      flags:
+                          matchObj.flags === undefined
+                              ? undefined
+                              : validateOptionalString(matchObj.flags, `${context}.match.flags`),
+                  }
                 : {
                       kind: 'sg',
-                      pattern,
-                      rewrite: matchObj.rewrite === undefined ? undefined : (matchObj.rewrite as string),
+                      pattern: validateString(matchObj, 'pattern', `${context}.match`),
+                      rewrite:
+                          matchObj.rewrite === undefined
+                              ? undefined
+                              : validateOptionalString(matchObj.rewrite, `${context}.match.rewrite`),
                   },
     };
 
-    if (rule.allow && Array.isArray(rule.allow)) {
-        result.allow = rule.allow as string[];
+    if (rule.allow !== undefined) {
+        policyRule.allow = validateStringArray(rule.allow, `${context}.allow`);
     }
 
-    // Validate fix if present
     if (rule.fix !== undefined) {
         if (!rule.fix || typeof rule.fix !== 'object') {
             throw new Error(`Rule "${id}" in "${file}" fix must be an object`);
         }
+
         const fixObj = rule.fix as Record<string, unknown>;
         const mode = fixObj.mode;
         if (mode !== 'command' && mode !== 'rewrite') {
             throw new Error(`Rule "${id}" in "${file}" fix.mode must be "command" or "rewrite"`);
         }
+
         const fix: FixSpec = { mode };
         if (mode === 'command') {
-            if (typeof fixObj.command !== 'string') {
-                throw new Error(`Rule "${id}" in "${file}" fix.command must be a string`);
-            }
-            fix.command = fixObj.command;
+            fix.command = validateString(fixObj, 'command', `${context}.fix`);
+        } else {
+            fix.replace = validateString(fixObj, 'replace', `${context}.fix`);
         }
-        if (mode === 'rewrite') {
-            if (typeof fixObj.replace !== 'string') {
-                throw new Error(`Rule "${id}" in "${file}" fix.replace must be a string`);
-            }
-            fix.replace = fixObj.replace;
-        }
-        result.fix = fix;
+        policyRule.fix = fix;
     }
 
-    return result;
+    return policyRule;
 }
 
 function validateString(obj: Record<string, unknown>, field: string, path: string): string {
-    const value = obj[field];
+    return validateOptionalString(obj[field], `${path}.${field}`);
+}
+
+function validateOptionalString(value: unknown, path: string): string {
     if (typeof value !== 'string' || value.trim() === '') {
-        throw new Error(`"${field}" in "${path}" must be a non-empty string`);
+        throw new Error(`"${path}" must be a non-empty string`);
     }
+
     return value;
 }
 
-// =============================================================================
-// Policy Engine
-// =============================================================================
+function validateStringArray(value: unknown, path: string): string[] {
+    if (!Array.isArray(value) || value.length === 0) {
+        throw new Error(`"${path}" must be a non-empty string array`);
+    }
 
-interface ExecuteOptions {
-    cwd: string;
-    fix: boolean;
-    preview: boolean;
-    failFast: boolean;
+    for (const entry of value) {
+        if (typeof entry !== 'string' || entry.trim() === '') {
+            throw new Error(`"${path}" must contain only non-empty strings`);
+        }
+    }
+
+    return [...value];
 }
 
-async function executePolicies(
+export async function executePolicies(
     policyDir: string,
     selectedPolicies: string[],
     options: ExecuteOptions,
-): Promise<{ violations: Violation[]; fixes: FixResult[]; summary: Summary; errors: string[]; policyIds: string[] }> {
+): Promise<ExecutePoliciesResult> {
     const violations: Violation[] = [];
     const fixes: FixResult[] = [];
     const errors: string[] = [];
@@ -276,337 +297,531 @@ async function executePolicies(
         return {
             violations,
             fixes,
-            summary: emptySummary(),
+            summary: computeSummary(violations, fixes, 0, 0, 1),
             errors: [`Policy directory not found: ${dirPath}`],
+            policyIds: [],
         };
     }
 
-    // Discover policy files
-    let policyFiles: string[];
-    if (selectedPolicies.length > 0) {
-        policyFiles = [];
-        for (const spec of selectedPolicies) {
-            const directPath = resolve(spec);
-            if (existsSync(directPath)) {
-                policyFiles.push(directPath);
-            } else {
-                const withExt = resolve(dirPath, `${spec}.json`);
-                if (existsSync(withExt)) {
-                    policyFiles.push(withExt);
-                } else {
-                    errors.push(`Policy not found: ${spec}`);
-                }
-            }
-        }
-    } else {
-        policyFiles = readdirSync(dirPath, { withFileTypes: true })
-            .filter((e) => e.isFile() && e.name.endsWith('.json'))
-            .map((e) => resolve(dirPath, e.name));
-    }
-
-    // Load policies
+    const policyFiles = discoverPolicyFiles(dirPath, selectedPolicies, options.cwd, errors);
     const policies: PolicyDocument[] = [];
     for (const file of policyFiles) {
         try {
             policies.push(loadPolicy(file));
         } catch (error) {
             errors.push(`Failed to load ${file}: ${(error as Error).message}`);
+            if (options.failFast) {
+                break;
+            }
         }
     }
 
-    // Execute policies
+    let filesChecked = 0;
     for (const policy of policies) {
         const result = executePolicy(policy, options);
         violations.push(...result.violations);
         fixes.push(...result.fixes);
-        if (result.error && options.failFast) {
-            errors.push(result.error);
+        errors.push(...result.errors);
+        filesChecked += result.checkedFiles;
+
+        if (options.failFast && result.errors.length > 0) {
             break;
         }
     }
 
-    const summary = computeSummary(violations, fixes, policies.length);
-
-    return { violations, fixes, summary, errors, policyIds: policies.map((p) => p.id) };
+    const summary = computeSummary(violations, fixes, policies.length, filesChecked, errors.length);
+    return { violations, fixes, summary, errors, policyIds: policies.map((policy) => policy.id) };
 }
 
-function executePolicy(
-    policy: PolicyDocument,
-    options: { cwd: string; fix: boolean; preview: boolean },
-): { violations: Violation[]; fixes: FixResult[]; error?: string } {
+function discoverPolicyFiles(dirPath: string, selectedPolicies: string[], cwd: string, errors: string[]): string[] {
+    if (selectedPolicies.length === 0) {
+        return readdirSync(dirPath, { withFileTypes: true })
+            .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+            .map((entry) => resolve(dirPath, entry.name))
+            .sort();
+    }
+
+    const policyFiles: string[] = [];
+    for (const spec of selectedPolicies) {
+        const directPath = resolve(cwd, spec);
+        if (existsSync(directPath)) {
+            policyFiles.push(directPath);
+            continue;
+        }
+
+        const withExt = resolve(dirPath, `${spec}.json`);
+        if (existsSync(withExt)) {
+            policyFiles.push(withExt);
+            continue;
+        }
+
+        errors.push(`Policy not found: ${spec}`);
+    }
+
+    return policyFiles;
+}
+
+export function executePolicy(policy: PolicyDocument, options: ExecuteOptions): ExecutePolicyResult {
     const violations: Violation[] = [];
     const fixes: FixResult[] = [];
+    const errors: string[] = [];
+    const discovery = discoverFiles(policy, options.cwd);
 
-    try {
-        // Expand targets to files
-        const files = discoverFiles(policy, options.cwd);
+    if (discovery.error) {
+        errors.push(`Policy "${policy.id}" file discovery failed: ${discovery.error}`);
+        return {
+            violations,
+            fixes,
+            errors,
+            checkedFiles: 0,
+        };
+    }
 
-        for (const rule of policy.rules) {
-            for (const file of files) {
-                // Check allowlist
-                if (rule.allow?.some((p) => file.endsWith(p) || file.includes(p))) {
-                    continue;
-                }
+    for (const rule of policy.rules) {
+        if (rule.engine === 'sg') {
+            errors.push(`Policy "${policy.id}" rule "${rule.id}" uses unsupported engine "sg"`);
+            continue;
+        }
 
-                if (rule.engine === 'rg') {
-                    const spec = rule.match as RgMatchSpec;
-                    const matches = executeRg(spec, file, options.cwd);
+        const fixedFiles = new Set<string>();
 
-                    for (const match of matches) {
-                        violations.push({
-                            policy: policy.id,
-                            rule: rule.id,
-                            file: match.file,
-                            line: match.line,
-                            message: rule.message,
-                            severity: rule.severity ?? 'error',
-                            fixAvailable: !!rule.fix,
-                        });
+        for (const file of discovery.files) {
+            const relativeFile = toRelativePath(options.cwd, file);
 
-                        // Execute fix if enabled
-                        if (options.fix && rule.fix && !options.preview) {
-                            const fixResult = executeFix(rule, match.file, options);
-                            fixes.push(fixResult);
-                        }
-                    }
-                } else if (rule.engine === 'sg') {
-                    // SG placeholder - report as warning
-                    violations.push({
-                        policy: policy.id,
-                        rule: rule.id,
-                        file,
-                        line: 0,
-                        message: `SG engine not yet implemented: ${rule.message}`,
-                        severity: 'warning',
-                        fixAvailable: false,
-                    });
+            if (matchesAnyPattern(relativeFile, rule.allow)) {
+                continue;
+            }
+
+            const result = executeRg(rule.match, file, options.cwd);
+            if (result.error) {
+                errors.push(`Policy "${policy.id}" rule "${rule.id}" failed: ${result.error}`);
+                break;
+            }
+
+            for (const match of result.matches) {
+                violations.push({
+                    policy: policy.id,
+                    rule: rule.id,
+                    file: match.file,
+                    line: match.line,
+                    message: rule.message,
+                    severity: rule.severity ?? 'error',
+                    fixAvailable: !!rule.fix,
+                });
+
+                if (options.fix && rule.fix && !fixedFiles.has(match.file)) {
+                    fixes.push(executeFix(rule, match.file, options));
+                    fixedFiles.add(match.file);
                 }
             }
         }
-    } catch (error) {
-        return { violations, fixes, error: (error as Error).message };
     }
 
-    return { violations, fixes };
+    return {
+        violations,
+        fixes,
+        errors,
+        checkedFiles: discovery.files.length,
+    };
 }
 
-function discoverFiles(policy: PolicyDocument, cwd: string): string[] {
-    const files: Set<string> = new Set();
+export function discoverFiles(policy: PolicyDocument, cwd: string): FileDiscoveryResult {
+    const files = new Set<string>();
 
     for (const target of policy.targets) {
-        // Target is relative to cwd, not absolute path
-        const pattern = target;
-        try {
-            const matches = glob(pattern, policy.exclude, cwd);
-            for (const file of matches) {
-                if (policy.include && policy.include.length > 0) {
-                    if (!policy.include.some((inc) => file.includes(inc))) continue;
-                }
-                files.add(file);
+        const result = globFiles(target, policy.exclude, cwd);
+        if (result.error) {
+            return { files: [], error: result.error };
+        }
+
+        for (const file of result.files) {
+            const relativeFile = toRelativePath(cwd, file);
+            if (policy.include && !matchesAnyPattern(relativeFile, policy.include)) {
+                continue;
             }
-        } catch {
-            // Glob failed - skip this target
+            files.add(file);
         }
     }
 
-    return Array.from(files).sort();
+    return { files: [...files].sort() };
 }
 
-function glob(pattern: string, exclude?: string[], cwd?: string): string[] {
-    // Use rg --files for file discovery (rg handles glob patterns natively)
+export function globFiles(pattern: string, exclude: string[] | undefined, cwd: string): FileDiscoveryResult {
     const args = ['--files', '--glob', pattern];
-    const baseDir = cwd ?? '.';
+    for (const excluded of exclude ?? []) {
+        args.push('--glob', `!${excluded}`);
+    }
 
     try {
-        const result = execFileSync('rg', args, { cwd: baseDir, encoding: 'utf-8' });
-        let files = result
+        const output = execFileSync('rg', args, { cwd, encoding: 'utf-8', timeout: 30000 });
+        const files = output
             .split('\n')
-            .filter((f) => f.trim())
-            .filter((f) => !f.includes('node_modules'))
-            .map((f) => resolve(baseDir, f));
-
-        // Filter by exclude patterns (handle ** glob patterns)
-        if (exclude) {
-            files = files.filter((f) => {
-                // Get path relative to baseDir for matching
-                const relativePath = f.startsWith(baseDir) ? f.slice(baseDir.length + 1) : f;
-                for (const ex of exclude) {
-                    // Normalize glob to regex:
-                    // ** -> match anything including slashes -> [\s\S]*
-                    // * -> match anything except slash -> [^/]*
-                    const normalized = ex
-                        .replace(/\\/g, '/')
-                        .replace(/\*\*/g, '{{STARSTAR}}')
-                        .replace(/\*/g, '{{STAR}}')
-                        .replace(/\{\{STARSTAR\}\}/g, '[\\s\\S]*')
-                        .replace(/\{\{STAR\}\}/g, '[^/]*');
-                    const regex = new RegExp(`^${normalized}$`);
-                    if (regex.test(relativePath)) return false;
-                }
-                return true;
-            });
+            .filter((line) => line.trim() !== '')
+            .map((line) => resolve(cwd, line));
+        return { files };
+    } catch (error) {
+        if (isNoMatchError(error)) {
+            return { files: [] };
         }
 
-        return files;
-    } catch {
-        return [];
+        return { files: [], error: extractExecError(error) };
     }
 }
 
-function executeRg(spec: RgMatchSpec, file: string, cwd: string): { file: string; line: number; text: string }[] {
+export function executeRg(spec: MatchSpec, file: string, cwd: string): RgResult {
+    if (spec.kind !== 'rg') {
+        return { matches: [], error: `Unsupported match kind "${spec.kind}" for rg execution` };
+    }
+
     const args = ['--no-heading', '--with-filename', '--line-number', '--color=never'];
     if (spec.flags) {
-        if (spec.flags.includes('i')) args.push('--ignore-case');
-        if (spec.flags.includes('w')) args.push('--word-regexp');
+        if (spec.flags.includes('i')) {
+            args.push('--ignore-case');
+        }
+        if (spec.flags.includes('w')) {
+            args.push('--word-regexp');
+        }
     }
     args.push(spec.pattern, file);
 
     try {
-        const result = execFileSync('rg', args, { cwd, encoding: 'utf-8', timeout: 30000 });
-        return result
+        const output = execFileSync('rg', args, { cwd, encoding: 'utf-8', timeout: 30000 });
+        const matches = output
             .split('\n')
-            .filter((l) => l.trim())
+            .filter((line) => line.trim() !== '')
             .map((line) => {
                 const parts = line.split(':');
                 const filePart = parts[0] ?? file;
-                const linePart = parseInt(parts[1] ?? '0', 10);
+                const linePart = Number.parseInt(parts[1] ?? '0', 10);
                 return {
-                    file: filePart,
-                    line: linePart,
+                    file: resolve(cwd, filePart),
+                    line: Number.isNaN(linePart) ? 0 : linePart,
                     text: parts.slice(2).join(':'),
                 };
             });
-    } catch {
-        return [];
+
+        return { matches };
+    } catch (error) {
+        if (isNoMatchError(error)) {
+            return { matches: [] };
+        }
+
+        return { matches: [], error: extractExecError(error) };
     }
 }
 
-function executeFix(rule: PolicyRule, file: string, options: { cwd: string; preview: boolean }): FixResult {
+export function executeFix(
+    rule: PolicyRule,
+    file: string,
+    options: Pick<ExecuteOptions, 'cwd' | 'preview'>,
+): FixResult {
     if (!rule.fix) {
         return { rule: rule.id, file, success: false, error: 'No fix defined' };
     }
 
-    if (rule.fix.mode === 'command' && rule.fix.command) {
-        const cmd = rule.fix.command.replace(/\{path\}/g, file).replace(/\{cwd\}/g, options.cwd);
-
-        if (options.preview) {
-            return { rule: rule.id, file, success: true, output: `[PREVIEW] Would execute: ${cmd}` };
-        }
-
-        try {
-            const result = execFileSync('sh', ['-c', cmd], { cwd: options.cwd, encoding: 'utf-8', timeout: 60000 });
-            return { rule: rule.id, file, success: true, output: result.trim() };
-        } catch (error) {
-            return { rule: rule.id, file, success: false, error: (error as Error).message };
-        }
+    if (rule.fix.mode === 'rewrite') {
+        return executeRewriteFix(rule, file, options.preview);
     }
 
-    return { rule: rule.id, file, success: false, error: 'Rewrite mode not implemented' };
+    if (!rule.fix.command) {
+        return { rule: rule.id, file, success: false, error: 'Command fix missing command string' };
+    }
+
+    const argv = splitCommand(rule.fix.command).map((token) =>
+        token.replaceAll('{path}', file).replaceAll('{cwd}', options.cwd),
+    );
+
+    if (argv.length === 0) {
+        return { rule: rule.id, file, success: false, error: 'Command fix resolved to an empty command' };
+    }
+
+    if (options.preview) {
+        return { rule: rule.id, file, success: true, output: `[PREVIEW] Would execute: ${argv.join(' ')}` };
+    }
+
+    try {
+        const command = argv[0];
+        if (!command) {
+            return { rule: rule.id, file, success: false, error: 'Command fix resolved to an empty command' };
+        }
+        const output = execFileSync(command, argv.slice(1), {
+            cwd: options.cwd,
+            encoding: 'utf-8',
+            timeout: 60000,
+        });
+        return { rule: rule.id, file, success: true, output: output.trim() };
+    } catch (error) {
+        return { rule: rule.id, file, success: false, error: extractExecError(error) };
+    }
 }
 
-// =============================================================================
-// Output Formatting
-// =============================================================================
+export function executeRewriteFix(rule: PolicyRule, file: string, preview: boolean): FixResult {
+    if (!rule.fix?.replace) {
+        return { rule: rule.id, file, success: false, error: 'Rewrite fix missing replacement' };
+    }
 
-function formatViolation(v: Violation, color: boolean): string {
-    const filePath = color ? `\x1b[33m${v.file}\x1b[0m` : v.file;
-    const lineNum = color ? `\x1b[36m${v.line}\x1b[0m` : String(v.line);
+    if (rule.match.kind !== 'rg') {
+        return { rule: rule.id, file, success: false, error: 'Rewrite mode currently supports rg rules only' };
+    }
+
+    let regex: RegExp;
+    try {
+        regex = new RegExp(rule.match.pattern, buildRegexFlags(rule.match.flags));
+    } catch (error) {
+        return { rule: rule.id, file, success: false, error: `Invalid rewrite regex: ${(error as Error).message}` };
+    }
+
+    const original = readFileSync(file, 'utf-8');
+    const updated = original.replace(regex, rule.fix.replace);
+    if (updated === original) {
+        return { rule: rule.id, file, success: false, error: 'Rewrite fix made no changes' };
+    }
+
+    if (preview) {
+        return { rule: rule.id, file, success: true, output: `[PREVIEW] Would rewrite ${toDisplayPath(file)}` };
+    }
+
+    writeFileSync(file, updated);
+    return { rule: rule.id, file, success: true, output: `Rewrote ${toDisplayPath(file)}` };
+}
+
+export function buildRegexFlags(flags?: string): string {
+    const result = new Set(['g']);
+    if (flags?.includes('i')) {
+        result.add('i');
+    }
+    if (flags?.includes('m')) {
+        result.add('m');
+    }
+    return [...result].join('');
+}
+
+export function splitCommand(command: string): string[] {
+    const tokens: string[] = [];
+    let current = '';
+    let quote: "'" | '"' | null = null;
+    let escaping = false;
+    let tokenStarted = false;
+
+    for (const char of command) {
+        if (escaping) {
+            current += char;
+            escaping = false;
+            tokenStarted = true;
+            continue;
+        }
+
+        if (char === '\\') {
+            escaping = true;
+            continue;
+        }
+
+        if (quote) {
+            if (char === quote) {
+                quote = null;
+            } else {
+                current += char;
+            }
+            tokenStarted = true;
+            continue;
+        }
+
+        if (char === "'" || char === '"') {
+            quote = char;
+            tokenStarted = true;
+            continue;
+        }
+
+        if (/\s/.test(char)) {
+            if (current !== '' || tokenStarted) {
+                tokens.push(current);
+                current = '';
+                tokenStarted = false;
+            }
+            continue;
+        }
+
+        current += char;
+        tokenStarted = true;
+    }
+
+    if (quote) {
+        throw new Error(`Unterminated quote in command: ${command}`);
+    }
+
+    if (escaping) {
+        current += '\\';
+    }
+
+    if (current !== '' || tokenStarted) {
+        tokens.push(current);
+    }
+
+    return tokens;
+}
+
+export function matchesAnyPattern(path: string, patterns?: string[]): boolean {
+    return patterns?.some((pattern) => matchesGlob(path, pattern)) ?? false;
+}
+
+export function matchesGlob(path: string, pattern: string): boolean {
+    const normalizedPath = normalizePath(path);
+    const normalizedPattern = normalizePath(pattern)
+        .replace(/\*\*/g, '::DOUBLE_STAR::')
+        .replace(/\*/g, '::STAR::')
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/::DOUBLE_STAR::/g, '.*')
+        .replace(/::STAR::/g, '[^/]*');
+
+    return new RegExp(`^${normalizedPattern}$`).test(normalizedPath);
+}
+
+export function normalizePath(path: string): string {
+    return path.replaceAll('\\', '/');
+}
+
+export function toRelativePath(cwd: string, file: string): string {
+    return normalizePath(relative(cwd, file));
+}
+
+export function toDisplayPath(file: string): string {
+    return normalizePath(file);
+}
+
+export function isNoMatchError(error: unknown): boolean {
+    return (
+        typeof error === 'object' && error !== null && 'status' in error && (error as { status?: number }).status === 1
+    );
+}
+
+export function extractExecError(error: unknown): string {
+    if (typeof error !== 'object' || error === null) {
+        return String(error);
+    }
+
+    const stderr = (error as { stderr?: string | Uint8Array }).stderr;
+    if (typeof stderr === 'string' && stderr.trim() !== '') {
+        return stderr.trim();
+    }
+
+    if (stderr instanceof Uint8Array && stderr.length > 0) {
+        return Buffer.from(stderr).toString().trim();
+    }
+
+    const message = (error as Error).message;
+    return message;
+}
+
+export function formatViolation(violation: Violation, color: boolean): string {
+    const filePath = color ? `\x1b[33m${violation.file}\x1b[0m` : violation.file;
+    const lineNum = color ? `\x1b[36m${violation.line}\x1b[0m` : String(violation.line);
     const severity =
-        v.severity === 'error'
+        violation.severity === 'error'
             ? color
                 ? '\x1b[31merror\x1b[0m'
                 : 'error'
             : color
               ? '\x1b[33mwarning\x1b[0m'
               : 'warning';
-    const fixTag = v.fixAvailable ? (color ? ' \x1b[32m[fixable]\x1b[0m' : ' [fixable]') : '';
+    const fixTag = violation.fixAvailable ? (color ? ' \x1b[32m[fixable]\x1b[0m' : ' [fixable]') : '';
 
-    return `[${filePath}:${lineNum}] ${v.rule} (${severity})${fixTag}\n  ${v.message}`;
+    return `[${filePath}:${lineNum}] ${violation.rule} (${severity})${fixTag}\n  ${violation.message}`;
 }
 
-function formatFixResult(f: FixResult, color: boolean): string {
-    const status = f.success ? (color ? '\x1b[32m✓\x1b[0m' : '✓') : color ? '\x1b[31m✗\x1b[0m' : '✗';
-    let output = `${status} ${f.rule} on ${f.file}`;
-    if (f.output) output += f.success ? `\n  → ${f.output}` : '';
-    if (f.error) output += color ? `\n  \x1b[31mError: ${f.error}\x1b[0m` : `\n  Error: ${f.error}`;
+export function formatFixResult(fix: FixResult, color: boolean): string {
+    const status = fix.success ? (color ? '\x1b[32m✓\x1b[0m' : '✓') : color ? '\x1b[31m✗\x1b[0m' : '✗';
+    let output = `${status} ${fix.rule} on ${fix.file}`;
+    if (fix.output) {
+        output += `\n  → ${fix.output}`;
+    }
+    if (fix.error) {
+        output += color ? `\n  \x1b[31mError: ${fix.error}\x1b[0m` : `\n  Error: ${fix.error}`;
+    }
     return output;
 }
 
-function printReport(
+export function printReport(
     violations: Violation[],
     fixes: FixResult[],
     policies: string[],
     summary: Summary,
+    errors: string[],
     color: boolean,
 ): void {
-    console.log(`\nPolicies: ${policies.join(', ')}`);
-    console.log('─'.repeat(60));
+    echo(`Policies: ${policies.join(', ') || '(none)'}`);
+    echo('─'.repeat(60));
 
-    // Group violations by policy
-    const violationsByPolicy = new Map<string, Violation[]>();
-    for (const v of violations) {
-        const list = violationsByPolicy.get(v.policy) ?? [];
-        list.push(v);
-        violationsByPolicy.set(v.policy, list);
+    if (errors.length > 0) {
+        echo('');
+        echo('Errors:');
+        for (const error of errors) {
+            echoError(`- ${error}`);
+        }
+        echo('');
     }
 
-    // Show failed policies (with violations)
+    const violationsByPolicy = new Map<string, Violation[]>();
+    for (const violation of violations) {
+        const existing = violationsByPolicy.get(violation.policy) ?? [];
+        existing.push(violation);
+        violationsByPolicy.set(violation.policy, existing);
+    }
+
     const failedPolicies = [...violationsByPolicy.keys()];
     if (failedPolicies.length > 0) {
-        console.log('\n✗ Failed policies:');
+        echo('');
+        echo('Failed policies:');
         for (const policy of failedPolicies) {
-            const pViolations = violationsByPolicy.get(policy) ?? [];
-            const errors = pViolations.filter((v) => v.severity === 'error').length;
-            const warnings = pViolations.filter((v) => v.severity === 'warning').length;
-            console.log(
-                `  ${color ? '\x1b[31m✗\x1b[0m' : '✗'} ${policy}: ${pViolations.length} violation(s) (${errors} errors, ${warnings} warnings)`,
+            const policyViolations = violationsByPolicy.get(policy) ?? [];
+            const errorsForPolicy = policyViolations.filter((violation) => violation.severity === 'error').length;
+            const warningsForPolicy = policyViolations.filter((violation) => violation.severity === 'warning').length;
+            echo(
+                `  ${color ? '\x1b[31m✗\x1b[0m' : '✗'} ${policy}: ${policyViolations.length} violation(s) (${errorsForPolicy} errors, ${warningsForPolicy} warnings)`,
             );
         }
-        console.log('');
-        console.log('Violations:');
-        for (const v of violations) {
-            console.log(formatViolation(v, color));
+        echo('');
+        echo('Violations:');
+        for (const violation of violations) {
+            echo(formatViolation(violation, color));
         }
-        console.log('');
+        echo('');
     }
 
-    // Show passed policies (no violations)
-    const passedPolicies = policies.filter((p) => !failedPolicies.includes(p));
+    const passedPolicies = policies.filter((policy) => !failedPolicies.includes(policy));
     if (passedPolicies.length > 0) {
-        console.log('\x1b[32m✓\x1b[0m Passed policies:');
+        echo('Passed policies:');
         for (const policy of passedPolicies) {
-            console.log(`  \x1b[32m✓\x1b[0m ${policy}`);
+            echo(`  ${color ? '\x1b[32m✓\x1b[0m' : '✓'} ${policy}`);
         }
-        console.log('');
+        echo('');
     }
 
     if (fixes.length > 0) {
-        console.log('\nFixes:');
-        for (const f of fixes) {
-            console.log(formatFixResult(f, color));
+        echo('Fixes:');
+        for (const fix of fixes) {
+            echo(formatFixResult(fix, color));
         }
-        console.log('');
+        echo('');
     }
 
-    const errorCount = summary.errors + fixes.filter((f) => !f.success).length;
-    const icon = errorCount > 0 ? (color ? '\x1b[31m✗\x1b[0m' : '✗') : color ? '\x1b[32m✓\x1b[0m' : '✓';
-
-    console.log(`${icon} Summary:`);
-    console.log(`  ${summary.total} violations (${summary.errors} errors, ${summary.warnings} warnings)`);
-    console.log(`  ${summary.fixesApplied} fixes applied, ${summary.fixesFailed} fixes failed`);
-    console.log(`  Checked ${summary.filesChecked} files across ${summary.policies} policies`);
-    console.log(`  ${passedPolicies.length}/${summary.policies} policies passed`);
+    const icon = summary.exitCode === 0 ? (color ? '\x1b[32m✓\x1b[0m' : '✓') : color ? '\x1b[31m✗\x1b[0m' : '✗';
+    echo(`${icon} Summary:`);
+    echo(`  ${summary.total} violations (${summary.errors} errors, ${summary.warnings} warnings)`);
+    echo(`  ${summary.engineErrors} execution/load errors`);
+    echo(`  ${summary.fixesApplied} fixes applied, ${summary.fixesFailed} fixes failed`);
+    echo(`  Checked ${summary.filesChecked} files across ${summary.policies} policies`);
+    echo(`  ${passedPolicies.length}/${summary.policies} policies passed`);
 }
 
-function printJson(
+export function printJson(
     violations: Violation[],
     fixes: FixResult[],
     policies: string[],
     summary: Summary,
     errors: string[],
 ): void {
-    console.log(
-        JSON.stringify(
+    process.stdout.write(
+        `${JSON.stringify(
             {
                 version: 1,
                 timestamp: new Date().toISOString(),
@@ -619,20 +834,22 @@ function printJson(
             },
             null,
             2,
-        ),
+        )}\n`,
     );
 }
 
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function computeSummary(violations: Violation[], fixes: FixResult[], policyCount: number): Summary {
-    const errors = violations.filter((v) => v.severity === 'error').length;
-    const warnings = violations.filter((v) => v.severity === 'warning').length;
-    const fixesApplied = fixes.filter((f) => f.success).length;
-    const fixesFailed = fixes.filter((f) => !f.success).length;
-    const filesChecked = new Set(violations.map((v) => v.file)).size;
+export function computeSummary(
+    violations: Violation[],
+    fixes: FixResult[],
+    policyCount: number,
+    filesChecked: number,
+    engineErrors: number,
+): Summary {
+    const errors = violations.filter((violation) => violation.severity === 'error').length;
+    const warnings = violations.filter((violation) => violation.severity === 'warning').length;
+    const fixesApplied = fixes.filter((fix) => fix.success).length;
+    const fixesFailed = fixes.filter((fix) => !fix.success).length;
+    const exitCode: 0 | 1 = errors > 0 || warnings > 0 || fixesFailed > 0 || engineErrors > 0 ? 1 : 0;
 
     return {
         total: violations.length,
@@ -642,39 +859,12 @@ function computeSummary(violations: Violation[], fixes: FixResult[], policyCount
         fixesFailed,
         filesChecked,
         policies: policyCount,
-        exitCode: errors + fixesFailed > 0 ? 1 : violations.length > 0 ? 1 : 0,
+        engineErrors,
+        exitCode,
     };
 }
 
-function emptySummary(): Summary {
-    return {
-        total: 0,
-        errors: 0,
-        warnings: 0,
-        fixesApplied: 0,
-        fixesFailed: 0,
-        filesChecked: 0,
-        policies: 0,
-        exitCode: 0,
-    };
-}
-
-// =============================================================================
-// CLI Argument Parsing
-// =============================================================================
-
-interface Args {
-    policy: string[];
-    fix: boolean;
-    preview: boolean;
-    machine: boolean;
-    policyDir: string;
-    failFast: boolean;
-    cwd: string;
-    help: boolean;
-}
-
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
     const args: Args = {
         policy: [],
         fix: false,
@@ -686,8 +876,8 @@ function parseArgs(argv: string[]): Args {
         help: false,
     };
 
-    for (let i = 0; i < argv.length; i++) {
-        const arg = argv[i];
+    for (let index = 0; index < argv.length; index += 1) {
+        const arg = argv[index];
         if (arg === '--help' || arg === '-h') {
             args.help = true;
         } else if (arg === '--fix') {
@@ -698,24 +888,29 @@ function parseArgs(argv: string[]): Args {
             args.machine = true;
         } else if (arg === '--fail-fast') {
             args.failFast = true;
-        } else if (arg === '--policy-dir' && i + 1 < argv.length) {
-            args.policyDir = argv[++i] ?? 'policies';
-        } else if (arg === '--cwd' && i + 1 < argv.length) {
-            args.cwd = argv[++i] ?? process.cwd();
-        } else if ((arg === '-p' || arg === '--policy') && i + 1 < argv.length) {
-            const value = argv[++i];
-            if (value !== undefined) args.policy.push(value);
-        } else if (arg !== undefined && !arg.startsWith('-')) {
-            const value = argv[i];
-            if (value !== undefined) args.policy.push(value);
+        } else if (arg === '--policy-dir' && argv[index + 1]) {
+            args.policyDir = argv[index + 1] ?? 'policies';
+            index += 1;
+        } else if (arg === '--cwd' && argv[index + 1]) {
+            args.cwd = argv[index + 1] ?? process.cwd();
+            index += 1;
+        } else if ((arg === '-p' || arg === '--policy') && argv[index + 1]) {
+            const value = argv[index + 1];
+            if (value) {
+                args.policy.push(value);
+            }
+            index += 1;
+        } else if (arg && !arg.startsWith('-')) {
+            args.policy.push(arg);
         }
     }
 
     return args;
 }
 
-function printUsage(): void {
-    console.log(`
+export function printUsage(): void {
+    echo(
+        `
 Policy Driver - Reusable CLI for enforcing repository policies
 
 Usage:
@@ -725,85 +920,54 @@ Options:
   -p, --policy <name>    Policy to run (can be specified multiple times)
                          If not specified, runs all policies in --policy-dir
   --fix                  Apply safe fixes where available
-  --dry-run             Preview fixes without applying them
+  --dry-run              Preview fixes without applying them
   --machine              Machine-readable JSON output
   --policy-dir <path>    Directory containing policy files (default: policies)
   --fail-fast            Stop on first policy error
   --cwd <path>           Working directory (default: current directory)
   -h, --help             Show this help message
-
-Policy File Format (JSON):
-  {
-    "id": "my-policy",
-    "description": "What this policy enforces",
-    "rationale": ["Why this matters"],
-    "targets": ["src/**/*.ts"],
-    "exclude": ["**/*.test.ts"],
-    "rules": [{
-      "id": "no-banned-import",
-      "engine": "rg",
-      "message": "Don't use banned import",
-      "severity": "error",
-      "allow": ["src/whitelist.ts"],
-      "match": { "kind": "rg", "pattern": "from 'banned'" }
-    }]
-  }
-
-Examples:
-  # Run all policies
-  bun scripts/policy-check.ts
-
-  # Run specific policy
-  bun scripts/policy-check.ts --policy db-boundaries
-
-  # Preview fixes
-  bun scripts/policy-check.ts --fix --dry-run
-
-  # Apply fixes
-  bun scripts/policy-check.ts --fix
-
-  # JSON output for scripts
-  bun scripts/policy-check.ts --machine
-`);
+`.trim(),
+    );
 }
 
-// =============================================================================
-// Main
-// =============================================================================
+export async function main(argv = process.argv.slice(2)): Promise<number> {
+    const args = parseArgs(argv);
 
-const args = parseArgs(process.argv.slice(2));
+    if (args.help) {
+        printUsage();
+        return 0;
+    }
 
-if (args.help) {
-    printUsage();
-    process.exit(0);
-}
-
-executePolicies(args.policyDir, args.policy, {
-    cwd: args.cwd,
-    fix: args.fix,
-    preview: args.preview,
-    failFast: args.failFast,
-})
-    .then(({ violations, fixes, summary, errors, policyIds }) => {
-        // Print errors
-        for (const error of errors) {
-            echoError(`[error] ${error}`);
-        }
-
-        if (violations.length === 0 && errors.length === 0 && fixes.length === 0) {
-            echo('No violations found.');
-        }
-
-        if (args.machine) {
-            printJson(violations, fixes, policyIds, summary, errors);
-        } else {
-            const color = process.stdout.isTTY;
-            printReport(violations, fixes, policyIds, summary, color);
-        }
-
-        process.exit(summary.exitCode);
-    })
-    .catch((error) => {
-        echoError(`Fatal error: ${error.message}`);
-        process.exit(1);
+    const result = await executePolicies(args.policyDir, args.policy, {
+        cwd: args.cwd,
+        fix: args.fix,
+        preview: args.preview,
+        failFast: args.failFast,
     });
+
+    if (args.machine) {
+        printJson(result.violations, result.fixes, result.policyIds, result.summary, result.errors);
+    } else {
+        printReport(
+            result.violations,
+            result.fixes,
+            result.policyIds,
+            result.summary,
+            result.errors,
+            !!process.stdout.isTTY,
+        );
+    }
+
+    return result.summary.exitCode;
+}
+
+if (import.meta.main) {
+    main()
+        .then((exitCode) => {
+            process.exit(exitCode);
+        })
+        .catch((error) => {
+            echoError(`Fatal error: ${(error as Error).message}`);
+            process.exit(1);
+        });
+}
