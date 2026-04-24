@@ -5,17 +5,6 @@
     "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
     "rules": [
         {
-            "id": "kebab-case-files",
-            "engine": "rg",
-            "message": "Source files should use kebab-case naming",
-            "severity": "warning",
-            "match": {
-                "kind": "rg",
-                "pattern": "^#.*\\.(ts|js|tsx|jsx)$",
-                "glob": "*.ts"
-            }
-        },
-        {
             "id": "camelcase-classes",
             "engine": "rg",
             "message": "Class names should use PascalCase",
@@ -37,7 +26,7 @@
         }
     ],
     "notes": [
-        "Source files: kebab-case (e.g., my-file.ts)",
+        "File-name conventions need a path-aware rule kind and are intentionally not enforced by this rg-only policy.",
         "Classes/Components: PascalCase",
         "Functions/variables: camelCase"
     ]
