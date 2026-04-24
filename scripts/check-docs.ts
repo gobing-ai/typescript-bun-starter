@@ -16,6 +16,7 @@ const markdownFiles = [
     'docs/02_DEVELOPER_SPEC.md',
     'docs/04_SCAFFOLD_GUIDE.md',
     'docs/05_DATABASE_ACCESS.md',
+    'docs/06_POLICY_CHECK.md',
 ];
 
 const docRules: DocRule[] = [
@@ -48,6 +49,11 @@ const docRules: DocRule[] = [
         path: 'docs/05_DATABASE_ACCESS.md',
         required: ['DbClient', 'BaseDao', 'bun run check:db-boundaries', 'schema re-export leaks'],
         forbidden: ['Universal CRUD base for all DAOs', 'Expose Drizzle database types through public APIs'],
+    },
+    {
+        path: 'docs/06_POLICY_CHECK.md',
+        required: ['Fix Modes', '`rewrite`', '`command`', 'logger', 'bun-test', 'bun run check:policy'],
+        forbidden: ['JSONC is required', 'shell invocation is required'],
     },
 ];
 
