@@ -19,6 +19,52 @@ projects with strict TypeScript, shared contracts, and a generated-project workf
 - **`apps/web`**: Astro 6 web app with React islands, Tailwind CSS v4, and a browser-specific API client wrapper
 - **`scripts/scaffold/templates/webapp`**: scaffold source for restoring the web tier after removal
 
+## Project Initialization
+
+### Option A: New project from starter
+
+Best for greenfield projects. Clone, initialize, and trim to the profile you need.
+
+```bash
+bunx degit gobing-ai/typescript-bun-starter my-project && cd my-project
+bun install
+bun run scaffold:init -- --name my-project --scope @acme --title "My Project"
+bun run check
+```
+
+### Option B: Migrate an existing project
+
+Best for adopting starter patterns into an existing codebase. Install the starter as an npm package, then apply changes incrementally.
+
+```bash
+cd /path/to/existing-project
+
+# Install the starter as a dev dependency
+bun add @gobing-ai/typescript-bun-starter --dev
+
+# Analyze differences between your project and the starter
+bun run migrate:analyze -- \
+  --source node_modules/@gobing-ai/typescript-bun-starter \
+  --target .
+
+# Interactive mode: review diffs and choose per-file actions
+bun run migrate:analyze -- \
+  --source node_modules/@gobing-ai/typescript-bun-starter \
+  --target . \
+  --interactive
+
+# Apply the saved migration plan
+bun run migrate:apply -- --plan migration-plan.json
+
+# Verify the migration
+bun install && bun run typecheck && bun run test
+
+# Remove the starter package when done
+bun remove @gobing-ai/typescript-bun-starter
+```
+
+For detailed migration strategies (pattern adoption, core-first extraction, fresh starter plus port-in), see the [Existing Project Migration Guide](docs/existing-project-migration-guide.md).
+
 ## Starter Profiles
 
 Choose a profile, then use scaffold commands to keep the repo contract aligned:
@@ -31,16 +77,7 @@ Choose a profile, then use scaffold commands to keep the repo contract aligned:
 
 ## Quick Start
 
-### Use as a starter repo
-
-```bash
-bunx degit gobing-ai/typescript-bun-starter my-project && cd my-project
-bun install
-bun run scaffold:init -- --name my-project --scope @acme --title "My Project"
-bun run check
-```
-
-### Use as a compiled CLI later
+### Use as a compiled CLI
 
 ```bash
 bun run build:cli
