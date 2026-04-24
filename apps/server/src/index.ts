@@ -1,12 +1,12 @@
 // @starter/server — entry point
 
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { extname, resolve } from 'node:path';
 import { Writable } from 'node:stream';
 import { swaggerUI } from '@hono/swagger-ui';
-import { OpenAPIHono } from '@hono/zod-openapi';
+import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
-import type { DbAdapterConfig, DbClient } from '@starter/core';
+import type { DbAdapter, DbAdapterConfig, DbClient } from '@starter/core';
 import {
     createDbAdapter,
     createLoggerSinks,
@@ -37,6 +37,152 @@ type ServerEnv = {
 /** Path to the built web assets served by the SPA fallback. */
 export const WEB_DIST_PATH = resolve(process.cwd(), 'apps/web/dist');
 
+const STATIC_ASSET_EXTENSIONS = new Set([
+    '.avif',
+    '.bmp',
+    '.css',
+    '.gif',
+    '.html',
+    '.ico',
+    '.jpeg',
+    '.jpg',
+    '.js',
+    '.json',
+    '.map',
+    '.mjs',
+    '.png',
+    '.svg',
+    '.txt',
+    '.webp',
+    '.woff',
+    '.woff2',
+    '.xml',
+]);
+
+const errorResponseSchema = z
+    .object({
+        error: z.string(),
+        code: z.string().optional(),
+    })
+    .openapi('ErrorResponse');
+
+const healthResponseSchema = z
+    .object({
+        status: z.enum(['ok', 'error']),
+        timestamp: z.string(),
+        version: z.string().optional(),
+    })
+    .openapi('HealthResponse');
+
+const healthEnvelopeSchema = z
+    .object({
+        data: healthResponseSchema,
+    })
+    .openapi('HealthEnvelope');
+
+const skillSchema = z
+    .object({
+        id: z.string(),
+        name: z.string(),
+        description: z.string().nullable(),
+        version: z.number(),
+        config: z.string().nullable(),
+        createdAt: z.number(),
+        updatedAt: z.number(),
+    })
+    .openapi('Skill');
+
+const skillListEnvelopeSchema = z
+    .object({
+        data: z.array(skillSchema),
+    })
+    .openapi('SkillListEnvelope');
+
+const createSkillBodySchema = z
+    .object({
+        name: z.string().min(1),
+    })
+    .openapi('CreateSkillRequest');
+
+const createSkillEnvelopeSchema = z
+    .object({
+        data: z.object({
+            name: z.string(),
+        }),
+    })
+    .openapi('CreateSkillEnvelope');
+
+const apiHealthRoute = createRoute({
+    method: 'get',
+    path: '/api/health',
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: healthEnvelopeSchema,
+                },
+            },
+            description: 'Returns the API health status.',
+        },
+    },
+});
+
+const listSkillsRoute = createRoute({
+    method: 'get',
+    path: '/api/skills',
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: skillListEnvelopeSchema,
+                },
+            },
+            description: 'Returns the persisted skills.',
+        },
+    },
+});
+
+const createSkillRoute = createRoute({
+    method: 'post',
+    path: '/api/skills',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: createSkillBodySchema,
+                },
+            },
+            required: true,
+        },
+    },
+    responses: {
+        201: {
+            content: {
+                'application/json': {
+                    schema: createSkillEnvelopeSchema,
+                },
+            },
+            description: 'Creates a skill record.',
+        },
+        400: {
+            content: {
+                'application/json': {
+                    schema: errorResponseSchema,
+                },
+            },
+            description: 'Invalid request payload.',
+        },
+        500: {
+            content: {
+                'application/json': {
+                    schema: errorResponseSchema,
+                },
+            },
+            description: 'Unexpected server error.',
+        },
+    },
+});
+
 const loggerConfig = getLoggerConfig(process.env);
 
 // Configure LogTape — always to stderr so stdout is never polluted
@@ -59,6 +205,7 @@ initMetrics();
  */
 export function createApp(localDb?: DbClient) {
     const app = new OpenAPIHono<ServerEnv>();
+    let localAdapterPromise: Promise<DbAdapter> | undefined;
 
     // ── Error & Not-Found ────────────────────────────────────────────────
     app.onError(errorHandler());
@@ -126,15 +273,19 @@ export function createApp(localDb?: DbClient) {
             return;
         }
 
-        const dbBinding = c.env.DB;
+        const dbBinding = c.env?.DB;
         if (dbBinding) {
             const adapter = await createDbAdapter({ driver: 'd1', binding: dbBinding });
             c.set('db', adapter.getDb());
         } else {
-            const adapter = await createDbAdapter({
+            localAdapterPromise ??= createDbAdapter({
                 driver: 'bun-sqlite',
                 url: process.env.DATABASE_URL ?? 'data/app.db',
+            }).catch((error) => {
+                localAdapterPromise = undefined;
+                throw error;
             });
+            const adapter = await localAdapterPromise;
             c.set('db', adapter.getDb());
         }
         await next();
@@ -146,31 +297,34 @@ export function createApp(localDb?: DbClient) {
     });
 
     // ── Health (API, no auth required) ───────────────────────────────────
-    app.get('/api/health', (c) => {
-        return c.json({
-            data: {
-                status: 'ok',
-                timestamp: new Date().toISOString(),
+    app.openapi(apiHealthRoute, (c) => {
+        return c.json(
+            {
+                data: {
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                },
             },
-        });
+            200,
+        );
     });
 
     // ── Auth middleware for protected API routes ─────────────────────────
     app.use('/api/skills/*', authMiddleware());
 
     // ── Skill CRUD ───────────────────────────────────────────────────────
-    app.post('/api/skills', async (c) => {
+    app.openapi(createSkillRoute, async (c) => {
         const skillsDao = new SkillsDao(c.get('db'));
-        const body = await c.req.json<{ name: string }>();
+        const body = c.req.valid('json');
         const created = await skillsDao.createSkill({ name: body.name });
 
         return c.json({ data: { name: created.name } }, 201);
     });
 
-    app.get('/api/skills', async (c) => {
+    app.openapi(listSkillsRoute, async (c) => {
         const skillsDao = new SkillsDao(c.get('db'));
         const rows = await skillsDao.listSkills();
-        return c.json({ data: rows });
+        return c.json({ data: rows }, 200);
     });
 
     // ── Swagger UI ───────────────────────────────────────────────────────
@@ -183,15 +337,14 @@ export function createApp(localDb?: DbClient) {
             title: 'TypeScript Bun Starter API',
             version: '0.1.0',
         },
-        paths: {},
     }));
 
     // ── SPA Fallback ─────────────────────────────────────────────────────
     app.get('*', (c) => {
         const path = c.req.path;
 
-        // Skip API routes and paths with file extensions
-        if (path.startsWith('/api/') || path.includes('.')) {
+        // Skip API routes and known static asset paths.
+        if (path.startsWith('/api/') || isStaticAssetPath(path)) {
             return c.notFound();
         }
 
@@ -205,6 +358,11 @@ export function createApp(localDb?: DbClient) {
     });
 
     return app;
+}
+
+function isStaticAssetPath(path: string): boolean {
+    const extension = extname(path).toLowerCase();
+    return STATIC_ASSET_EXTENSIONS.has(extension);
 }
 
 // ── Default export: lazily-created singleton app ─────────────────────────
