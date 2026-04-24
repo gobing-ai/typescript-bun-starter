@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { _resetTelemetry, initTelemetry, shutdownTelemetry } from '@starter/core';
+import { _resetMetrics, _resetTelemetry, initTelemetry, shutdownMetrics, shutdownTelemetry } from '@starter/core';
+import { createTestMetricsProvider, flushAndCollect } from '@starter/core/tests/telemetry/metrics-test-helpers';
 import { createTestDb } from '@starter/core/tests/test-db';
 import serverEntry, { createApp, WEB_DIST_PATH } from '../src/index';
 
@@ -196,7 +197,10 @@ describe('server entry', () => {
 
         const spans = exporter.getFinishedSpans();
         expect(spans.length).toBeGreaterThan(0);
-        expect(spans.some((span) => span.name === 'GET /api/health')).toBe(true);
+        const serverSpan = spans.find((span) => span.name === 'HTTP GET /api/health');
+        expect(serverSpan).toBeDefined();
+        expect(serverSpan?.attributes['server.address']).toBe('localhost');
+        expect(String(serverSpan?.attributes['server.address'] ?? '')).not.toContain('/');
 
         await shutdownTelemetry();
     });
@@ -211,5 +215,26 @@ describe('server entry', () => {
         expect(res.status).toBe(200);
 
         await shutdownTelemetry();
+    });
+
+    test('records request metrics even when a handler throws', async () => {
+        _resetMetrics();
+        const { reader } = createTestMetricsProvider();
+
+        const app = await makeApp();
+        const res = await app.request('/api/skills', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{',
+        });
+
+        expect(res.status).toBe(500);
+
+        const counts = await flushAndCollect(reader);
+        expect(counts.get('http.server.request.total')).toBe(1);
+        expect(counts.get('http.server.request.duration')).toBe(1);
+        expect(counts.get('http.server.request.errors')).toBe(1);
+
+        await shutdownMetrics();
     });
 });
