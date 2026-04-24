@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { createApiClient } from '../src/lib/api-client';
+import { createBrowserApiClient } from '../src/lib/browser-api-client';
 
-describe('api-client', () => {
-    describe('createApiClient', () => {
+describe('browser-api-client', () => {
+    describe('createBrowserApiClient', () => {
         it('should create client with base URL', () => {
-            const client = createApiClient('https://api.example.com');
+            const client = createBrowserApiClient('https://api.example.com');
             expect(client).toBeDefined();
             expect(typeof client.get).toBe('function');
             expect(typeof client.post).toBe('function');
@@ -13,14 +13,14 @@ describe('api-client', () => {
         });
 
         it('should create client without base URL', () => {
-            const client = createApiClient();
+            const client = createBrowserApiClient();
             expect(client).toBeDefined();
             expect(typeof client.get).toBe('function');
         });
 
         it('should return proper ApiResponse structure', async () => {
             // Mock fetch not available in test, but we can verify types
-            const client = createApiClient();
+            const client = createBrowserApiClient();
             const result = await client.get('/test').catch(() => null);
             // The result will be an ApiResponse type when fetch fails
             expect(result).toBeDefined();
