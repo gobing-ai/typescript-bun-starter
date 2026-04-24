@@ -35,20 +35,19 @@ function getErrorMessage(payload: unknown, fallback: string): string {
  * to keep the browser bundle size minimal for normal API usage.
  */
 export function createApiClient(baseUrl: string = '') {
-    const defaultHeaders: HeadersInit = {
-        'Content-Type': 'application/json',
-    };
-
     async function request<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
         const url = `${baseUrl}${path}`;
+        const hasBody = options.body !== undefined;
+        const headers = new Headers(options.headers);
+
+        if (hasBody && !headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/json');
+        }
 
         try {
             const response = await fetch(url, {
                 ...options,
-                headers: {
-                    ...defaultHeaders,
-                    ...options.headers,
-                },
+                headers,
             });
 
             let payload: unknown;
