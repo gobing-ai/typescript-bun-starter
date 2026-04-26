@@ -35,7 +35,7 @@ type ServerEnv = {
 };
 
 /** Path to the built web assets served by the SPA fallback. */
-export const WEB_DIST_PATH = resolve(process.cwd(), 'apps/web/dist');
+export const WEB_DIST_PATH = resolve(process.cwd(), 'dist/web');
 
 const STATIC_ASSET_EXTENSIONS = new Set([
     '.avif',
