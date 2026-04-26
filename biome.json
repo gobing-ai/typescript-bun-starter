@@ -41,6 +41,7 @@
             "!**/drizzle",
             "!**/node_modules",
             "!**/.astro",
+            "!**/.wrangler",
             "!**/apps/server/src/*.js",
             "!**/apps/server/src/**/*.js",
             "!**/.ant-colony"
