@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { existsSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import {
     _resetMetrics,
@@ -37,6 +37,7 @@ async function makeApp() {
 function ensureSpaIndexFixture() {
     const indexPath = resolve(WEB_DIST_PATH, 'index.html');
     if (!existsSync(indexPath)) {
+        mkdirSync(dirname(indexPath), { recursive: true });
         writeFileSync(indexPath, '<!doctype html><html><body>spa fixture</body></html>');
         cleanupFns.push(() => unlinkSync(indexPath));
     }
@@ -174,8 +175,8 @@ describe('server entry', () => {
         expect(body.status).toBe('ok');
     });
 
-    test('resolves static assets from apps/web/dist', () => {
-        expect(WEB_DIST_PATH).toBe(resolve(process.cwd(), 'apps/web/dist'));
+    test('resolves static assets from dist/web', () => {
+        expect(WEB_DIST_PATH).toBe(resolve(process.cwd(), 'dist/web'));
     });
 
     test('SPA fallback returns index.html for non-API paths', async () => {
