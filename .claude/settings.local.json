@@ -15,7 +15,7 @@
             "Bash(grep export:*)",
             "Bash(bunx biome:*)",
             "Bash(bun tsc:*)",
-            "Bash(dist/tbs:*)"
+            "Bash(dist/cli/tbs:*)"
         ]
     }
 }
