@@ -33,6 +33,7 @@ coverage/
 *.lockb
 
 .astro/
+.wrangler/
 /docs/.workflow-runs
 /docs/tasks/kanban.md
 .ant-colony/
