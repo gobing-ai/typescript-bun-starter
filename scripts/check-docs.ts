@@ -32,12 +32,21 @@ const docRules: DocRule[] = [
     },
     {
         path: 'docs/01_ARCHITECTURE_SPEC.md',
-        required: ['Astro 5', 'React islands', 'Tailwind CSS v4', 'packages/contracts', 'scaffold CLI'],
-        forbidden: ['Hono JSX', 'HTMX', 'skill create', 'apps/server/src/views'],
+        required: [
+            'Astro 6',
+            'React islands',
+            'Tailwind CSS v4',
+            'packages/contracts',
+            'scaffold CLI',
+            'Commander.js',
+            'policy driver',
+            'OpenTelemetry',
+        ],
+        forbidden: ['Hono JSX', 'HTMX', 'skill create', 'apps/server/src/views', 'Clipanion'],
     },
     {
         path: 'docs/02_DEVELOPER_SPEC.md',
-        required: ['apps/web', 'Astro 5', 'bun run scaffold:init -- --name my-project --scope @acme', 'bun run check'],
+        required: ['apps/web', 'Astro 6', 'bun run scaffold:init -- --name my-project --scope @acme', 'bun run check'],
         forbidden: ['hono/jsx', 'apps/server/src/views', 'skill create'],
     },
     {
