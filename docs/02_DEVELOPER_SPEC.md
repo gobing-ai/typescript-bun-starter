@@ -7,7 +7,7 @@
 | Tool | Version | Purpose |
 | --- | --- | --- |
 | Bun | 1.x | runtime, package manager, test runner, bundler |
-| TypeScript | 5.7+ | static typing |
+| TypeScript | 6.x | static typing |
 | Biome | 2.x | formatting and linting |
 
 No npm, pnpm, yarn, ESLint, or Prettier in the main path.
@@ -20,7 +20,7 @@ No npm, pnpm, yarn, ESLint, or Prettier in the main path.
 | `packages/core` | shared logic, logging, Drizzle schema, adapters |
 | `apps/cli` | scaffold CLI |
 | `apps/server` | Hono API and Swagger UI |
-| `apps/web` | Astro 5 web app using React islands |
+| `apps/web` | Astro 6 web app using React islands |
 
 ## 3. Daily Commands
 
@@ -150,6 +150,6 @@ The canonical docs checked by `bun run check:docs` are:
 These files must stay aligned on:
 
 - the Bun workspace layout
-- Astro 5 + React islands + Tailwind CSS v4 as the web stack
+- Astro 6 + React islands + Tailwind CSS v4 as the web stack
 - the scaffold-first onboarding flow
 - the generated-project verification story
