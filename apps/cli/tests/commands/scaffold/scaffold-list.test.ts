@@ -1,81 +1,38 @@
 import { describe, expect, it } from 'bun:test';
 import { Writable } from 'node:stream';
-import { Cli } from 'clipanion';
-import { ScaffoldListCommand } from '../../../src/commands/scaffold/scaffold-list';
-import type { ScaffoldService } from '../../../src/commands/scaffold/services/scaffold-service';
+import { formatListHeader, formatListSection } from '../../../src/commands/scaffold/scaffold-list';
 import type { FeatureStatus } from '../../../src/commands/scaffold/types/scaffold';
+import { buildTestProgram } from '../../helpers/test-program';
 
-function createMockWritable(collector: string[]) {
-    return new Writable({
-        write(chunk, _enc, cb) {
-            collector.push(chunk.toString());
-            cb();
-        },
-    });
-}
-
-function makeCli() {
-    const cli = new Cli({ binaryName: 'tbs' });
-    cli.register(ScaffoldListCommand);
-    return cli;
+function createCollector(): { stream: Writable; output: string[] } {
+    const output: string[] = [];
+    return {
+        output,
+        stream: new Writable({
+            write(chunk, _e, cb) {
+                output.push(chunk.toString());
+                cb();
+            },
+        }),
+    };
 }
 
 describe('ScaffoldListCommand', () => {
-    describe('path registration', () => {
-        it('should register with correct path', () => {
-            expect(ScaffoldListCommand.paths).toEqual([['scaffold', 'list']]);
-        });
-    });
-
-    describe('usage', () => {
-        it('should have correct category', () => {
-            expect(ScaffoldListCommand.usage.category).toBe('Scaffold');
-        });
-
-        it('should have description', () => {
-            expect(ScaffoldListCommand.usage.description).toBeTruthy();
-        });
-
-        it('should mention add/remove commands', () => {
-            const details = ScaffoldListCommand.usage.details ?? '';
-            expect(details).toContain('add');
-            expect(details).toContain('remove');
-        });
-
-        it('should have examples', () => {
-            expect(ScaffoldListCommand.usage.examples?.length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('options', () => {
-        it('should have --json flag (inherited)', () => {
-            const cmd = new ScaffoldListCommand();
-            expect((cmd as unknown as { json: unknown }).json).toBeDefined();
-        });
-    });
-
-    describe('output format', () => {
-        it('should format header correctly', () => {
-            const text = 'Test Header';
-            const line = '═'.repeat(text.length + 4);
-            const expected = `${line}\n  ${text}\n${line}`;
-            expect(expected).toContain('Test Header');
-        });
-
-        it('should show status indicators', () => {
-            // Verify the format uses ✓ for installed and ○ for not installed
-            expect('✓').toBeDefined();
-            expect('○').toBeDefined();
+    describe('command registration', () => {
+        it('should register scaffold list command', () => {
+            const { program } = buildTestProgram();
+            const scaffold = program.commands.find((c) => c.name() === 'scaffold');
+            expect(scaffold).toBeDefined();
+            const list = scaffold?.commands.find((c) => c.name() === 'list');
+            expect(list).toBeDefined();
+            expect(list?.description()).toContain('List available');
         });
     });
 
     describe('formatHeader', () => {
         it('should format header with border lines', () => {
-            const cmd = new ScaffoldListCommand();
-            const result = cmd.formatHeader('Test Title');
+            const result = formatListHeader('Test Title');
             const lines = result.split('\n');
-
-            // Should have top border, title, and bottom border
             expect(lines.length).toBe(3);
             expect(lines[0]).toContain('═');
             expect(lines[1]).toContain('Test Title');
@@ -83,192 +40,114 @@ describe('ScaffoldListCommand', () => {
         });
 
         it('should handle short text', () => {
-            const cmd = new ScaffoldListCommand();
-            const result = cmd.formatHeader('Hi');
+            const result = formatListHeader('Hi');
             expect(result).toContain('Hi');
             expect(result).toContain('═');
         });
 
         it('should handle long text', () => {
-            const cmd = new ScaffoldListCommand();
             const longText = 'A'.repeat(50);
-            const result = cmd.formatHeader(longText);
+            const result = formatListHeader(longText);
             expect(result).toContain(longText);
         });
     });
 
     describe('formatSection', () => {
         it('should format section with title', () => {
-            const cmd = new ScaffoldListCommand();
             const features: FeatureStatus[] = [{ name: 'test', description: 'Test feature', installed: true }];
-            const result = cmd.formatSection('Test Section', features, true);
+            const result = formatListSection('Test Section', features, true);
             expect(result).toContain('Test Section');
             expect(result).toContain('test');
             expect(result).toContain('Test feature');
         });
 
         it('should show ✓ for always installed features', () => {
-            const cmd = new ScaffoldListCommand();
             const features: FeatureStatus[] = [{ name: 'required', description: 'Required feature', installed: true }];
-            const result = cmd.formatSection('Required', features, true);
+            const result = formatListSection('Required', features, true);
             expect(result).toContain('✓');
         });
 
         it('should show ○ for not installed optional features', () => {
-            const cmd = new ScaffoldListCommand();
             const features: FeatureStatus[] = [{ name: 'optional', description: 'Optional feature', installed: false }];
-            const result = cmd.formatSection('Optional', features, false);
+            const result = formatListSection('Optional', features, false);
             expect(result).toContain('○');
         });
 
         it('should show [✓] for installed optional features', () => {
-            const cmd = new ScaffoldListCommand();
             const features: FeatureStatus[] = [
                 { name: 'cli', description: 'CLI app', installed: true, workspacePath: 'apps/cli' },
             ];
-            const result = cmd.formatSection('Optional', features, false);
+            const result = formatListSection('Optional', features, false);
             expect(result).toContain('[✓]');
         });
 
         it('should include workspace path when present', () => {
-            const cmd = new ScaffoldListCommand();
             const features: FeatureStatus[] = [
                 { name: 'cli', description: 'CLI app', installed: true, workspacePath: 'apps/cli' },
             ];
-            const result = cmd.formatSection('Optional', features, false);
+            const result = formatListSection('Optional', features, false);
             expect(result).toContain('apps/cli');
         });
 
         it('should handle empty feature list', () => {
-            const cmd = new ScaffoldListCommand();
-            const result = cmd.formatSection('Empty', [], false);
+            const result = formatListSection('Empty', [], false);
             expect(result).toContain('Empty');
         });
 
         it('should pad feature names', () => {
-            const cmd = new ScaffoldListCommand();
             const features: FeatureStatus[] = [
                 { name: 'ab', description: 'Short name', installed: false },
                 { name: 'abcdefghij', description: 'Long name', installed: false },
             ];
-            const result = cmd.formatSection('Test', features, false);
-            // Both feature names should be padded to same width
+            const result = formatListSection('Test', features, false);
             expect(result).toContain('ab          ');
         });
     });
 
-    describe('isInstalled', () => {
-        it('should return true for workspace feature if path exists', () => {
-            const cmd = new ScaffoldListCommand();
-            const isInstalled = (cmd as unknown as { isInstalled: (f: string, s: ScaffoldService) => boolean })
-                .isInstalled;
-
-            const mockService = {
-                exists: (_path: string) => true,
-            } as unknown as ScaffoldService;
-
-            expect(isInstalled('cli', mockService)).toBe(true);
-        });
-
-        it('should return false for unknown feature without workspace', () => {
-            const cmd = new ScaffoldListCommand();
-            const isInstalled = (cmd as unknown as { isInstalled: (f: string, s: ScaffoldService) => boolean })
-                .isInstalled;
-
-            const mockService = {
-                exists: (_path: string) => true,
-            } as unknown as ScaffoldService;
-
-            // 'unknown' has no workspacePath and no special handling
-            expect(isInstalled('unknown', mockService)).toBe(false);
-        });
-    });
-
-    describe('execute', () => {
-        it('should return 0 for successful execution', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'list'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldListCommand;
-
-            const exitCode = await cmd.execute();
-            expect(exitCode).toBe(0);
-        });
-
-        it('should output text format by default', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'list'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldListCommand;
-
-            await cmd.execute();
-
-            const output = stdout.join('');
-            // Should contain section headers
-            expect(output).toContain('Required');
-            expect(output).toContain('Optional');
-            expect(output).toContain('Usage');
+    describe('execute (integration)', () => {
+        it('should output text format with section headers', async () => {
+            const { stream, output } = createCollector();
+            const { program } = buildTestProgram(stream, stream);
+            await program.parseAsync(['scaffold', 'list'], { from: 'user' });
+            const result = output.join('');
+            expect(result).toContain('Required');
+            expect(result).toContain('Optional');
+            expect(result).toContain('Usage');
         });
 
         it('should show all required features', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'list'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldListCommand;
-
-            await cmd.execute();
-
-            const output = stdout.join('');
-            // Should contain contracts and core as required features
-            expect(output).toContain('contracts');
-            expect(output).toContain('core');
+            const { stream, output } = createCollector();
+            const { program } = buildTestProgram(stream, stream);
+            await program.parseAsync(['scaffold', 'list'], { from: 'user' });
+            const result = output.join('');
+            expect(result).toContain('contracts');
+            expect(result).toContain('core');
         });
 
         it('should show optional features', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'list'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldListCommand;
-
-            await cmd.execute();
-
-            const output = stdout.join('');
-            // Should contain optional features (cli, server, webapp)
-            expect(output).toContain('cli');
-            expect(output).toContain('server');
-            expect(output).toContain('webapp');
+            const { stream, output } = createCollector();
+            const { program } = buildTestProgram(stream, stream);
+            await program.parseAsync(['scaffold', 'list'], { from: 'user' });
+            const result = output.join('');
+            expect(result).toContain('cli');
+            expect(result).toContain('server');
+            expect(result).toContain('webapp');
         });
 
         it('should show usage hints', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'list'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldListCommand;
-
-            await cmd.execute();
-
-            const output = stdout.join('');
-            expect(output).toContain('scaffold add');
-            expect(output).toContain('scaffold remove');
+            const { stream, output } = createCollector();
+            const { program } = buildTestProgram(stream, stream);
+            await program.parseAsync(['scaffold', 'list'], { from: 'user' });
+            const result = output.join('');
+            expect(result).toContain('scaffold add');
+            expect(result).toContain('scaffold remove');
         });
 
         it('should output JSON when --json flag is set', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'list', '--json'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldListCommand;
-
-            await cmd.execute();
-
-            const output = stdout.join('');
-            const json = JSON.parse(output);
-
+            const { stream, output } = createCollector();
+            const { program } = buildTestProgram(stream, stream);
+            await program.parseAsync(['scaffold', 'list', '--json'], { from: 'user' });
+            const json = JSON.parse(output.join(''));
             expect(json.required).toBeDefined();
             expect(json.optional).toBeDefined();
             expect(Array.isArray(json.required)).toBe(true);
@@ -276,18 +155,10 @@ describe('ScaffoldListCommand', () => {
         });
 
         it('should mark all required features as installed', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'list', '--json'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldListCommand;
-
-            await cmd.execute();
-
-            const output = stdout.join('');
-            const json = JSON.parse(output);
-
-            // All required features should be marked as installed
+            const { stream, output } = createCollector();
+            const { program } = buildTestProgram(stream, stream);
+            await program.parseAsync(['scaffold', 'list', '--json'], { from: 'user' });
+            const json = JSON.parse(output.join(''));
             for (const feature of json.required) {
                 expect(feature.installed).toBe(true);
                 expect(feature.name).toBeDefined();
@@ -296,18 +167,10 @@ describe('ScaffoldListCommand', () => {
         });
 
         it('should include workspace paths for workspace features', async () => {
-            const cli = makeCli();
-            const stdout: string[] = [];
-            const cmd = cli.process(['scaffold', 'list', '--json'], {
-                stdout: createMockWritable(stdout),
-            }) as ScaffoldListCommand;
-
-            await cmd.execute();
-
-            const output = stdout.join('');
-            const json = JSON.parse(output);
-
-            // Optional features with workspace should have workspacePath
+            const { stream, output } = createCollector();
+            const { program } = buildTestProgram(stream, stream);
+            await program.parseAsync(['scaffold', 'list', '--json'], { from: 'user' });
+            const json = JSON.parse(output.join(''));
             for (const feature of json.optional) {
                 if (feature.name === 'cli' || feature.name === 'server' || feature.name === 'webapp') {
                     expect(feature.workspacePath).toBeDefined();
