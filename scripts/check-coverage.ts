@@ -33,10 +33,14 @@ const NO_TEST_REQUIRED = new Set([
     // apps/cli
     'apps/cli/src/index.ts', // entry point (CLI wiring + LogTape config)
     'apps/cli/src/config.ts', // pure as-const constants
-    // apps/cli/scaffold (new scaffold commands - unit tested, need integration tests)
-    'apps/cli/src/commands/scaffold/base-scaffold-command.ts', // abstract base class
+    // apps/cli/scaffold (commander.js commands — action handlers need integration env)
+    'apps/cli/src/commands/scaffold/index.ts', // registration hub (barrel)
     'apps/cli/src/commands/scaffold/scaffold-add.ts', // scaffold add command
+    'apps/cli/src/commands/scaffold/scaffold-init.ts', // scaffold init command
+    'apps/cli/src/commands/scaffold/scaffold-list.ts', // scaffold list command
+    'apps/cli/src/commands/scaffold/scaffold-remove.ts', // scaffold remove command
     'apps/cli/src/commands/scaffold/scaffold-validate.ts', // scaffold validate command
+    'apps/cli/src/commands/scaffold/types/scaffold.ts', // type-only definitions
     'apps/cli/src/commands/scaffold/services/scaffold-service.ts', // scaffold service (file operations)
     'apps/cli/src/commands/scaffold/features/registry.ts', // feature registry (static data)
     // apps/server
