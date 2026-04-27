@@ -1,294 +1,266 @@
+import type { Command } from '@commander-js/extra-typings';
 import { echoError } from '@starter/core';
-import { Command, Option } from 'clipanion';
-import { BaseScaffoldCommand } from './base-scaffold-command';
+import { formatDryRunPreview, writeOutput, writeSuccess } from './scaffold-output';
 import { ScaffoldService } from './services/scaffold-service';
 import type { ContractFile, ProjectIdentity, ScaffoldInitOptions } from './types/scaffold';
 
-export class ScaffoldInitCommand extends BaseScaffoldCommand {
-    static override paths = [['scaffold', 'init']];
+/** Minimum length for a replacement token (avoids false matches on short slugs). */
+const MIN_REPLACEMENT_LENGTH = 3;
 
-    static override usage = Command.Usage({
-        category: 'Scaffold',
-        description: 'Initialize project identity (name, scope, branding)',
-        details: `
-            This command customizes the starter for your project by updating:
-            - Project identity (name, slug, branding)
-            - NPM scope (@scope/package-name)
-            - Repository URL
-            - Binary name for the CLI
+// ---------------------------------------------------------------------------
+// Registration
+// ---------------------------------------------------------------------------
 
-            All text files in the project are updated with the new identity.
-        `,
-        examples: [
-            ['Initialize with required args', 'tbs scaffold init --name my-project --scope @myorg'],
-            ['Preview changes', 'tbs scaffold init --name my-project --scope @myorg --dry-run'],
-            ['JSON mode', 'tbs scaffold init --name my-project --scope @myorg --json'],
-        ],
-    });
+export function registerInitCommand(
+    scaffold: Command,
+    out: NodeJS.WritableStream = process.stdout,
+    err: NodeJS.WritableStream = process.stderr,
+): void {
+    scaffold
+        .command('init')
+        .description('Initialize project identity (name, scope, branding)')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tbs scaffold init --name my-project --scope @myorg
+  tbs scaffold init --name my-project --scope @myorg --dry-run
+  tbs scaffold init --name my-project --scope @myorg --json`,
+        )
+        .option('--name <slug>', 'Project slug (kebab-case, required)')
+        .option('--title <title>', 'Display name (Title Case)')
+        .option('--brand <brand>', 'Short brand name')
+        .option('--scope <scope>', 'NPM scope (e.g., @myorg, required)')
+        .option('--repo-url <url>', 'Repository URL')
+        .option('--bin <name>', 'CLI binary name (default: tbs)')
+        .option('--skip-check', 'Skip post-init verification')
+        .option('--dry-run', 'Preview changes without applying')
+        .option('--json', 'Output as JSON (agent mode)')
+        .action(async (opts) => {
+            const isJson = opts.json ?? false;
+            const service = new ScaffoldService();
 
-    name = Option.String('--name', {
-        description: 'Project slug (kebab-case, required)',
-        required: false,
-    });
+            const options = collectInitOptions(opts, service, isJson);
+            const validation = validateInitOptions(options);
+            if (!validation.ok) {
+                process.exitCode = writeOutput(out, err, isJson, null, validation.error);
+                return;
+            }
 
-    title = Option.String('--title', {
-        description: 'Display name (Title Case, default: derived from --name)',
-        required: false,
-    });
+            const identity = computeIdentity(options, service);
+            const pendingWrites = stageInitChanges(service, identity, err);
+            const filesToChange = [...pendingWrites.keys()].sort();
 
-    brand = Option.String('--brand', {
-        description: 'Short brand name (default: derived from --title)',
-        required: false,
-    });
+            if (opts.dryRun) {
+                process.exitCode = writeOutput(out, err, isJson, {
+                    files: filesToChange,
+                    preview: formatDryRunPreview(filesToChange, 'write'),
+                });
+                return;
+            }
 
-    scope = Option.String('--scope', {
-        description: 'NPM scope (e.g., @myorg, required)',
-        required: false,
-    });
+            for (const [relPath, content] of pendingWrites) {
+                service.writeFile(relPath, content);
+            }
 
-    repoUrl = Option.String('--repo-url', {
-        description: 'Repository URL',
-        required: false,
-    });
+            await runPostInitScripts(service, options, err);
 
-    bin = Option.String('--bin', {
-        description: 'CLI binary name (default: tbs)',
-        required: false,
-    });
+            writeSuccess(out, isJson, `Project initialized: ${identity.displayName}`);
+            writeOutput(out, err, isJson, { success: true, files: filesToChange });
+        });
+}
 
-    skipCheck = Option.Boolean('--skip-check', false, {
-        description: 'Skip post-init verification',
-    });
+// ---------------------------------------------------------------------------
+// Module-level functions (exported for testing)
+// ---------------------------------------------------------------------------
 
-    async execute(): Promise<number> {
-        const service = new ScaffoldService();
-
-        // 1. Collect options (prompt for missing in non-JSON mode)
-        const options = await this.collectOptions(service);
-
-        // 2. Validate options
-        const validation = this.validateOptions(options);
-        if (!validation.ok) {
-            return this.writeOutput(null, validation.error);
-        }
-
-        // 3. Compute new identity
-        const identity = this.computeIdentity(options, service);
-
-        // 4. Stage changes
-        const pendingWrites = this.stageChanges(service, identity);
-        const filesToChange = [...pendingWrites.keys()].sort();
-
-        // 5. Dry-run mode
-        if (this.dryRun) {
-            return this.writeOutput({
-                files: filesToChange,
-                preview: this.formatDryRunPreview(filesToChange, 'write'),
-            });
-        }
-
-        // 6. Apply changes
-        for (const [relPath, content] of pendingWrites) {
-            service.writeFile(relPath, content);
-        }
-
-        // 7. Run post-init scripts
-        await this.runPostInitScripts(service, options);
-
-        this.writeSuccess(`Project initialized: ${identity.displayName}`);
-        return this.writeOutput({ success: true, files: filesToChange });
-    }
-
-    /** @internal */
-    public async collectOptions(service: ScaffoldService): Promise<ScaffoldInitOptions> {
-        if (this.json) {
-            // JSON mode: all required
-            return {
-                ...(this.name ? { name: this.name } : {}),
-                ...(this.title ? { title: this.title } : {}),
-                ...(this.brand ? { brand: this.brand } : {}),
-                ...(this.scope ? { scope: this.scope } : {}),
-                ...(this.repoUrl ? { repoUrl: this.repoUrl } : {}),
-                ...(this.bin ? { bin: this.bin } : {}),
-                dryRun: this.dryRun,
-                skipCheck: this.skipCheck,
-            };
-        }
-
-        // Interactive mode: prompt for missing required values.
-        // NOTE: Real interactive prompting is not yet implemented.
-        // Missing required fields without defaults will throw.
-        const slug = this.name ?? this.promptText('Project slug (kebab-case, e.g., my-project)');
-        const displayTitle = this.title ?? service.toTitleCase(slug);
-        const brandName = this.brand ?? displayTitle;
-        const npmScope = this.scope ?? this.promptText('NPM scope (e.g., @myorg)', '@myorg');
-
+export function collectInitOptions(
+    opts: {
+        name?: string;
+        title?: string;
+        brand?: string;
+        scope?: string;
+        repoUrl?: string;
+        bin?: string;
+        dryRun?: boolean;
+        skipCheck?: boolean;
+        json?: boolean;
+    },
+    service: ScaffoldService,
+    isJson: boolean,
+): ScaffoldInitOptions {
+    if (isJson) {
         return {
-            name: slug,
-            title: displayTitle,
-            brand: brandName,
-            scope: npmScope,
-            ...(this.repoUrl ? { repoUrl: this.repoUrl } : {}),
-            ...(this.bin ? { bin: this.bin } : {}),
-            dryRun: this.dryRun,
-            skipCheck: this.skipCheck,
+            ...(opts.name ? { name: opts.name } : {}),
+            ...(opts.title ? { title: opts.title } : {}),
+            ...(opts.brand ? { brand: opts.brand } : {}),
+            ...(opts.scope ? { scope: opts.scope } : {}),
+            ...(opts.repoUrl ? { repoUrl: opts.repoUrl } : {}),
+            ...(opts.bin ? { bin: opts.bin } : {}),
+            dryRun: opts.dryRun ?? false,
+            skipCheck: opts.skipCheck ?? false,
         };
     }
 
-    /** @internal */
-    public promptText(label: string, defaultValue?: string): string {
-        // For simplicity, require flags in interactive mode too
-        // In a full implementation, you'd use an interactive prompt library
-        if (defaultValue) {
-            return defaultValue;
+    const slug = opts.name ?? promptTextForInit('Project slug (kebab-case, e.g., my-project)');
+    const displayTitle = opts.title ?? service.toTitleCase(slug);
+    const brandName = opts.brand ?? displayTitle;
+    const npmScope = opts.scope ?? promptTextForInit('NPM scope (e.g., @myorg)', '@myorg');
+
+    return {
+        name: slug,
+        title: displayTitle,
+        brand: brandName,
+        scope: npmScope,
+        ...(opts.repoUrl ? { repoUrl: opts.repoUrl } : {}),
+        ...(opts.bin ? { bin: opts.bin } : {}),
+        dryRun: opts.dryRun ?? false,
+        skipCheck: opts.skipCheck ?? false,
+    };
+}
+
+export function promptTextForInit(label: string, defaultValue?: string): string {
+    if (defaultValue) {
+        return defaultValue;
+    }
+    throw new Error(`${label} is required. Use --${label.replace(/ /g, '-')} flag or run in --json mode.`);
+}
+
+export function validateInitOptions(options: ScaffoldInitOptions): { ok: true } | { ok: false; error: string } {
+    if (!options.name) {
+        return { ok: false, error: '--name is required' };
+    }
+    if (!options.scope) {
+        return { ok: false, error: '--scope is required' };
+    }
+    if (!options.scope.startsWith('@')) {
+        return { ok: false, error: '--scope must start with @' };
+    }
+    if (options.name.includes('@')) {
+        return { ok: false, error: '--name should be a slug, not an NPM package name' };
+    }
+    return { ok: true };
+}
+
+export function computeIdentity(options: ScaffoldInitOptions, service: ScaffoldService): ProjectIdentity {
+    const slug = service.slugify(options.name ?? '');
+    const title = options.title ?? service.toTitleCase(slug);
+    const brand = options.brand ?? title;
+    const scope = service.normalizeScope(options.scope ?? '');
+    const bin = options.bin ?? 'tbs';
+
+    return {
+        displayName: title,
+        brandName: brand,
+        projectSlug: slug,
+        rootPackageName: `${scope}/${slug}-starter`,
+        repositoryUrl: options.repoUrl ?? `https://github.com/${scope.slice(1)}/${slug}`,
+        binaryName: bin,
+        binaryLabel: brand,
+        apiTitle: `${brand} API`,
+        webDescription: `${brand} WebApp`,
+    };
+}
+
+export function stageInitChanges(
+    service: ScaffoldService,
+    identity: ProjectIdentity,
+    stderr: NodeJS.WritableStream = process.stderr,
+): Map<string, string> {
+    const pendingWrites = new Map<string, string>();
+
+    const contract = service.readJson<ContractFile>('contracts/project-contracts.json');
+    const currentIdentity = contract.projectIdentity;
+
+    const replacements: Array<[string, string]> = [
+        [currentIdentity.displayName, identity.displayName],
+        [currentIdentity.brandName, identity.brandName],
+        [currentIdentity.projectSlug, identity.projectSlug],
+        [currentIdentity.rootPackageName, identity.rootPackageName],
+        [currentIdentity.repositoryUrl, identity.repositoryUrl],
+        [currentIdentity.binaryName, identity.binaryName],
+        [currentIdentity.binaryLabel, identity.binaryLabel],
+        [currentIdentity.apiTitle, identity.apiTitle],
+        [currentIdentity.webDescription, identity.webDescription],
+    ];
+
+    contract.projectIdentity = identity;
+    pendingWrites.set('contracts/project-contracts.json', `${JSON.stringify(contract, null, 4)}\n`);
+
+    const packageJson = service.readJson<Record<string, unknown>>('package.json');
+    packageJson.name = identity.rootPackageName;
+    pendingWrites.set('package.json', `${JSON.stringify(packageJson, null, 4)}\n`);
+
+    const textFiles = service.collectTextFilePaths();
+    for (const relPath of textFiles) {
+        const content = service.readFile(relPath);
+        const updated = replaceInContent(content, replacements, stderr);
+        if (updated !== content) {
+            pendingWrites.set(relPath, updated);
         }
-        throw new Error(`${label} is required. Use --${label.replace(/ /g, '-')} flag or run in --json mode.`);
     }
 
-    /** @internal */
-    public validateOptions(options: ScaffoldInitOptions): { ok: true } | { ok: false; error: string } {
-        if (!options.name) {
-            return { ok: false, error: '--name is required' };
+    return pendingWrites;
+}
+
+export function replaceInContent(
+    content: string,
+    replacements: Array<[string, string]>,
+    stderr: NodeJS.WritableStream = process.stderr,
+): string {
+    let updated = content;
+    for (const [from, to] of replacements) {
+        if (!from || from === to) {
+            continue;
         }
-        if (!options.scope) {
-            return { ok: false, error: '--scope is required' };
+        if (from.length < MIN_REPLACEMENT_LENGTH) {
+            echoError(
+                `Warning: skipping replacement of "${from}" → "${to}" — token shorter than ` +
+                    `${MIN_REPLACEMENT_LENGTH} chars would match too aggressively.`,
+                stderr,
+            );
+            continue;
         }
-        if (!options.scope.startsWith('@')) {
-            return { ok: false, error: '--scope must start with @' };
-        }
-        if (options.name.includes('@')) {
-            return { ok: false, error: '--name should be a slug, not an NPM package name' };
-        }
-        return { ok: true };
+        updated = updated.replaceAll(from, to);
+    }
+    return updated;
+}
+
+export async function runPostInitScripts(
+    service: ScaffoldService,
+    options: ScaffoldInitOptions,
+    stderr: NodeJS.WritableStream = process.stderr,
+): Promise<void> {
+    if (options.skipCheck) {
+        return;
     }
 
-    /** @internal */
-    public computeIdentity(options: ScaffoldInitOptions, service: ScaffoldService): ProjectIdentity {
-        const slug = service.slugify(options.name ?? '');
-        const title = options.title ?? service.toTitleCase(slug);
-        const brand = options.brand ?? title;
-        const scope = service.normalizeScope(options.scope ?? '');
-        const bin = options.bin ?? 'tbs';
+    const { spawnSync } = await import('node:child_process');
 
-        return {
-            displayName: title,
-            brandName: brand,
-            projectSlug: slug,
-            rootPackageName: `${scope}/${slug}-starter`,
-            repositoryUrl: options.repoUrl ?? `https://github.com/${scope.slice(1)}/${slug}`,
-            binaryName: bin,
-            binaryLabel: brand,
-            apiTitle: `${brand} API`,
-            webDescription: `${brand} WebApp`,
-        };
-    }
+    const steps: Array<{ label: string; cmd: string; args: string[] }> = [
+        { label: 'bun install', cmd: 'bun', args: ['install'] },
+        { label: 'bun run generate:instructions', cmd: 'bun', args: ['run', 'generate:instructions'] },
+        { label: 'biome format --write .', cmd: './node_modules/.bin/biome', args: ['format', '--write', '.'] },
+        { label: 'bun run check', cmd: 'bun', args: ['run', 'check'] },
+    ];
 
-    /** @internal */
-    public stageChanges(service: ScaffoldService, identity: ProjectIdentity): Map<string, string> {
-        const pendingWrites = new Map<string, string>();
+    for (const step of steps) {
+        const result = spawnSync(step.cmd, step.args, {
+            cwd: service.getRoot(),
+            stdio: 'inherit',
+        });
 
-        // Read current contract
-        const contract = service.readJson<ContractFile>('contracts/project-contracts.json');
-        const currentIdentity = contract.projectIdentity;
-
-        // Build replacement pairs
-        const replacements: Array<[string, string]> = [
-            [currentIdentity.displayName, identity.displayName],
-            [currentIdentity.brandName, identity.brandName],
-            [currentIdentity.projectSlug, identity.projectSlug],
-            [currentIdentity.rootPackageName, identity.rootPackageName],
-            [currentIdentity.repositoryUrl, identity.repositoryUrl],
-            [currentIdentity.binaryName, identity.binaryName],
-            [currentIdentity.binaryLabel, identity.binaryLabel],
-            [currentIdentity.apiTitle, identity.apiTitle],
-            [currentIdentity.webDescription, identity.webDescription],
-        ];
-
-        // Update contract JSON
-        contract.projectIdentity = identity;
-        pendingWrites.set('contracts/project-contracts.json', `${JSON.stringify(contract, null, 4)}\n`);
-
-        // Update root package.json
-        const packageJson = service.readJson<Record<string, unknown>>('package.json');
-        packageJson.name = identity.rootPackageName;
-        pendingWrites.set('package.json', `${JSON.stringify(packageJson, null, 4)}\n`);
-
-        // Update all text files
-        const textFiles = service.collectTextFilePaths();
-        for (const relPath of textFiles) {
-            const content = service.readFile(relPath);
-            const updated = this.replaceInContent(content, replacements);
-            if (updated !== content) {
-                pendingWrites.set(relPath, updated);
-            }
+        if (result.error) {
+            echoError(`Warning: post-init step "${step.label}" failed to start: ${result.error.message}`, stderr);
+            continue;
         }
-
-        return pendingWrites;
-    }
-
-    /**
-     * Minimum length for a replacement token. Very short tokens (e.g. a
-     * single-letter slug) match too aggressively and would corrupt unrelated
-     * identifiers when applied across every text file in the project.
-     * @internal
-     */
-    public static readonly MIN_REPLACEMENT_LENGTH = 3;
-
-    /** @internal */
-    public replaceInContent(content: string, replacements: Array<[string, string]>): string {
-        let updated = content;
-        for (const [from, to] of replacements) {
-            if (!from || from === to) {
-                continue;
-            }
-            if (from.length < ScaffoldInitCommand.MIN_REPLACEMENT_LENGTH) {
-                echoError(
-                    `Warning: skipping replacement of "${from}" → "${to}" — token shorter than ` +
-                        `${ScaffoldInitCommand.MIN_REPLACEMENT_LENGTH} chars would match too aggressively.`,
-                    this.context.stderr,
-                );
-                continue;
-            }
-            updated = updated.replaceAll(from, to);
-        }
-        return updated;
-    }
-
-    /** @internal */
-    public async runPostInitScripts(service: ScaffoldService, options: ScaffoldInitOptions): Promise<void> {
-        if (options.skipCheck) {
-            return;
-        }
-
-        const { spawnSync } = await import('node:child_process');
-
-        const steps: Array<{ label: string; cmd: string; args: string[] }> = [
-            { label: 'bun install', cmd: 'bun', args: ['install'] },
-            { label: 'bun run generate:instructions', cmd: 'bun', args: ['run', 'generate:instructions'] },
-            { label: 'biome format --write .', cmd: './node_modules/.bin/biome', args: ['format', '--write', '.'] },
-            { label: 'bun run check', cmd: 'bun', args: ['run', 'check'] },
-        ];
-
-        for (const step of steps) {
-            const result = spawnSync(step.cmd, step.args, {
-                cwd: service.getRoot(),
-                stdio: 'inherit',
-            });
-            if (result.error) {
-                echoError(
-                    `Warning: post-init step "${step.label}" failed to start: ${result.error.message}`,
-                    this.context.stderr,
-                );
-                continue;
-            }
-            const status = result.status ?? 1;
-            if (status !== 0) {
-                echoError(
-                    `Warning: post-init step "${step.label}" exited with code ${status}. ` +
-                        'Run it manually to finish project initialization.',
-                    this.context.stderr,
-                );
-            }
+        const status = result.status ?? 1;
+        if (status !== 0) {
+            echoError(
+                `Warning: post-init step "${step.label}" exited with code ${status}. ` +
+                    'Run it manually to finish project initialization.',
+                stderr,
+            );
         }
     }
 }
