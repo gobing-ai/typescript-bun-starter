@@ -1,6 +1,5 @@
-import type { Command } from '@commander-js/extra-typings';
 import { echoError } from '@starter/core';
-import { formatDryRunPreview, writeOutput, writeSuccess } from './scaffold-output';
+import { formatDryRunPreview, writeOutput, writeSuccess } from '../../ui/output';
 import { ScaffoldService } from './services/scaffold-service';
 import type { ContractFile, ProjectIdentity, ScaffoldInitOptions } from './types/scaffold';
 
@@ -8,66 +7,56 @@ import type { ContractFile, ProjectIdentity, ScaffoldInitOptions } from './types
 const MIN_REPLACEMENT_LENGTH = 3;
 
 // ---------------------------------------------------------------------------
-// Registration
+// Action (invoked by commander wiring in scaffold/index.ts)
 // ---------------------------------------------------------------------------
 
-export function registerInitCommand(
-    scaffold: Command,
+export interface InitActionOpts {
+    name?: string;
+    title?: string;
+    brand?: string;
+    scope?: string;
+    repoUrl?: string;
+    bin?: string;
+    skipCheck?: boolean;
+    dryRun?: boolean;
+    json?: boolean;
+}
+
+export async function scaffoldInitAction(
+    opts: InitActionOpts,
     out: NodeJS.WritableStream = process.stdout,
     err: NodeJS.WritableStream = process.stderr,
-): void {
-    scaffold
-        .command('init')
-        .description('Initialize project identity (name, scope, branding)')
-        .addHelpText(
-            'after',
-            `
-Examples:
-  tbs scaffold init --name my-project --scope @myorg
-  tbs scaffold init --name my-project --scope @myorg --dry-run
-  tbs scaffold init --name my-project --scope @myorg --json`,
-        )
-        .option('--name <slug>', 'Project slug (kebab-case, required)')
-        .option('--title <title>', 'Display name (Title Case)')
-        .option('--brand <brand>', 'Short brand name')
-        .option('--scope <scope>', 'NPM scope (e.g., @myorg, required)')
-        .option('--repo-url <url>', 'Repository URL')
-        .option('--bin <name>', 'CLI binary name (default: tbs)')
-        .option('--skip-check', 'Skip post-init verification')
-        .option('--dry-run', 'Preview changes without applying')
-        .option('--json', 'Output as JSON (agent mode)')
-        .action(async (opts) => {
-            const isJson = opts.json ?? false;
-            const service = new ScaffoldService();
+): Promise<void> {
+    const isJson = opts.json ?? false;
+    const service = new ScaffoldService();
 
-            const options = collectInitOptions(opts, service, isJson);
-            const validation = validateInitOptions(options);
-            if (!validation.ok) {
-                process.exitCode = writeOutput(out, err, isJson, null, validation.error);
-                return;
-            }
+    const options = collectInitOptions(opts, service, isJson);
+    const validation = validateInitOptions(options);
+    if (!validation.ok) {
+        process.exitCode = writeOutput(out, err, isJson, null, validation.error);
+        return;
+    }
 
-            const identity = computeIdentity(options, service);
-            const pendingWrites = stageInitChanges(service, identity, err);
-            const filesToChange = [...pendingWrites.keys()].sort();
+    const identity = computeIdentity(options, service);
+    const pendingWrites = stageInitChanges(service, identity, err);
+    const filesToChange = [...pendingWrites.keys()].sort();
 
-            if (opts.dryRun) {
-                process.exitCode = writeOutput(out, err, isJson, {
-                    files: filesToChange,
-                    preview: formatDryRunPreview(filesToChange, 'write'),
-                });
-                return;
-            }
-
-            for (const [relPath, content] of pendingWrites) {
-                service.writeFile(relPath, content);
-            }
-
-            await runPostInitScripts(service, options, err);
-
-            writeSuccess(out, isJson, `Project initialized: ${identity.displayName}`);
-            writeOutput(out, err, isJson, { success: true, files: filesToChange });
+    if (opts.dryRun) {
+        process.exitCode = writeOutput(out, err, isJson, {
+            files: filesToChange,
+            preview: formatDryRunPreview(filesToChange, 'write'),
         });
+        return;
+    }
+
+    for (const [relPath, content] of pendingWrites) {
+        service.writeFile(relPath, content);
+    }
+
+    await runPostInitScripts(service, options, err);
+
+    writeSuccess(out, isJson, `Project initialized: ${identity.displayName}`);
+    writeOutput(out, err, isJson, { success: true, files: filesToChange });
 }
 
 // ---------------------------------------------------------------------------
@@ -75,17 +64,7 @@ Examples:
 // ---------------------------------------------------------------------------
 
 export function collectInitOptions(
-    opts: {
-        name?: string;
-        title?: string;
-        brand?: string;
-        scope?: string;
-        repoUrl?: string;
-        bin?: string;
-        dryRun?: boolean;
-        skipCheck?: boolean;
-        json?: boolean;
-    },
+    opts: InitActionOpts,
     service: ScaffoldService,
     isJson: boolean,
 ): ScaffoldInitOptions {
