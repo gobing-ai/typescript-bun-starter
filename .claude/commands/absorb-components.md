@@ -1,15 +1,33 @@
+---
+description: Absorb and generalize components from a source project
+argument-hint: <source-project-path> [focus=all|data|domain|contracts|transport|integration|ui|cli|infra|tooling]
+allowed-tools: Read, Write, Edit, Bash(bun:*), Bash(rg:*), Bash(sg:*), Bash(git:*)
+---
+
 Extract reusable components from an existing project into this starter. The reverse of `/apply-migration`.
 
 ## Usage
 
 ```
-/absorb-components <source-project-path> <focus>
+/absorb-components <source-project-path> [focus=all|data|domain|contracts|transport|integration|ui|cli|infra|tooling]
 ```
 
 - `<source-project-path>` — path to the project to mine.
-- `<focus>` — area to extract (e.g. `"auth middleware"`, `"drizzle helpers"`, `"react form components"`).
+- `[focus]` — MECE category by architectural responsibility. Optional; defaults to `all`. Pick exactly one:
+  - `all` *(default)* — sweep every category below; produce a single combined inventory grouped by focus
+  - `data` — persistence, schemas, migrations, repositories, ORM helpers → `packages/core/`
+  - `domain` — pure business logic, entities, use cases (framework-agnostic) → `packages/core/`
+  - `contracts` — DTOs, zod schemas, API types, transport-safe shapes → `packages/contracts/`
+  - `transport` — HTTP/RPC handlers, middleware, routing, error envelopes → `apps/server/`
+  - `integration` — outbound clients, third-party SDK adapters, queues → `packages/core/`
+  - `ui` — visual components, layouts, hooks, client state → `apps/web/`
+  - `cli` — commands, prompts, terminal UI, arg parsing → `apps/cli/`
+  - `infra` — logging, config, telemetry, feature flags, runtime utilities → `packages/core/`
+  - `tooling` — build scripts, codegen, dev-only and test helpers → `scripts/` or workspace `tests/`
 
-If either argument is missing, ask. Do not guess.
+  Cross-cutting topics (e.g. auth, rate limiting) split across multiple foci. Use `all` for a full sweep, or pick a single layer to scope the work tightly.
+
+If `<source-project-path>` is missing, ask. Do not guess. If `[focus]` is omitted, default to `all`.
 
 ## Principles
 
@@ -57,7 +75,7 @@ Cheap viability check on metadata only. **Do not scan candidate components yet.*
 
 ### Phase 3: Scan & Review
 
-1. **Locate candidates** with `rg` and `sg` (ast-grep). Match filenames, exports, function/class names, surrounding comments. Search synonyms — `auth middleware` also implies `guard`, `interceptor`, `requireUser`, `withSession`. For wide focuses, delegate the broad scan to the `Explore` subagent and request SECU-shaped summaries only.
+1. **Locate candidates** with `rg` and `sg` (ast-grep). Match filenames, exports, function/class names, surrounding comments. Search synonyms — `auth middleware` also implies `guard`, `interceptor`, `requireUser`, `withSession`. For `focus=all` or wide focuses, delegate the broad scan to the `Explore` subagent and request SECU-shaped summaries only; tag every candidate with the focus category it falls under so the inventory in step 4 can be grouped accordingly.
 2. **Per-candidate review** using the `rd3:code-review-common` skill — apply its **SECU framework** (Security, Efficiency, Correctness, Usability) and **P1–P4** severity. For each candidate capture:
    - Public API (exports, inputs/outputs)
    - Internal deps (project-specific modules, config, DB)
