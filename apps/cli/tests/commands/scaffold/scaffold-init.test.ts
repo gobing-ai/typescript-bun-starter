@@ -219,7 +219,12 @@ describe('ScaffoldInitCommand', () => {
         });
 
         it('should skip tokens shorter than the minimum replacement length', () => {
-            const result = replaceInContent('apple banana cabbage', [['a', 'X']]);
+            const stderr = new Writable({
+                write(_c, _e, cb) {
+                    cb();
+                },
+            });
+            const result = replaceInContent('apple banana cabbage', [['a', 'X']], stderr);
             expect(result).toBe('apple banana cabbage');
         });
     });
