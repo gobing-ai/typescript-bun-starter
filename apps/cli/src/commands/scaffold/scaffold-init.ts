@@ -247,7 +247,7 @@ export async function runPostInitScripts(
     for (const step of steps) {
         const result = spawnSync(step.cmd, step.args, {
             cwd: service.getRoot(),
-            stdio: 'inherit',
+            stdio: 'pipe',
         });
 
         if (result.error) {
