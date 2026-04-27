@@ -15,7 +15,13 @@
             "Bash(grep export:*)",
             "Bash(bunx biome:*)",
             "Bash(bun tsc:*)",
-            "Bash(dist/cli/tbs:*)"
+            "Bash(dist/cli/tbs:*)",
+            "Bash(npm view *)",
+            "Bash(rtk ls *)",
+            "Bash(rtk cat *)",
+            "Bash(rtk find *)",
+            "Bash(rtk grep *)",
+            "Bash(rtk wc *)"
         ]
     }
 }
