@@ -1,155 +1,144 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Command } from '@commander-js/extra-typings';
 import { echoError } from '@starter/core';
+import { writeOutput, writeSuccess } from '../../ui/output';
 import { getFeature, isRequiredFeature, REQUIRED_FEATURES, SCAFFOLD_FEATURES } from './features/registry';
-import { writeOutput, writeSuccess } from './scaffold-output';
 import { ScaffoldService } from './services/scaffold-service';
 
 // ---------------------------------------------------------------------------
-// Registration
+// Action (invoked by commander wiring in scaffold/index.ts)
 // ---------------------------------------------------------------------------
 
-export function registerAddCommand(
-    scaffold: Command,
+export interface AddActionOpts {
+    dryRun?: boolean;
+    json?: boolean;
+}
+
+export async function scaffoldAddAction(
+    feature: string,
+    opts: AddActionOpts,
     out: NodeJS.WritableStream = process.stdout,
     err: NodeJS.WritableStream = process.stderr,
-): void {
-    scaffold
-        .command('add')
-        .description('Add optional feature modules')
-        .addHelpText(
-            'after',
-            `
-Examples:
-  tbs scaffold add webapp
-  tbs scaffold add webapp --dry-run
-  tbs scaffold add server --json`,
-        )
-        .argument('<feature>', 'Feature name (webapp, server, cli)')
-        .option('--dry-run', 'Preview changes without applying')
-        .option('--json', 'Output as JSON (agent mode)')
-        .action(async (feature, opts) => {
-            const isJson = opts.json ?? false;
-            const service = new ScaffoldService();
+): Promise<void> {
+    const isJson = opts.json ?? false;
+    const service = new ScaffoldService();
 
-            if (!feature) {
-                process.exitCode = writeOutput(out, err, isJson, null, 'Feature name is required');
-                return;
-            }
+    if (!feature) {
+        process.exitCode = writeOutput(out, err, isJson, null, 'Feature name is required');
+        return;
+    }
 
-            const featureDef = getFeature(feature);
-            if (!featureDef) {
-                const optionalFeatures = Object.keys(SCAFFOLD_FEATURES).filter(
-                    (f) => !REQUIRED_FEATURES.includes(f as (typeof REQUIRED_FEATURES)[number]),
-                );
-                process.exitCode = writeOutput(
-                    out,
-                    err,
-                    isJson,
-                    null,
-                    `Unknown feature: ${feature}. Available: ${optionalFeatures.join(', ')}`,
-                );
-                return;
-            }
+    const featureDef = getFeature(feature);
+    if (!featureDef) {
+        const optionalFeatures = Object.keys(SCAFFOLD_FEATURES).filter(
+            (f) => !REQUIRED_FEATURES.includes(f as (typeof REQUIRED_FEATURES)[number]),
+        );
+        process.exitCode = writeOutput(
+            out,
+            err,
+            isJson,
+            null,
+            `Unknown feature: ${feature}. Available: ${optionalFeatures.join(', ')}`,
+        );
+        return;
+    }
 
-            if (isRequiredFeature(feature)) {
-                process.exitCode = writeOutput(
-                    out,
-                    err,
-                    isJson,
-                    null,
-                    `Cannot add required feature: ${feature} (already included)`,
-                );
-                return;
-            }
+    if (isRequiredFeature(feature)) {
+        process.exitCode = writeOutput(
+            out,
+            err,
+            isJson,
+            null,
+            `Cannot add required feature: ${feature} (already included)`,
+        );
+        return;
+    }
 
-            if (isFeatureInstalled(feature, service)) {
-                process.exitCode = writeOutput(out, err, isJson, null, `Feature '${feature}' is already installed`);
-                return;
-            }
+    if (isFeatureInstalled(feature, service)) {
+        process.exitCode = writeOutput(out, err, isJson, null, `Feature '${feature}' is already installed`);
+        return;
+    }
 
-            const templateRoot = resolve(service.getRoot(), 'scripts/scaffold/templates');
-            const templateDir = resolve(templateRoot, feature);
+    const templateRoot = resolve(service.getRoot(), 'scripts/scaffold/templates');
+    const templateDir = resolve(templateRoot, feature);
 
-            if (!existsSync(templateDir)) {
-                process.exitCode = writeOutput(
-                    out,
-                    err,
-                    isJson,
-                    null,
-                    `Template for '${feature}' not found at ${templateDir}. Run 'bun run generate:scaffold-templates' first.`,
-                );
-                return;
-            }
+    if (!existsSync(templateDir)) {
+        process.exitCode = writeOutput(
+            out,
+            err,
+            isJson,
+            null,
+            `Template for '${feature}' not found at ${templateDir}. Run 'bun run generate:scaffold-templates' first.`,
+        );
+        return;
+    }
 
-            const { filesToCopy, dirsToCreate } = collectTemplateFiles(templateDir);
+    const { filesToCopy, dirsToCreate } = collectTemplateFiles(templateDir);
 
-            if (opts.dryRun) {
-                writeOutput(out, err, isJson, {
-                    feature,
-                    filesToCopy,
-                    dirsToCreate,
-                    preview: formatAddDryRunOutput(feature, filesToCopy, dirsToCreate),
-                });
-                return;
-            }
-
-            const createdDirs: string[] = [];
-            const copiedFiles: string[] = [];
-
-            try {
-                for (const dir of dirsToCreate) {
-                    const absDir = resolve(service.getRoot(), dir);
-                    const created = mkdirSync(absDir, { recursive: true });
-                    if (created !== undefined) {
-                        createdDirs.push(dir);
-                    }
-                }
-
-                for (const { src, dest } of filesToCopy) {
-                    const absSrc = resolve(templateDir, src);
-                    const absDest = resolve(service.getRoot(), dest);
-                    cpSync(absSrc, absDest, { recursive: true });
-                    copiedFiles.push(dest);
-                }
-            } catch (rollbackErr) {
-                for (const file of copiedFiles) {
-                    const absFile = resolve(service.getRoot(), file);
-                    try {
-                        rmSync(absFile, { recursive: true, force: true });
-                    } catch (e) {
-                        echoError(`Warning: failed to roll back ${absFile}: ${String(e)}`, err);
-                    }
-                }
-                for (const dir of createdDirs.reverse()) {
-                    const absDir = resolve(service.getRoot(), dir);
-                    try {
-                        rmSync(absDir, { recursive: true, force: true });
-                    } catch (e) {
-                        echoError(`Warning: failed to roll back ${absDir}: ${String(e)}`, err);
-                    }
-                }
-                process.exitCode = writeOutput(
-                    out,
-                    err,
-                    isJson,
-                    null,
-                    `Failed to add feature '${feature}': ${String(rollbackErr)}`,
-                );
-                return;
-            }
-
-            await updateAddContracts(service, feature, err);
-
-            writeSuccess(out, isJson, `Feature '${feature}' added`);
-            writeOutput(out, err, isJson, {
-                success: true,
-                feature,
-                filesAdded: filesToCopy.length,
-                dirsCreated: dirsToCreate.length,
-            });
+    if (opts.dryRun) {
+        writeOutput(out, err, isJson, {
+            feature,
+            filesToCopy,
+            dirsToCreate,
+            preview: formatAddDryRunOutput(feature, filesToCopy, dirsToCreate),
         });
+        return;
+    }
+
+    const createdDirs: string[] = [];
+    const copiedFiles: string[] = [];
+
+    try {
+        for (const dir of dirsToCreate) {
+            const absDir = resolve(service.getRoot(), dir);
+            const created = mkdirSync(absDir, { recursive: true });
+            if (created !== undefined) {
+                createdDirs.push(dir);
+            }
+        }
+
+        for (const { src, dest } of filesToCopy) {
+            const absSrc = resolve(templateDir, src);
+            const absDest = resolve(service.getRoot(), dest);
+            cpSync(absSrc, absDest, { recursive: true });
+            copiedFiles.push(dest);
+        }
+    } catch (rollbackErr) {
+        for (const file of copiedFiles) {
+            const absFile = resolve(service.getRoot(), file);
+            try {
+                rmSync(absFile, { recursive: true, force: true });
+            } catch (e) {
+                echoError(`Warning: failed to roll back ${absFile}: ${String(e)}`, err);
+            }
+        }
+        for (const dir of createdDirs.reverse()) {
+            const absDir = resolve(service.getRoot(), dir);
+            try {
+                rmSync(absDir, { recursive: true, force: true });
+            } catch (e) {
+                echoError(`Warning: failed to roll back ${absDir}: ${String(e)}`, err);
+            }
+        }
+        process.exitCode = writeOutput(
+            out,
+            err,
+            isJson,
+            null,
+            `Failed to add feature '${feature}': ${String(rollbackErr)}`,
+        );
+        return;
+    }
+
+    await updateAddContracts(service, feature, err);
+
+    writeSuccess(out, isJson, `Feature '${feature}' added`);
+    writeOutput(out, err, isJson, {
+        success: true,
+        feature,
+        filesAdded: filesToCopy.length,
+        dirsCreated: dirsToCreate.length,
+    });
 }
 
 // ---------------------------------------------------------------------------
