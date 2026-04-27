@@ -1,300 +1,271 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { Command } from '@commander-js/extra-typings';
 import { echoError } from '@starter/core';
-import { Command, Option } from 'clipanion';
-import { BaseScaffoldCommand } from './base-scaffold-command';
 import { getFeature, isRequiredFeature, REQUIRED_FEATURES, SCAFFOLD_FEATURES } from './features/registry';
+import { writeOutput, writeSuccess } from './scaffold-output';
 import { ScaffoldService } from './services/scaffold-service';
 
-export class ScaffoldAddCommand extends BaseScaffoldCommand {
-    constructor() {
-        super();
-    }
+// ---------------------------------------------------------------------------
+// Registration
+// ---------------------------------------------------------------------------
 
-    static override paths = [['scaffold', 'add']];
+export function registerAddCommand(
+    scaffold: Command,
+    out: NodeJS.WritableStream = process.stdout,
+    err: NodeJS.WritableStream = process.stderr,
+): void {
+    scaffold
+        .command('add')
+        .description('Add optional feature modules')
+        .addHelpText(
+            'after',
+            `
+Examples:
+  tbs scaffold add webapp
+  tbs scaffold add webapp --dry-run
+  tbs scaffold add server --json`,
+        )
+        .argument('<feature>', 'Feature name (webapp, server, cli)')
+        .option('--dry-run', 'Preview changes without applying')
+        .option('--json', 'Output as JSON (agent mode)')
+        .action(async (feature, opts) => {
+            const isJson = opts.json ?? false;
+            const service = new ScaffoldService();
 
-    static override usage = Command.Usage({
-        category: 'Scaffold',
-        description: 'Add optional feature modules',
-        details: `
-            Add optional feature modules to the project.
-
-            Available features:
-            - webapp: Astro-based web application (apps/web)
-            - server: Hono REST API server (apps/server)
-            - cli: Clipanion CLI tool (apps/cli)
-
-            Templates are copied from scripts/scaffold/templates/<feature>/.
-
-            Use 'tbs scaffold list' to see which features are currently installed.
-        `,
-        examples: [
-            ['Add webapp', 'tbs scaffold add webapp'],
-            ['Preview webapp addition', 'tbs scaffold add webapp --dry-run'],
-            ['JSON mode', 'tbs scaffold add server --json'],
-        ],
-    });
-
-    feature = Option.String();
-
-    async execute(): Promise<number> {
-        const service = new ScaffoldService();
-
-        // 1. Validate feature name
-        if (!this.feature) {
-            return this.writeOutput(null, 'Feature name is required');
-        }
-
-        const featureDef = getFeature(this.feature);
-        if (!featureDef) {
-            const optionalFeatures = Object.keys(SCAFFOLD_FEATURES).filter(
-                (f) => !REQUIRED_FEATURES.includes(f as (typeof REQUIRED_FEATURES)[number]),
-            );
-            return this.writeOutput(
-                null,
-                `Unknown feature: ${this.feature}. Available: ${optionalFeatures.join(', ')}`,
-            );
-        }
-
-        // 2. Check if required feature
-        if (isRequiredFeature(this.feature)) {
-            return this.writeOutput(null, `Cannot add required feature: ${this.feature} (already included)`);
-        }
-
-        // 3. Check if already installed
-        if (this.isInstalled(this.feature, service)) {
-            return this.writeOutput(null, `Feature '${this.feature}' is already installed`);
-        }
-
-        // 4. Check if template exists
-        const templateRoot = this.getTemplateRoot(service);
-        const templateDir = resolve(templateRoot, this.feature);
-
-        if (!existsSync(templateDir)) {
-            return this.writeOutput(
-                null,
-                `Template for '${this.feature}' not found at ${templateDir}. Run 'bun run generate:scaffold-templates' first.`,
-            );
-        }
-
-        // 5. Collect files to copy
-        const { filesToCopy, dirsToCreate } = this.collectTemplateFiles(service, templateDir);
-
-        // 6. Dry-run mode
-        if (this.dryRun) {
-            return this.writeOutput({
-                feature: this.feature,
-                filesToCopy,
-                dirsToCreate,
-                preview: this.formatDryRunOutput(this.feature, filesToCopy, dirsToCreate),
-            });
-        }
-
-        // 7. Apply changes with rollback on failure
-        const createdDirs: string[] = [];
-        const copiedFiles: string[] = [];
-
-        try {
-            // Create directories first. mkdirSync(recursive: true) returns the
-            // first newly-created path or undefined if it already existed —
-            // use that to track only directories we actually created so the
-            // rollback path doesn't delete pre-existing ones.
-            for (const dir of dirsToCreate) {
-                const absDir = resolve(service.getRoot(), dir);
-                const created = mkdirSync(absDir, { recursive: true });
-                if (created !== undefined) {
-                    createdDirs.push(dir);
-                }
+            if (!feature) {
+                process.exitCode = writeOutput(out, err, isJson, null, 'Feature name is required');
+                return;
             }
 
-            // Copy files
-            for (const { src, dest } of filesToCopy) {
-                const absSrc = resolve(templateDir, src);
-                const absDest = resolve(service.getRoot(), dest);
-                cpSync(absSrc, absDest, { recursive: true });
-                copiedFiles.push(dest);
-            }
-        } catch (err) {
-            // Rollback: remove copied files and created directories. Surface
-            // any rollback failures so partially-applied state isn't silent.
-            for (const file of copiedFiles) {
-                const absFile = resolve(service.getRoot(), file);
-                try {
-                    rmSync(absFile, { recursive: true, force: true });
-                } catch (rollbackErr) {
-                    echoError(`Warning: failed to roll back ${absFile}: ${String(rollbackErr)}`, this.context.stderr);
-                }
-            }
-            for (const dir of createdDirs.reverse()) {
-                const absDir = resolve(service.getRoot(), dir);
-                try {
-                    rmSync(absDir, { recursive: true, force: true });
-                } catch (rollbackErr) {
-                    echoError(`Warning: failed to roll back ${absDir}: ${String(rollbackErr)}`, this.context.stderr);
-                }
-            }
-            return this.writeOutput(null, `Failed to add feature '${this.feature}': ${String(err)}`);
-        }
-
-        // 8. Update contracts
-        await this.updateContracts(service, this.feature);
-
-        this.writeSuccess(`Feature '${this.feature}' added`);
-        return this.writeOutput({
-            success: true,
-            feature: this.feature,
-            filesAdded: filesToCopy.length,
-            dirsCreated: dirsToCreate.length,
-        });
-    }
-
-    /**
-     * Get the template root directory.
-     */
-    private getTemplateRoot(service: ScaffoldService): string {
-        // Templates are stored at scripts/scaffold/templates relative to project root
-        return resolve(service.getRoot(), 'scripts/scaffold/templates');
-    }
-
-    /**
-     * Check if a feature is installed.
-     */
-    private isInstalled(feature: string, service: ScaffoldService): boolean {
-        const featureDef = SCAFFOLD_FEATURES[feature];
-        if (featureDef?.workspacePath) {
-            return service.exists(featureDef.workspacePath);
-        }
-
-        return false;
-    }
-
-    /**
-     * Collect template files to copy.
-     * @internal
-     */
-    public collectTemplateFiles(
-        _service: ScaffoldService,
-        templateDir: string,
-    ): {
-        filesToCopy: Array<{ src: string; dest: string }>;
-        dirsToCreate: string[];
-    } {
-        const filesToCopy: Array<{ src: string; dest: string }> = [];
-        const dirsToCreate = new Set<string>();
-
-        const walk = (dir: string, relDir: string = ''): void => {
-            const entries = readdirSync(dir);
-            for (const entry of entries.sort()) {
-                const absPath = resolve(dir, entry);
-                const stat = statSync(absPath);
-                const srcPath = relDir ? `${relDir}/${entry}` : entry;
-
-                if (stat.isDirectory()) {
-                    dirsToCreate.add(srcPath);
-                    walk(absPath, srcPath);
-                } else if (stat.isFile()) {
-                    // Map template path to project path
-                    // Template: scripts/scaffold/templates/<feature>/apps/cli/src/index.ts
-                    // Project: apps/cli/src/index.ts
-                    const destPath = srcPath;
-                    filesToCopy.push({ src: srcPath, dest: destPath });
-                }
-            }
-        };
-
-        walk(templateDir);
-        return { filesToCopy, dirsToCreate: [...dirsToCreate] };
-    }
-
-    /**
-     * Format the dry-run output.
-     * @internal
-     */
-    public formatDryRunOutput(
-        feature: string,
-        filesToCopy: Array<{ src: string; dest: string }>,
-        dirsToCreate: string[],
-    ): string {
-        let output = `Would add feature '${feature}':\n\n`;
-
-        if (dirsToCreate.length > 0) {
-            output += `Directories to create (${dirsToCreate.length}):\n`;
-            for (const dir of dirsToCreate) {
-                output += `  + ${dir}/\n`;
-            }
-            output += '\n';
-        }
-
-        if (filesToCopy.length > 0) {
-            output += `Files to copy (${filesToCopy.length}):\n`;
-            for (const { dest } of filesToCopy) {
-                output += `  + ${dest}\n`;
-            }
-            output += '\n';
-        }
-
-        output += 'No changes were made (--dry-run)';
-        return output;
-    }
-
-    /**
-     * Update contracts after adding a feature.
-     * @internal
-     */
-    public async updateContracts(service: ScaffoldService, feature: string): Promise<void> {
-        const contractPath = 'contracts/project-contracts.json';
-        if (!service.exists(contractPath)) {
-            return;
-        }
-
-        // Map feature names to workspace paths and package names
-        const workspaceMap: Record<string, { path: string; pkg: string }> = {
-            cli: { path: 'apps/cli', pkg: '@starter/cli' },
-            server: { path: 'apps/server', pkg: '@starter/server' },
-            webapp: { path: 'apps/web', pkg: '@starter/web' },
-        };
-
-        const featureConfig = workspaceMap[feature];
-        if (!featureConfig) {
-            return;
-        }
-
-        const contract = service.readJson<Record<string, unknown>>(contractPath);
-        const optionalWorkspaces = (contract.optionalWorkspaces as Record<string, string>) ?? {};
-        if (optionalWorkspaces[featureConfig.path]) {
-            return; // Already present
-        }
-
-        // Backup before modifying
-        const absContractPath = service.resolvePath(contractPath);
-        const backupPath = `${absContractPath}.bak`;
-        copyFileSync(absContractPath, backupPath);
-
-        try {
-            optionalWorkspaces[featureConfig.path] = featureConfig.pkg;
-            contract.optionalWorkspaces = optionalWorkspaces;
-            service.writeJson(contractPath, contract);
-        } catch (err) {
-            // Restore backup on failure; warn if restore fails so the user
-            // knows the contract file may be in an inconsistent state.
-            try {
-                const content = service.readFile(`${contractPath}.bak`);
-                service.writeFile(contractPath, content);
-            } catch (restoreErr) {
-                echoError(
-                    `Warning: failed to restore ${contractPath} from backup: ${String(restoreErr)}`,
-                    this.context.stderr,
+            const featureDef = getFeature(feature);
+            if (!featureDef) {
+                const optionalFeatures = Object.keys(SCAFFOLD_FEATURES).filter(
+                    (f) => !REQUIRED_FEATURES.includes(f as (typeof REQUIRED_FEATURES)[number]),
                 );
+                process.exitCode = writeOutput(
+                    out,
+                    err,
+                    isJson,
+                    null,
+                    `Unknown feature: ${feature}. Available: ${optionalFeatures.join(', ')}`,
+                );
+                return;
             }
-            throw err;
-        } finally {
-            // Clean up backup; non-fatal but log so stale .bak files don't
-            // accumulate silently.
+
+            if (isRequiredFeature(feature)) {
+                process.exitCode = writeOutput(
+                    out,
+                    err,
+                    isJson,
+                    null,
+                    `Cannot add required feature: ${feature} (already included)`,
+                );
+                return;
+            }
+
+            if (isFeatureInstalled(feature, service)) {
+                process.exitCode = writeOutput(out, err, isJson, null, `Feature '${feature}' is already installed`);
+                return;
+            }
+
+            const templateRoot = resolve(service.getRoot(), 'scripts/scaffold/templates');
+            const templateDir = resolve(templateRoot, feature);
+
+            if (!existsSync(templateDir)) {
+                process.exitCode = writeOutput(
+                    out,
+                    err,
+                    isJson,
+                    null,
+                    `Template for '${feature}' not found at ${templateDir}. Run 'bun run generate:scaffold-templates' first.`,
+                );
+                return;
+            }
+
+            const { filesToCopy, dirsToCreate } = collectTemplateFiles(templateDir);
+
+            if (opts.dryRun) {
+                writeOutput(out, err, isJson, {
+                    feature,
+                    filesToCopy,
+                    dirsToCreate,
+                    preview: formatAddDryRunOutput(feature, filesToCopy, dirsToCreate),
+                });
+                return;
+            }
+
+            const createdDirs: string[] = [];
+            const copiedFiles: string[] = [];
+
             try {
-                rmSync(backupPath, { force: true });
-            } catch (cleanupErr) {
-                echoError(`Warning: failed to remove backup ${backupPath}: ${String(cleanupErr)}`, this.context.stderr);
+                for (const dir of dirsToCreate) {
+                    const absDir = resolve(service.getRoot(), dir);
+                    const created = mkdirSync(absDir, { recursive: true });
+                    if (created !== undefined) {
+                        createdDirs.push(dir);
+                    }
+                }
+
+                for (const { src, dest } of filesToCopy) {
+                    const absSrc = resolve(templateDir, src);
+                    const absDest = resolve(service.getRoot(), dest);
+                    cpSync(absSrc, absDest, { recursive: true });
+                    copiedFiles.push(dest);
+                }
+            } catch (rollbackErr) {
+                for (const file of copiedFiles) {
+                    const absFile = resolve(service.getRoot(), file);
+                    try {
+                        rmSync(absFile, { recursive: true, force: true });
+                    } catch (e) {
+                        echoError(`Warning: failed to roll back ${absFile}: ${String(e)}`, err);
+                    }
+                }
+                for (const dir of createdDirs.reverse()) {
+                    const absDir = resolve(service.getRoot(), dir);
+                    try {
+                        rmSync(absDir, { recursive: true, force: true });
+                    } catch (e) {
+                        echoError(`Warning: failed to roll back ${absDir}: ${String(e)}`, err);
+                    }
+                }
+                process.exitCode = writeOutput(
+                    out,
+                    err,
+                    isJson,
+                    null,
+                    `Failed to add feature '${feature}': ${String(rollbackErr)}`,
+                );
+                return;
             }
+
+            await updateAddContracts(service, feature, err);
+
+            writeSuccess(out, isJson, `Feature '${feature}' added`);
+            writeOutput(out, err, isJson, {
+                success: true,
+                feature,
+                filesAdded: filesToCopy.length,
+                dirsCreated: dirsToCreate.length,
+            });
+        });
+}
+
+// ---------------------------------------------------------------------------
+// Module-level functions (exported for testing)
+// ---------------------------------------------------------------------------
+
+export function isFeatureInstalled(feature: string, service: ScaffoldService): boolean {
+    const featureDef = SCAFFOLD_FEATURES[feature];
+    if (featureDef?.workspacePath) {
+        return service.exists(featureDef.workspacePath);
+    }
+    return false;
+}
+
+export function collectTemplateFiles(templateDir: string): {
+    filesToCopy: Array<{ src: string; dest: string }>;
+    dirsToCreate: string[];
+} {
+    const filesToCopy: Array<{ src: string; dest: string }> = [];
+    const dirsToCreate = new Set<string>();
+
+    const walk = (dir: string, relDir = ''): void => {
+        const entries = readdirSync(dir);
+        for (const entry of entries.sort()) {
+            const absPath = resolve(dir, entry);
+            const stat = statSync(absPath);
+            const srcPath = relDir ? `${relDir}/${entry}` : entry;
+
+            if (stat.isDirectory()) {
+                dirsToCreate.add(srcPath);
+                walk(absPath, srcPath);
+            } else if (stat.isFile()) {
+                filesToCopy.push({ src: srcPath, dest: srcPath });
+            }
+        }
+    };
+
+    walk(templateDir);
+    return { filesToCopy, dirsToCreate: [...dirsToCreate] };
+}
+
+export function formatAddDryRunOutput(
+    feature: string,
+    filesToCopy: Array<{ src: string; dest: string }>,
+    dirsToCreate: string[],
+): string {
+    let output = `Would add feature '${feature}':\n\n`;
+
+    if (dirsToCreate.length > 0) {
+        output += `Directories to create (${dirsToCreate.length}):\n`;
+        for (const dir of dirsToCreate) {
+            output += `  + ${dir}/\n`;
+        }
+        output += '\n';
+    }
+
+    if (filesToCopy.length > 0) {
+        output += `Files to copy (${filesToCopy.length}):\n`;
+        for (const { dest } of filesToCopy) {
+            output += `  + ${dest}\n`;
+        }
+        output += '\n';
+    }
+
+    output += 'No changes were made (--dry-run)';
+    return output;
+}
+
+export async function updateAddContracts(
+    service: ScaffoldService,
+    feature: string,
+    stderr: NodeJS.WritableStream = process.stderr,
+): Promise<void> {
+    const contractPath = 'contracts/project-contracts.json';
+    if (!service.exists(contractPath)) {
+        return;
+    }
+
+    const workspaceMap: Record<string, { path: string; pkg: string }> = {
+        cli: { path: 'apps/cli', pkg: '@starter/cli' },
+        server: { path: 'apps/server', pkg: '@starter/server' },
+        webapp: { path: 'apps/web', pkg: '@starter/web' },
+    };
+
+    const featureConfig = workspaceMap[feature];
+    if (!featureConfig) {
+        return;
+    }
+
+    const contract = service.readJson<Record<string, unknown>>(contractPath);
+    const optionalWorkspaces = (contract.optionalWorkspaces as Record<string, string>) ?? {};
+    if (optionalWorkspaces[featureConfig.path]) {
+        return;
+    }
+
+    const absContractPath = service.resolvePath(contractPath);
+    const backupPath = `${absContractPath}.bak`;
+    copyFileSync(absContractPath, backupPath);
+
+    try {
+        optionalWorkspaces[featureConfig.path] = featureConfig.pkg;
+        contract.optionalWorkspaces = optionalWorkspaces;
+        service.writeJson(contractPath, contract);
+    } catch (err) {
+        try {
+            const content = service.readFile(`${contractPath}.bak`);
+            service.writeFile(contractPath, content);
+        } catch (restoreErr) {
+            echoError(`Warning: failed to restore ${contractPath} from backup: ${String(restoreErr)}`, stderr);
+        }
+        throw err;
+    } finally {
+        try {
+            rmSync(backupPath, { force: true });
+        } catch (cleanupErr) {
+            echoError(`Warning: failed to remove backup ${backupPath}: ${String(cleanupErr)}`, stderr);
         }
     }
 }
