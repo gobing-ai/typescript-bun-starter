@@ -1,3 +1,9 @@
+---
+description: Migrate starter conventions into a target project
+argument-hint: [target-project-path]
+allowed-tools: Read, Write, Edit, Bash(bun:*)
+---
+
 Apply the current starter to an existing project via npm package migration.
 
 ## Usage
