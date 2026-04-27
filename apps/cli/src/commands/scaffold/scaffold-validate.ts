@@ -356,7 +356,7 @@ export function applyValidateFixes(issues: ValidationIssue[], stderr: NodeJS.Wri
 export function runValidateSync(cmd: string, args: string[], stderr: NodeJS.WritableStream = process.stderr): void {
     const result = spawnSync(cmd, args, {
         cwd: cwd(),
-        stdio: 'inherit',
+        stdio: 'pipe',
     });
     const label = `${cmd} ${args.join(' ')}`.trim();
     if (result.error) {
