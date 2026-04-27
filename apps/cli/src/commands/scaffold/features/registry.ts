@@ -45,7 +45,7 @@ export const SCAFFOLD_FEATURES: Record<string, FeatureDefinition> = {
     // ---------------------------------------------------------------------------
     cli: {
         name: 'CLI',
-        description: 'Clipanion-based CLI tool for project commands',
+        description: 'Commander.js-based CLI tool for project commands',
         files: [
             'apps/cli/src/index.ts',
             'apps/cli/src/config.ts',
