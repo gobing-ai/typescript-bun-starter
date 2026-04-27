@@ -1,306 +1,91 @@
 # User Manual: TypeScript Bun Starter (TBS)
 
-> End-user documentation for the TypeScript Bun Starter CLI and API.
+> End-user documentation for project initialization, scaffold commands, migration workflow, policy enforcement, and observability.
 
 ## 1. Quick Start
 
-### 1.1 Installation
-
-**From source:**
+### 1.1 New Project from Starter
 
 ```bash
-git clone <repo-url> && cd typescript-bun-starter
+bunx degit gobing-ai/typescript-bun-starter my-project && cd my-project
 bun install
-tbs scaffold init --name my-project --scope @acme --title "My Project"
-```
-
-**From compiled binary:**
-
-Download the binary for your platform and place it on your `PATH`:
-
-```bash
-chmod +x tbs
-./tbs --help
+bun run scaffold:init -- --name my-project --scope @acme --title "My Project"
+bun run check
 ```
 
 ### 1.2 First Commands
 
-Before you start adding domain logic, initialize the project identity:
+After initialization, verify the project is healthy:
 
 ```bash
-tbs scaffold init --name my-project --scope @acme --title "My Project"
+bun run check               # lint, typecheck, tests, contract validation
+bun run smoke:generated     # full generated-project verification
 ```
 
-This rewrites package names, internal imports, generated instruction files, CLI
-metadata, and starter-facing copy from the default starter identity.
-
-This rewrites package names, internal imports, generated instruction files, CLI
-metadata, and starter-facing copy from the default starter identity.
+### 1.3 From Compiled Binary
 
 ```bash
-# Create a skill
-bun run dev:cli -- skill create --name "my-skill" --description "My first skill"
-
-# List all skills
-bun run dev:cli -- skill list
-
-# Get a specific skill
-bun run dev:cli -- skill get --id <skill-id>
-
-# Delete a skill
-bun run dev:cli -- skill delete --id <skill-id>
+bun run build:cli
+./dist/tbs scaffold init --name my-project --scope @acme --title "My Project"
 ```
 
-## 2. CLI Reference
+## 2. Project Profiles
 
-The CLI binary is named `tbs` (TypeScript Bun Starter). Run it via:
+Choose a profile, then trim to match:
+
+| Profile | Included workspaces | How to reach it |
+| --- | --- | --- |
+| CLI + API + Web | `apps/cli`, `apps/server`, `apps/web` | Default checkout |
+| CLI + API | `apps/cli`, `apps/server` | `bun run scaffold:remove -- webapp` |
+| CLI only | `apps/cli` | Remove `webapp`, then `server` |
+
+The CLI tier is always present — it owns the project-shaping workflow.
+
+## 3. Scaffold CLI Reference
+
+The scaffold CLI (`tbs`) manages project identity, workspace composition, and contract validation.
 
 ```bash
-# Development
-bun run dev:cli -- <command>
+# Development (via Bun)
+bun run dev:cli -- scaffold <command>
 
 # Compiled binary
-./tbs <command>
+./tbs scaffold <command>
 ```
 
-### 2.1 Global Options
+### 3.1 Global Options
 
 | Option | Description |
 |--------|-------------|
 | `--help` | Show help for any command |
+| `--json` | Machine-readable JSON output (for AI agents and CI) |
+| `--dry-run` | Preview changes without applying |
 
-### 2.2 Commands
+### 3.2 Commands
 
-#### `skill create`
+#### `scaffold init`
 
-Create a new skill.
+Initialize or update project identity. Rewrites package names, internal imports, generated instruction files, CLI metadata, and starter-facing copy.
 
 ```bash
-tbs skill create --name <name> [--description <desc>] [--json]
-tbs skill create                    # prompts for missing values in human mode
+tbs scaffold init --name <slug> --scope <scope> [options]
 ```
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--name` | No in human mode / Yes in `--json` mode | Skill name (1-100 characters) |
-| `--description` | No | Skill description |
-| `--json` | No | Output as JSON (for scripts and AI agents) |
-
-**Human mode output:**
-
-```
-Created skill: my-skill (abc-123-def-456)
-```
-
-If `--name` or `--description` is omitted in human mode, the CLI prompts for it interactively.
-
-**JSON mode output (`--json`):**
-
-```json
-{
-  "id": "abc-123-def-456",
-  "name": "my-skill",
-  "description": "A skill description",
-  "version": 1,
-  "config": null,
-  "createdAt": "2026-04-10T00:00:00.000Z",
-  "updatedAt": "2026-04-10T00:00:00.000Z"
-}
-```
-
-**Error (missing name in `--json` mode):**
-
-```
-# Human mode (stderr):
-Error: skill name is required
-
-# JSON mode (stdout):
-{"error":"--name is required"}
-```
-
----
-
-#### `skill list`
-
-List all skills.
-
-```bash
-tbs skill list [--json]
-```
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--json` | No | Output as JSON |
-
-**Human mode output:**
-
-```
-my-skill (abc-123)
-  Description: A skill description
-  Version: 1
-  Updated: 2026-04-10
-
-another-skill (def-456)
-  Version: 1
-  Updated: 2026-04-10
-```
-
-**JSON mode output (`--json`):**
-
-Returns an array of skill objects:
-
-```json
-[
-  {
-    "id": "abc-123",
-    "name": "my-skill",
-    "description": "A skill description",
-    "version": 1,
-    "config": null,
-    "createdAt": "2026-04-10T00:00:00.000Z",
-    "updatedAt": "2026-04-10T00:00:00.000Z"
-  }
-]
-```
-
----
-
-#### `skill get`
-
-Get a single skill by ID.
-
-```bash
-tbs skill get --id <id> [--json]
-```
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--id` | Yes | Skill ID |
-| `--json` | No | Output as JSON |
-
-**Human mode output:**
-
-```
-Skill: my-skill
-  ID: abc-123
-  Description: A skill description
-  Version: 1
-  Config: null
-  Created: 2026-04-10
-  Updated: 2026-04-10
-```
-
-**JSON mode output (`--json`):**
-
-Returns a single skill object (same format as `skill create`).
-
-**Error (not found):**
-
-```
-# Human mode (stderr):
-Error: Skill not found: nonexistent-id
-
-# JSON mode (stdout):
-{"error":"Skill not found: nonexistent-id"}
-```
-
----
-
-#### `skill delete`
-
-Delete a skill by ID.
-
-```bash
-tbs skill delete --id <id> [--json]
-tbs skill delete                    # prompts for ID and confirmation in human mode
-```
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--id` | No in human mode / Yes in `--json` mode | Skill ID |
-| `--json` | No | Output as JSON |
-
-**Human mode output:**
-
-```
-Deleted skill: abc-123
-```
-
-In human mode, the CLI asks for confirmation before deleting. Cancelled deletions print:
-
-```
-Deletion cancelled.
-```
-
-**JSON mode output (`--json`):**
-
-```json
-{"deleted":true,"id":"abc-123"}
-```
-
-**Error (missing ID):**
-
-```json
-{"error":"--id is required"}
-```
-
-**Error (not found):**
-
-```json
-{"error":"Skill not found: nonexistent-id"}
-```
-
-### 2.3 Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | Error (validation, not found, etc.) |
-
-### 2.4 Agent Mode
-
-All commands support `--json` for machine-readable output. This is designed for:
-
-- **AI agents** consuming output programmatically
-- **Shell scripts** piping data between commands
-- **CI/CD pipelines** integrating skill management
-
-```bash
-# Create and capture the ID
-SKILL=$(tbs skill create --name "deploy" --json)
-ID=$(echo "$SKILL" | jq -r '.id')
-
-# Use the ID in another command
-tbs skill get --id "$ID" --json
-
-# Clean up
-tbs skill delete --id "$ID" --json
-```
-
-### 2.3 Scaffold Commands
-
-#### `tbs scaffold init`
-
-Initialize or update the project identity.
-
-```bash
-tbs scaffold init --name <name> --scope <scope> [--title <title>] [--brand <brand>] [--bin <bin>] [--dry-run] [--json] [--skip-check]
-```
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--name` | Yes | Project slug (used in package names) |
-| `--scope` | Yes | npm scope, e.g. `@myorg` |
-| `--title` | No | Display name (defaults to name) |
+| `--name` | Yes | Project slug (kebab-case, used in package names) |
+| `--scope` | Yes | npm scope (e.g., `@myorg`) |
+| `--title` | No | Display name (Title Case, defaults to name) |
 | `--brand` | No | Short brand name for CLI binary label |
 | `--bin` | No | Binary name (defaults to `tbs`) |
-| `--dry-run` | No | Preview without applying changes |
-| `--json` | No | JSON output mode |
+| `--repo-url` | No | Repository URL |
 | `--skip-check` | No | Skip post-init verification |
+| `--dry-run` | No | Preview without applying |
+| `--json` | No | JSON output mode |
 
-#### `tbs scaffold add`
+#### `scaffold add`
 
-Install an optional feature.
+Install an optional feature workspace.
 
 ```bash
 tbs scaffold add <feature> [--dry-run] [--json]
@@ -308,20 +93,21 @@ tbs scaffold add <feature> [--dry-run] [--json]
 
 | Feature | Description |
 |---------|-------------|
-| `cli` | Clipanion CLI tool |
-| `server` | Hono REST API server |
-| `webapp` | Astro web application |
-| `skills` | Full CRUD domain across all tiers |
+| `server` | Hono REST API server with Swagger UI |
+| `webapp` | Astro 6 web application with React islands |
+| `cli` | Scaffold CLI (required, always present) |
 
-#### `tbs scaffold remove`
+#### `scaffold remove`
 
-Uninstall an optional feature.
+Uninstall an optional feature workspace.
 
 ```bash
 tbs scaffold remove <feature> [--dry-run] [--json]
 ```
 
-#### `tbs scaffold list`
+Removes the workspace folder, its dependency entries, and stale references in docs and scripts.
+
+#### `scaffold list`
 
 Show all features with their installation status.
 
@@ -329,65 +115,125 @@ Show all features with their installation status.
 tbs scaffold list [--json]
 ```
 
-#### `tbs scaffold validate`
+#### `scaffold validate`
 
-Validate project contract integrity.
+Validate project contract integrity against `contracts/project-contracts.json`.
 
 ```bash
-tbs scaffold validate [--fix] [--json]
+tbs scaffold validate [--fix] [--dry-run] [--json]
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--fix` | Automatically fix fixable issues |
+| `--dry-run` | Preview fixes without applying |
 | `--json` | JSON output mode |
 
-**Common options for all scaffold commands:**
+### 3.3 Agent Mode (`--json`)
 
-| Option | Description |
-|--------|-------------|
-| `--dry-run` | Preview changes without applying |
-| `--json` | JSON output (for scripts and AI agents) |
-| `--help` | Show help |
+All scaffold commands support `--json` for machine-readable output. Designed for:
 
-## 3. API Reference
-
-### 3.1 Starting the Server
+- **AI coding agents** consuming output programmatically
+- **Shell scripts** piping data between commands
+- **CI/CD pipelines** integrating scaffold validation
 
 ```bash
-# Development (with hot reload)
+# Check project state programmatically
+tbs scaffold validate --json
+tbs scaffold list --json
+
+# Dry-run before applying
+tbs scaffold remove webapp --dry-run --json
+```
+
+### 3.4 Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Error (validation failure, missing workspace, etc.) |
+
+## 4. Migration Workflow
+
+Migrate an existing project to adopt starter patterns incrementally.
+
+### 4.1 Install as dev dependency
+
+```bash
+cd /path/to/existing-project
+bun add @gobing-ai/typescript-bun-starter --dev
+```
+
+### 4.2 Analyze differences
+
+```bash
+bun run migrate:analyze -- \
+  --source node_modules/@gobing-ai/typescript-bun-starter \
+  --target .
+```
+
+Produces a migration plan showing what files differ and suggested actions.
+
+Interactive mode:
+
+```bash
+bun run migrate:analyze -- \
+  --source node_modules/@gobing-ai/typescript-bun-starter \
+  --target . \
+  --interactive
+```
+
+### 4.3 Apply migration
+
+```bash
+bun run migrate:apply -- --plan migration-plan.json
+```
+
+### 4.4 Clean up
+
+```bash
+bun remove @gobing-ai/typescript-bun-starter
+```
+
+For detailed strategies (pattern adoption, core-first extraction, fresh starter plus port-in), see the [Existing Project Migration Guide](docs/existing-project-migration-guide.md).
+
+## 5. API Reference
+
+### 5.1 Starting the Server
+
+```bash
+# Development
 bun run dev:server
 
 # Production
 bun run apps/server/src/index.ts
 ```
 
-The server starts on port 3000 by default. Override with the `PORT` environment variable.
+Default port: `3000`. Override with `PORT` env var.
 
-### 3.2 Authentication
+### 5.2 Authentication
 
-When the `API_KEY` environment variable is set, all `/api/*` endpoints require authentication:
+When `API_KEY` is set, all `/api/*` endpoints require authentication via the `X-API-Key` header.
 
+```bash
+# With auth
+API_KEY=sk-secret bun run dev:server
+curl -H "X-API-Key: sk-secret" http://localhost:3000/api/skills
+
+# Dev mode (no auth)
+unset API_KEY
+curl http://localhost:3000/api/skills
 ```
-API_KEY=sk-your-secret-key
-```
 
-**If `API_KEY` is not set**, authentication is skipped (dev mode).
-
-Provide the API key via one of two methods:
-
-| Method | Header | Example |
-|--------|--------|---------|
-| HTTP header | `X-API-Key` | `curl -H "X-API-Key: sk-your-secret-key" http://localhost:3000/api/skills` |
-
-### 3.3 Endpoints
+### 5.3 Endpoints
 
 #### `GET /api/skills`
 
-List all skills.
+List all skills. Supports pagination via `?limit=N&offset=M`.
 
 ```bash
 curl http://localhost:3000/api/skills
+curl "http://localhost:3000/api/skills?limit=10&offset=0"
 ```
 
 **Response (200):**
@@ -401,14 +247,12 @@ curl http://localhost:3000/api/skills
       "description": "Search the web",
       "version": 1,
       "config": null,
-      "createdAt": "2026-04-10T00:00:00.000Z",
-      "updatedAt": "2026-04-10T00:00:00.000Z"
+      "createdAt": 1712345678000,
+      "updatedAt": 1712345678000
     }
   ]
 }
 ```
-
----
 
 #### `POST /api/skills`
 
@@ -417,40 +261,18 @@ Create a new skill.
 ```bash
 curl -X POST http://localhost:3000/api/skills \
   -H "Content-Type: application/json" \
-  -d '{"name": "web-search", "description": "Search the web"}'
+  -d '{"name": "web-search"}'
 ```
-
-**Request body:**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | Yes | Skill name (1-100 characters) |
-| `description` | string | No | Skill description |
-| `config` | unknown | No | Skill configuration (JSON object) |
 
 **Response (201):**
 
 ```json
-{
-  "data": {
-    "id": "abc-123",
-    "name": "web-search",
-    "description": "Search the web",
-    "version": 1,
-    "config": null,
-    "createdAt": "2026-04-10T00:00:00.000Z",
-    "updatedAt": "2026-04-10T00:00:00.000Z"
-  }
-}
+{ "data": { "name": "web-search" } }
 ```
-
-**Response (400):**
-
-```json
-{"error":"Validation error details"}
-```
-
----
 
 #### `GET /api/skills/:id`
 
@@ -460,29 +282,11 @@ Get a skill by ID.
 curl http://localhost:3000/api/skills/abc-123
 ```
 
-**Response (200):**
-
-```json
-{
-  "data": {
-    "id": "abc-123",
-    "name": "web-search",
-    "description": "Search the web",
-    "version": 1,
-    "config": null,
-    "createdAt": "2026-04-10T00:00:00.000Z",
-    "updatedAt": "2026-04-10T00:00:00.000Z"
-  }
-}
-```
-
 **Response (404):**
 
 ```json
-{"error":"Skill not found: nonexistent"}
+{ "error": "Skill not found: nonexistent" }
 ```
-
----
 
 #### `DELETE /api/skills/:id`
 
@@ -495,88 +299,177 @@ curl -X DELETE http://localhost:3000/api/skills/abc-123
 **Response (200):**
 
 ```json
-{"data":null}
+{ "data": null }
 ```
 
-**Response (404):**
-
-```json
-{"error":"Skill not found: nonexistent"}
-```
-
-### 3.4 OpenAPI Documentation
-
-Interactive API documentation is available when the server is running:
+### 5.4 OpenAPI Documentation
 
 | URL | Description |
 |-----|-------------|
 | `http://localhost:3000/doc` | OpenAPI 3.0 JSON specification |
 | `http://localhost:3000/swagger` | Swagger UI (interactive) |
 
-The OpenAPI spec can be used directly with tools like:
-- **OpenAI Actions** -- connect as a custom action
-- **Claude MCP** -- use as a tool definition
-- **Postman** -- import the spec
-- **curl/httpie** -- reference for request formats
+The OpenAPI spec can be imported into Postman, used as OpenAI custom actions, or consumed as Claude MCP tool definitions.
 
-### 3.5 Health Check
+### 5.5 Health Check
 
 ```bash
 curl http://localhost:3000/
+# → {"status":"ok","timestamp":"2026-04-27T..."}
+
+curl http://localhost:3000/api/health
+# → {"data":{"status":"ok","timestamp":"2026-04-27T..."}}
 ```
 
-**Response (200):**
+## 6. Configuration
 
-```json
-{"status":"ok"}
-```
-
-## 4. Configuration
-
-### 4.1 Environment Variables
+### 6.1 Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `data/app.db` | SQLite databtbs file path |
+| `DATABASE_URL` | `data/app.db` | SQLite database file path |
 | `API_KEY` | *(none)* | API authentication key. If unset, auth is disabled |
 | `PORT` | `3000` | Server listen port |
 | `LOG_LEVEL` | `info` | Logging verbosity |
+| `TELEMETRY_ENABLED` | `false` | Enable OpenTelemetry tracing and metrics |
+| `OTEL_SERVICE_NAME` | *(none)* | Service name in trace exports |
+| `OTEL_ENVIRONMENT` | *(none)* | Environment label in trace exports |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | *(none)* | OTLP HTTP endpoint for trace/metric export |
 
-### 4.2 Databtbs
+### 6.2 Database
 
-The default databtbs is a SQLite file at `data/app.db`. It is created automatically on first use.
+Default: SQLite file at `data/app.db`, created automatically on first use.
 
 ```bash
-# Use a custom databtbs path
-DATABASE_URL=/path/to/custom.db bun run dev:cli -- skill list
+# Custom path
+DATABASE_URL=/path/to/custom.db bun run dev:server
 
-# Push schema changes (after code changes)
+# Push schema changes after code changes
 bun run db:push
 ```
 
-The `data/` directory is gitignored -- the databtbs is not committed to version control.
+The `data/` directory is gitignored. For Cloudflare D1 deployments, see the [Database Access Guide](docs/05_DATABASE_ACCESS.md).
 
-## 5. Deployment
+## 7. Policy Enforcement
 
-### 5.1 CLI Binary
+The repository ships with a reusable policy driver that enforces code conventions.
 
-Compile to a standalone binary:
+### 7.1 Run policies
 
 ```bash
-bun run build:cli
-# Output: dist/tbs (or dist/tbs.exe on Windows)
+bun run check:policy          # run all policies
+bun run check:policy --fix    # auto-fix where possible
 ```
 
-Cross-compile for other platforms:
+Run a specific policy:
 
 ```bash
+bun run scripts/policy-check.ts --policy db-boundaries
+```
+
+### 7.2 Covered policies
+
+| Policy | What it enforces |
+|--------|-----------------|
+| `bun-only` | No npm/pnpm/yarn references |
+| `bun-test` | Tests use `bun:test`, not Jest or Vitest |
+| `db-boundaries` | No Drizzle imports outside DB infrastructure |
+| `logger` | No `console.*` in scripts or app code |
+| `output-boundaries` | Output goes through `echo/echoError` |
+| `external-api-boundaries` | API calls use shared HTTP client wrappers |
+| `git-safety` | No hardcoded secrets or force-push patterns |
+
+### 7.3 Fix modes
+
+The policy driver supports two fix actions:
+
+- **`rewrite`** — replaces matching text in affected files (e.g., `console.log` → `logger.info`)
+- **`command`** — runs a shell command to fix the issue (e.g., `bun remove jest`)
+
+Full details in the [Policy Check Guide](docs/06_POLICY_CHECK.md).
+
+## 8. Observability
+
+### 8.1 Enable telemetry
+
+```bash
+export TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=my-service
+export OTEL_ENVIRONMENT=development
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
+```
+
+Runtime modes:
+
+| `TELEMETRY_ENABLED` | `OTEL_EXPORTER_OTLP_ENDPOINT` set? | Behavior |
+|---|---|---|
+| `false` | — | No telemetry; server runs normally |
+| `true` | No | Spans/metrics created in-process, no remote export |
+| `true` | Yes | Traces and metrics exported to collector/backend |
+
+### 8.2 Local observability stack
+
+```bash
+# Bring up OTel Collector + Jaeger
+bun run dev:observability
+
+# Enable telemetry and start the server
+export TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=my-service
+export OTEL_ENVIRONMENT=development
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
+bun run dev:server
+
+# Open Jaeger UI
+open http://localhost:16686
+```
+
+Useful commands:
+
+```bash
+bun run dev:observability         # start stack
+bun run dev:observability:logs    # tail collector logs
+bun run dev:observability:down    # stop stack
+```
+
+### 8.3 Emit custom spans
+
+```ts
+import { traceAsync, addSpanAttributes, addSpanEvent } from '@starter/core';
+
+const result = await traceAsync('my-operation', async (span) => {
+  span.setAttribute('my.key', 'value');
+  addSpanAttributes({ 'app.operation': 'my-operation' });
+  addSpanEvent('my-operation.started', { 'my.key': 'value' });
+  return await doWork();
+});
+```
+
+### 8.4 Server metrics
+
+The server auto-instruments three metric surfaces:
+
+- **Inbound HTTP**: request count, duration histogram, error count
+- **Outbound HTTP** (via `fetchApi()`): request count, duration, errors
+- **DB operations** (via DAO instrumentation): operation count, duration, errors
+
+All metrics are exported through the OTLP HTTP exporter when configured.
+
+## 9. CLI Binary Build
+
+```bash
+# Local platform
+bun run build:cli
+# Output: dist/tbs
+
+# Cross-compile
 bun build --compile --target=bun-linux-x64 apps/cli/src/index.ts --outfile dist/tbs-linux
 bun build --compile --target=bun-darwin-arm64 apps/cli/src/index.ts --outfile dist/tbs-macos
 ```
 
-The binary includes the Bun runtime -- no installation required on the target machine.
+The binary includes the Bun runtime — no installation required on the target machine.
 
-### 5.2 API Server (Docker)
+## 10. Docker Deployment
 
 ```dockerfile
 FROM oven/bun:1
@@ -601,49 +494,49 @@ docker build -t typescript-bun-starter .
 docker run -p 3000:3000 -e API_KEY=sk-secret typescript-bun-starter
 ```
 
-### 5.3 Cloudflare Workers (D1)
-
-For edge deployment using Cloudflare D1:
-
-1. Configure `wrangler.json` with D1 bindings.
-2. Generate migrations: `bun run db:generate`
-3. Apply migrations: `wrangler d1 migrations apply <DB_NAME> --remote`
-4. Deploy: `wrangler deploy`
-
-## 6. Skill Data Model
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string (UUID) | Auto-generated unique identifier |
-| `name` | string | Skill name (1-100 characters) |
-| `description` | string or null | Optional description |
-| `version` | number | Schema version (starts at 1) |
-| `config` | any (JSON) or null | Skill-specific configuration |
-| `createdAt` | ISO 8601 date | Creation timestamp |
-| `updatedAt` | ISO 8601 date | Last update timestamp |
-
-## 7. Troubleshooting
-
-### `Error: --name is required`
-
-This only applies in `--json` mode. In human mode, `skill create` prompts for the missing name. For JSON/script usage, provide it explicitly:
+## 11. Daily Development Commands
 
 ```bash
-tbs skill create --name "my-skill"
+bun install                     # install dependencies
+bun run check                   # full gate: lint, typecheck, tests, contract, docs
+bun run check:policy            # policy enforcement only
+bun run test                    # test suite with coverage
+bun run typecheck               # TypeScript type checking
+bun run format                  # Biome format
+bun run lint-fix                # Biome lint with auto-fix
+bun run dev:cli                 # CLI development
+bun run dev:server              # API server development (port 3000)
+bun run dev:web                 # Web app development (port 4321)
+bun run dev:all                 # Server + Web together
+bun run db:push                 # Push Drizzle schema to SQLite
 ```
 
-### `Skill not found: <id>`
-
-The skill ID does not exist. Check with `skill list` to see available IDs.
+## 12. Troubleshooting
 
 ### `{"error":"Unauthorized"}`
 
-The `API_KEY` environment variable is set but you did not provide a valid key. Either:
+`API_KEY` is set but you didn't provide a valid key. Either:
+
 - Pass the key: `curl -H "X-API-Key: your-key" ...`
-- Or unset `API_KEY` for local development (auth is disabled when not set).
+- Unset `API_KEY` for local development (auth is disabled when not set).
 
 ### Database not found / empty
 
-The database is created automatically on first use. If skills are missing, check:
-- `DATABASE_URL` points to the correct file
+The database is created automatically on first use. If data is missing:
+
+- Check `DATABASE_URL` points to the correct file
 - Run `bun run db:push` to ensure the schema is up to date
+
+### Scaffold validate fails
+
+The project contract is out of sync. Common causes:
+
+- Workspace added/removed manually without `scaffold add/remove`
+- File naming doesn't match contract patterns
+- Required root scripts are missing
+
+Fix: `bun run scaffold:validate -- --fix` or re-run the appropriate scaffold command.
+
+### `bun run check` fails on docs
+
+Canonical docs contain stale or missing content. Run `bun run check:docs` to see specific failures. Update the affected doc to match the current codebase.
