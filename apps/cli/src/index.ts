@@ -12,7 +12,12 @@ const isJsonMode = process.argv.includes('--json');
 
 // ASCII banner (non-JSON mode only)
 if (!isJsonMode) {
-    echo(figlet.textSync(CLI_CONFIG.binaryLabel, { font: 'Standard' }), process.stdout);
+    try {
+        echo(figlet.textSync(CLI_CONFIG.binaryLabel, { font: 'Standard' }), process.stdout);
+    } catch {
+        // Font file not available in bundled/compiled context — fall back to plain text
+        echo(` ${CLI_CONFIG.binaryLabel}\n`, process.stdout);
+    }
 }
 
 // Logger must be configured before command parsing.
