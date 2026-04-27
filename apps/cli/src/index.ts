@@ -1,20 +1,22 @@
 #!/usr/bin/env bun
 import { Writable } from 'node:stream';
+import { program } from '@commander-js/extra-typings';
 import { configure, getConsoleSink, getStreamSink } from '@logtape/logtape';
-import { createLoggerSinks, getLoggerConfig } from '@starter/core';
-import { Builtins, Cli } from 'clipanion';
-import { ScaffoldAddCommand } from './commands/scaffold/scaffold-add';
-import { ScaffoldInitCommand } from './commands/scaffold/scaffold-init';
-import { ScaffoldListCommand } from './commands/scaffold/scaffold-list';
-import { ScaffoldRemoveCommand } from './commands/scaffold/scaffold-remove';
-import { ScaffoldValidateCommand } from './commands/scaffold/scaffold-validate';
+import { createLoggerSinks, echo, getLoggerConfig } from '@starter/core';
+import figlet from 'figlet';
+import { registerScaffoldCommands } from './commands/scaffold/index';
 import { CLI_CONFIG } from './config';
 
-// Detect JSON agent mode before logging is configured.
+// Detect JSON agent mode before anything is printed.
 const isJsonMode = process.argv.includes('--json');
 
-const loggerConfig = getLoggerConfig(process.env);
+// ASCII banner (non-JSON mode only)
+if (!isJsonMode) {
+    echo(figlet.textSync(CLI_CONFIG.binaryLabel, { font: 'Standard' }), process.stdout);
+}
 
+// Logger must be configured before command parsing.
+const loggerConfig = getLoggerConfig(process.env);
 await configure({
     ...loggerConfig,
     sinks: createLoggerSinks(loggerConfig, {
@@ -22,20 +24,8 @@ await configure({
     }),
 });
 
-const cli = new Cli({
-    binaryLabel: CLI_CONFIG.binaryLabel,
-    binaryName: CLI_CONFIG.binaryName,
-    binaryVersion: CLI_CONFIG.binaryVersion,
-});
+program.name(CLI_CONFIG.binaryName).description(CLI_CONFIG.binaryLabel).version(CLI_CONFIG.binaryVersion);
 
-cli.register(Builtins.HelpCommand);
-cli.register(Builtins.VersionCommand);
+registerScaffoldCommands(program);
 
-// Scaffold commands
-cli.register(ScaffoldInitCommand);
-cli.register(ScaffoldRemoveCommand);
-cli.register(ScaffoldAddCommand);
-cli.register(ScaffoldValidateCommand);
-cli.register(ScaffoldListCommand);
-
-cli.runExit(process.argv.slice(2));
+await program.parseAsync();
