@@ -1,4 +1,4 @@
-# GEMINI.md -- Smoke App
+# GEMINI.md -- TypeScript Bun Starter
 
 This file is consumed by Gemini tooling and mirrors the root repository contract.
 
