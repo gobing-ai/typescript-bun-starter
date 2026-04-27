@@ -1,108 +1,91 @@
-import type { Command } from '@commander-js/extra-typings';
 import { echoError } from '@starter/core';
+import { writeOutput, writeSuccess } from '../../ui/output';
 import { getFeature, isRequiredFeature, REQUIRED_FEATURES, SCAFFOLD_FEATURES } from './features/registry';
 import { isFeatureInstalled } from './scaffold-add';
-import { writeOutput, writeSuccess } from './scaffold-output';
 import { ScaffoldService } from './services/scaffold-service';
 import type { ContractFile, FeatureDefinition } from './types/scaffold';
 
 const STARTER_ROOT_PACKAGE_NAME = '@gobing-ai/typescript-bun-starter';
 
 // ---------------------------------------------------------------------------
-// Registration
+// Action (invoked by commander wiring in scaffold/index.ts)
 // ---------------------------------------------------------------------------
 
-export function registerRemoveCommand(
-    scaffold: Command,
+export interface RemoveActionOpts {
+    dryRun?: boolean;
+    json?: boolean;
+}
+
+export async function scaffoldRemoveAction(
+    feature: string,
+    opts: RemoveActionOpts,
     out: NodeJS.WritableStream = process.stdout,
     err: NodeJS.WritableStream = process.stderr,
-): void {
-    scaffold
-        .command('remove')
-        .description('Remove optional feature modules')
-        .addHelpText(
-            'after',
-            `
-Examples:
-  tbs scaffold remove webapp
-  tbs scaffold remove webapp --dry-run
-  tbs scaffold remove server --json`,
-        )
-        .argument('<feature>', 'Feature name (webapp, server, cli)')
-        .option('--dry-run', 'Preview changes without applying')
-        .option('--json', 'Output as JSON (agent mode)')
-        .action(async (feature, opts) => {
-            const isJson = opts.json ?? false;
-            const service = new ScaffoldService();
+): Promise<void> {
+    const isJson = opts.json ?? false;
+    const service = new ScaffoldService();
 
-            const featureDef = getFeature(feature);
-            if (!featureDef) {
-                const optionalFeatures = Object.keys(SCAFFOLD_FEATURES).filter(
-                    (f) => !REQUIRED_FEATURES.includes(f as (typeof REQUIRED_FEATURES)[number]),
-                );
-                const available = [...REQUIRED_FEATURES, ...optionalFeatures].join(', ');
-                process.exitCode = writeOutput(
-                    out,
-                    err,
-                    isJson,
-                    null,
-                    `Unknown feature: ${feature}. Available: ${available}`,
-                );
-                return;
-            }
+    const featureDef = getFeature(feature);
+    if (!featureDef) {
+        const optionalFeatures = Object.keys(SCAFFOLD_FEATURES).filter(
+            (f) => !REQUIRED_FEATURES.includes(f as (typeof REQUIRED_FEATURES)[number]),
+        );
+        const available = [...REQUIRED_FEATURES, ...optionalFeatures].join(', ');
+        process.exitCode = writeOutput(out, err, isJson, null, `Unknown feature: ${feature}. Available: ${available}`);
+        return;
+    }
 
-            if (isRequiredFeature(feature)) {
-                process.exitCode = writeOutput(out, err, isJson, null, `Cannot remove required feature: ${feature}`);
-                return;
-            }
+    if (isRequiredFeature(feature)) {
+        process.exitCode = writeOutput(out, err, isJson, null, `Cannot remove required feature: ${feature}`);
+        return;
+    }
 
-            if (shouldBlockStarterWebappRemoval(service, feature)) {
-                process.exitCode = writeOutput(
-                    out,
-                    err,
-                    isJson,
-                    null,
-                    "Refusing to remove 'webapp' from the starter repository. Run this in a generated project instead.",
-                );
-                return;
-            }
+    if (shouldBlockStarterWebappRemoval(service, feature)) {
+        process.exitCode = writeOutput(
+            out,
+            err,
+            isJson,
+            null,
+            "Refusing to remove 'webapp' from the starter repository. Run this in a generated project instead.",
+        );
+        return;
+    }
 
-            if (!isFeatureInstalled(feature, service)) {
-                process.exitCode = writeOutput(out, err, isJson, null, `Feature '${feature}' is not installed`);
-                return;
-            }
+    if (!isFeatureInstalled(feature, service)) {
+        process.exitCode = writeOutput(out, err, isJson, null, `Feature '${feature}' is not installed`);
+        return;
+    }
 
-            const { filesToDelete, filesToRewrite } = stageRemoveChanges(service, featureDef);
+    const { filesToDelete, filesToRewrite } = stageRemoveChanges(service, featureDef);
 
-            if (opts.dryRun) {
-                writeOutput(out, err, isJson, {
-                    feature,
-                    filesToDelete,
-                    filesToRewrite,
-                    preview: formatRemoveDryRunOutput(feature, filesToDelete, filesToRewrite),
-                });
-                return;
-            }
-
-            for (const relPath of filesToDelete) {
-                service.deleteFile(relPath);
-            }
-
-            for (const [relPath, content] of filesToRewrite) {
-                service.writeFile(relPath, content);
-            }
-
-            await updateRemoveContracts(service, feature);
-            runPostRemoveScripts(service, err);
-
-            writeSuccess(out, isJson, `Feature '${feature}' removed`);
-            writeOutput(out, err, isJson, {
-                success: true,
-                feature,
-                filesDeleted: filesToDelete.length,
-                filesRewritten: filesToRewrite.length,
-            });
+    if (opts.dryRun) {
+        writeOutput(out, err, isJson, {
+            feature,
+            filesToDelete,
+            filesToRewrite,
+            preview: formatRemoveDryRunOutput(feature, filesToDelete, filesToRewrite),
         });
+        return;
+    }
+
+    for (const relPath of filesToDelete) {
+        service.deleteFile(relPath);
+    }
+
+    for (const [relPath, content] of filesToRewrite) {
+        service.writeFile(relPath, content);
+    }
+
+    await updateRemoveContracts(service, feature);
+    runPostRemoveScripts(service, err);
+
+    writeSuccess(out, isJson, `Feature '${feature}' removed`);
+    writeOutput(out, err, isJson, {
+        success: true,
+        feature,
+        filesDeleted: filesToDelete.length,
+        filesRewritten: filesToRewrite.length,
+    });
 }
 
 // ---------------------------------------------------------------------------
