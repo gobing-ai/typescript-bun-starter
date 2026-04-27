@@ -2,98 +2,87 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { cwd } from 'node:process';
-import type { Command } from '@commander-js/extra-typings';
 import { echoError } from '@starter/core';
+import { writeOutput } from '../../ui/output';
 import { SCAFFOLD_FEATURES } from './features/registry';
-import { writeOutput } from './scaffold-output';
 import { ScaffoldService } from './services/scaffold-service';
 import type { ContractFile, ValidationIssue } from './types/scaffold';
 
 // ---------------------------------------------------------------------------
-// Registration
+// Action (invoked by commander wiring in scaffold/index.ts)
 // ---------------------------------------------------------------------------
 
-export function registerValidateCommand(
-    scaffold: Command,
+export interface ValidateActionOpts {
+    fix?: boolean;
+    dryRun?: boolean;
+    json?: boolean;
+}
+
+export async function scaffoldValidateAction(
+    opts: ValidateActionOpts,
     out: NodeJS.WritableStream = process.stdout,
     err: NodeJS.WritableStream = process.stderr,
-): void {
-    scaffold
-        .command('validate')
-        .description('Validate project contracts and structure')
-        .addHelpText(
-            'after',
-            `
-Examples:
-  tbs scaffold validate
-  tbs scaffold validate --fix
-  tbs scaffold validate --json`,
-        )
-        .option('--fix', 'Auto-fix fixable issues')
-        .option('--dry-run', 'Preview changes without applying')
-        .option('--json', 'Output as JSON (agent mode)')
-        .action(async (opts) => {
-            const isJson = opts.json ?? false;
-            const service = new ScaffoldService();
-            const issues: ValidationIssue[] = [];
+): Promise<void> {
+    const isJson = opts.json ?? false;
+    const service = new ScaffoldService();
+    const issues: ValidationIssue[] = [];
 
-            if (!service.exists('contracts/project-contracts.json')) {
-                process.exitCode = writeOutput(out, err, isJson, null, 'contracts/project-contracts.json not found');
-                return;
-            }
+    if (!service.exists('contracts/project-contracts.json')) {
+        process.exitCode = writeOutput(out, err, isJson, null, 'contracts/project-contracts.json not found');
+        return;
+    }
 
-            const contract = service.readJson<ContractFile>('contracts/project-contracts.json');
+    const contract = service.readJson<ContractFile>('contracts/project-contracts.json');
 
+    issues.push(...validateWorkspaces(service, contract));
+    issues.push(...validateDependencyRules(service, contract));
+    issues.push(...validateScripts(service, contract));
+    issues.push(...validateFileNaming(service, contract));
+    issues.push(...validateInstructions(service));
+
+    if (opts.fix && issues.some((i) => i.fixable)) {
+        const fixableCategories = new Set(issues.filter((i) => i.fixable).map((i) => i.category));
+        applyValidateFixes(issues, err);
+        issues.length = 0;
+        if (fixableCategories.has('workspace')) {
             issues.push(...validateWorkspaces(service, contract));
+        }
+        if (fixableCategories.has('workspace')) {
             issues.push(...validateDependencyRules(service, contract));
+        }
+        if (fixableCategories.has('script')) {
             issues.push(...validateScripts(service, contract));
+        }
+        if (fixableCategories.has('naming')) {
             issues.push(...validateFileNaming(service, contract));
+        }
+        if (fixableCategories.has('instructions')) {
             issues.push(...validateInstructions(service));
+        }
+    }
 
-            if (opts.fix && issues.some((i) => i.fixable)) {
-                const fixableCategories = new Set(issues.filter((i) => i.fixable).map((i) => i.category));
-                applyValidateFixes(issues, err);
-                issues.length = 0;
-                if (fixableCategories.has('workspace')) {
-                    issues.push(...validateWorkspaces(service, contract));
-                }
-                if (fixableCategories.has('workspace')) {
-                    issues.push(...validateDependencyRules(service, contract));
-                }
-                if (fixableCategories.has('script')) {
-                    issues.push(...validateScripts(service, contract));
-                }
-                if (fixableCategories.has('naming')) {
-                    issues.push(...validateFileNaming(service, contract));
-                }
-                if (fixableCategories.has('instructions')) {
-                    issues.push(...validateInstructions(service));
-                }
-            }
+    const errors = issues.filter((i) => i.severity === 'error');
+    const warnings = issues.filter((i) => i.severity === 'warning');
 
-            const errors = issues.filter((i) => i.severity === 'error');
-            const warnings = issues.filter((i) => i.severity === 'warning');
+    if (issues.length === 0) {
+        writeOutput(out, err, isJson, { valid: true, message: 'Project validation passed' });
+        return;
+    }
 
-            if (issues.length === 0) {
-                writeOutput(out, err, isJson, { valid: true, message: 'Project validation passed' });
-                return;
-            }
-
-            const fixableCount = issues.filter((i) => i.fixable).length;
-            writeOutput(
-                out,
-                err,
-                isJson,
-                {
-                    valid: errors.length === 0,
-                    errors: errors.length,
-                    warnings: warnings.length,
-                    issues,
-                    hint: fixableCount > 0 ? `Run with --fix to auto-fix ${fixableCount} issue(s)` : undefined,
-                },
-                errors.length > 0 ? `Validation failed with ${errors.length} error(s)` : undefined,
-            );
-        });
+    const fixableCount = issues.filter((i) => i.fixable).length;
+    writeOutput(
+        out,
+        err,
+        isJson,
+        {
+            valid: errors.length === 0,
+            errors: errors.length,
+            warnings: warnings.length,
+            issues,
+            hint: fixableCount > 0 ? `Run with --fix to auto-fix ${fixableCount} issue(s)` : undefined,
+        },
+        errors.length > 0 ? `Validation failed with ${errors.length} error(s)` : undefined,
+    );
 }
 
 // ---------------------------------------------------------------------------
