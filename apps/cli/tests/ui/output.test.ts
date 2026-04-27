@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { Writable } from 'node:stream';
-import { formatDryRunPreview, writeOutput, writeSuccess } from '../../../src/commands/scaffold/scaffold-output';
+import { formatDryRunPreview, writeOutput, writeSuccess } from '../../src/ui/output';
 
 function createCollector(): { stream: Writable; output: string[] } {
     const output: string[] = [];
@@ -23,7 +23,7 @@ function noopStream(): Writable {
     });
 }
 
-describe('scaffold-output', () => {
+describe('output', () => {
     describe('writeOutput', () => {
         it('should return 0 for success in JSON mode', () => {
             const { stream, output } = createCollector();
