@@ -7,8 +7,13 @@
         "dev": "bun run src/index.ts"
     },
     "dependencies": {
+        "@commander-js/extra-typings": "^14.0.0",
         "@logtape/logtape": "^2.0.5",
         "@starter/core": "workspace:*",
-        "clipanion": "^4.0.0-rc.4"
+        "commander": "^14.0.3",
+        "figlet": "^1.11.0"
+    },
+    "devDependencies": {
+        "@types/figlet": "^1.7.0"
     }
 }
