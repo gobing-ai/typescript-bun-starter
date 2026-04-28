@@ -1,7 +1,38 @@
 // @starter/core — barrel export
 
+export { getRoles, hasRole } from './access';
 export { APIClient, type APIClientConfig, APIError, type RequestOptions } from './api-client';
+export {
+    API_ERROR_CODES,
+    type ApiEnvelope,
+    type ApiEnvelopeResult,
+    type ApiErrorCode,
+    type ApiErrorEnvelope,
+    type ApiSuccessEnvelope,
+    badRequestResponse,
+    conflictResponse,
+    errorResponse,
+    forbiddenResponse,
+    infoResponse,
+    internalErrorResponse,
+    notFoundResponse,
+    paginatedResponse,
+    successResponse,
+    unauthorizedResponse,
+    validationErrorResponse,
+} from './api-response';
 export { CORE_CONFIG } from './config';
+export {
+    buildCursorMeta,
+    type CursorData,
+    createCursor,
+    decodeAndParseCursor,
+    decodeCursor,
+    encodeCursor,
+    encodeCursorFromItem,
+    parseCursor,
+} from './cursor';
+export { fromMs, nowMs, toMs } from './date';
 export type { DbAdapter, DbAdapterConfig, DbClient, DbTable } from './db/adapter';
 export { createDbAdapter } from './db/adapter';
 export { BaseDao } from './db/base-dao';
@@ -19,6 +50,7 @@ export {
 } from './errors';
 export { logger } from './logger';
 export { createLoggerSinks, getLoggerConfig } from './logging';
+export { getValidatedOrigin, isAllowedOrigin, matchOriginPattern } from './origin';
 export type { WriteTarget } from './output';
 export { echo, echoError } from './output';
 export type { Span, SpanOptions, TelemetryConfig, Tracer } from './telemetry';
