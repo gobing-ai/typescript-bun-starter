@@ -6,6 +6,7 @@ import { Writable } from 'node:stream';
 import { swaggerUI } from '@hono/swagger-ui';
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
+import { ErrorResponseSchema, PaginationSchema } from '@starter/contracts';
 import type { DbAdapter, DbAdapterConfig, DbClient } from '@starter/core';
 import {
     createDbAdapter,
@@ -16,6 +17,7 @@ import {
     getLoggerConfig,
     initMetrics,
     SkillsDao,
+    successResponse,
     traceAsync,
 } from '@starter/core';
 import { authMiddleware } from './middleware/auth';
@@ -59,12 +61,7 @@ const STATIC_ASSET_EXTENSIONS = new Set([
     '.xml',
 ]);
 
-const errorResponseSchema = z
-    .object({
-        error: z.string(),
-        code: z.string().optional(),
-    })
-    .openapi('ErrorResponse');
+const errorResponseSchema = z.object(ErrorResponseSchema.shape).openapi('ErrorResponse');
 
 const healthResponseSchema = z
     .object({
@@ -74,11 +71,15 @@ const healthResponseSchema = z
     })
     .openapi('HealthResponse');
 
-const healthEnvelopeSchema = z
-    .object({
-        data: healthResponseSchema,
-    })
-    .openapi('HealthEnvelope');
+const successEnvelopeSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
+    z.object({
+        code: z.literal(0),
+        message: z.string(),
+        result: z.enum(['success', 'info']),
+        data: dataSchema,
+    });
+
+const healthEnvelopeSchema = successEnvelopeSchema(healthResponseSchema).openapi('HealthEnvelope');
 
 const skillSchema = z
     .object({
@@ -92,11 +93,7 @@ const skillSchema = z
     })
     .openapi('Skill');
 
-const skillListEnvelopeSchema = z
-    .object({
-        data: z.array(skillSchema),
-    })
-    .openapi('SkillListEnvelope');
+const skillListEnvelopeSchema = successEnvelopeSchema(z.array(skillSchema)).openapi('SkillListEnvelope');
 
 const createSkillBodySchema = z
     .object({
@@ -104,13 +101,7 @@ const createSkillBodySchema = z
     })
     .openapi('CreateSkillRequest');
 
-const createSkillEnvelopeSchema = z
-    .object({
-        data: z.object({
-            name: z.string(),
-        }),
-    })
-    .openapi('CreateSkillEnvelope');
+const createSkillEnvelopeSchema = successEnvelopeSchema(z.object({ name: z.string() })).openapi('CreateSkillEnvelope');
 
 const apiHealthRoute = createRoute({
     method: 'get',
@@ -127,10 +118,7 @@ const apiHealthRoute = createRoute({
     },
 });
 
-const listSkillsQuerySchema = z.object({
-    limit: z.coerce.number().int().min(1).max(500).optional(),
-    offset: z.coerce.number().int().min(0).optional(),
-});
+const listSkillsQuerySchema = z.object(PaginationSchema.shape).openapi('ListSkillsQuery');
 
 const listSkillsRoute = createRoute({
     method: 'get',
@@ -315,12 +303,10 @@ export function createApp(localDb?: DbClient) {
     // ── Health (API, no auth required) ───────────────────────────────────
     app.openapi(apiHealthRoute, (c) => {
         return c.json(
-            {
-                data: {
-                    status: 'ok',
-                    timestamp: new Date().toISOString(),
-                },
-            },
+            successResponse({
+                status: 'ok' as const,
+                timestamp: new Date().toISOString(),
+            }),
             200,
         );
     });
@@ -334,17 +320,14 @@ export function createApp(localDb?: DbClient) {
         const body = c.req.valid('json');
         const created = await skillsDao.createSkill({ name: body.name });
 
-        return c.json({ data: { name: created.name } }, 201);
+        return c.json(successResponse({ name: created.name }, 'Skill created'), 201);
     });
 
     app.openapi(listSkillsRoute, async (c) => {
         const skillsDao = new SkillsDao(c.get('db'));
         const { limit, offset } = c.req.valid('query');
-        const rows = await skillsDao.listSkills({
-            ...(limit !== undefined ? { limit } : {}),
-            ...(offset !== undefined ? { offset } : {}),
-        });
-        return c.json({ data: rows }, 200);
+        const rows = await skillsDao.listSkills({ limit, offset });
+        return c.json(successResponse(rows), 200);
     });
 
     // ── Swagger UI ───────────────────────────────────────────────────────
