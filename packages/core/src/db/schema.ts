@@ -1,15 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { standardColumns } from './columns';
 
-export const skills = sqliteTable('skills', {
-    id: text('id').primaryKey(),
-    name: text('name').notNull(),
-    description: text('description'),
-    version: integer('version').notNull().default(1),
-    config: text('config'),
-    ...standardColumns,
-});
-
 export const queueJobs = sqliteTable('queue_jobs', {
     id: text('id').primaryKey(),
     type: text('type').notNull(),
