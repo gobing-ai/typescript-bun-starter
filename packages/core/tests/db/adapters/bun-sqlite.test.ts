@@ -2,14 +2,18 @@ import { describe, expect, test } from 'bun:test';
 import { BunSqliteAdapter } from '../../../src/db/adapters/bun-sqlite';
 
 const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS skills (
+  CREATE TABLE IF NOT EXISTS queue_jobs (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    version INTEGER NOT NULL DEFAULT 1,
-    config TEXT,
+    type TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    max_retries INTEGER NOT NULL DEFAULT 3,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
+    updated_at INTEGER NOT NULL,
+    next_retry_at INTEGER,
+    last_error TEXT,
+    processing_at INTEGER
   )
 `;
 
@@ -26,16 +30,16 @@ describe('BunSqliteAdapter', () => {
         const db = adapter.getDb();
         await adapter.exec(CREATE_TABLE_SQL);
         await adapter.exec(
-            `INSERT INTO skills (id, name, created_at, updated_at) VALUES ('test-id', 'test-name', 0, 0)`,
+            `INSERT INTO queue_jobs (id, type, payload, created_at, updated_at) VALUES ('test-id', 'test-job', '{}', 0, 0)`,
         );
 
-        const { skills } = await import('../../../src/db/schema');
-        const rows = await db.select().from(skills);
+        const { queueJobs } = await import('../../../src/db/schema');
+        const rows = await db.select().from(queueJobs);
         expect(rows.length).toBe(1);
         expect(rows[0]).toBeDefined();
         const row = rows[0] as (typeof rows)[number];
         expect(row.id).toBe('test-id');
-        expect(row.name).toBe('test-name');
+        expect(row.type).toBe('test-job');
 
         adapter.close();
     });
