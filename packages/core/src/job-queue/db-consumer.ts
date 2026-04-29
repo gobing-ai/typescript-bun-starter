@@ -1,7 +1,6 @@
 import { nowMs } from '../date';
 import type { DbClient } from '../db/adapter';
-import { eq, or, sql } from '../db/query-helpers';
-import { queueJobs } from '../db/schema';
+import { QueueJobDao, type QueueJobRecord } from '../db/queue-job-dao';
 import { logger } from '../logger';
 import type { Job, JobHandler, QueueConsumer, QueueConsumerConfig, QueueStats } from './types';
 
@@ -24,7 +23,7 @@ const DEFAULT_MAX_DELAY = 60000;
  * on each poll cycle so another consumer can pick them up.
  */
 export class DBQueueConsumer implements QueueConsumer {
-    private readonly db: DbClient;
+    private readonly dao: QueueJobDao;
     private readonly config: Required<QueueConsumerConfig>;
     private readonly handlers = new Map<string, JobHandler>();
     private _stopped = false;
@@ -32,7 +31,7 @@ export class DBQueueConsumer implements QueueConsumer {
     private _inFlight = 0;
 
     constructor(db: DbClient, config: QueueConsumerConfig = {}) {
-        this.db = db;
+        this.dao = new QueueJobDao(db);
         this.config = {
             pollInterval: config.pollInterval ?? DEFAULT_POLL_INTERVAL,
             batchSize: config.batchSize ?? DEFAULT_BATCH_SIZE,
@@ -87,16 +86,11 @@ export class DBQueueConsumer implements QueueConsumer {
     }
 
     async stats(): Promise<QueueStats> {
-        const countByStatus = async (status: string): Promise<number> => {
-            const rows = await this.db.select().from(queueJobs).where(sql`${queueJobs.status} = ${status}`);
-            return rows.length;
-        };
-
         const [pending, processing, completed, failed] = await Promise.all([
-            countByStatus('pending'),
-            countByStatus('processing'),
-            countByStatus('completed'),
-            countByStatus('failed'),
+            this.dao.countByStatus('pending'),
+            this.dao.countByStatus('processing'),
+            this.dao.countByStatus('completed'),
+            this.dao.countByStatus('failed'),
         ]);
 
         return { pending, processing, completed, failed };
@@ -129,54 +123,23 @@ export class DBQueueConsumer implements QueueConsumer {
     // ── Stuck job recovery ───────────────────────────────────────────────
 
     private async resetStuckJobs(): Promise<void> {
-        const cutoff = nowMs() - this.config.visibilityTimeout;
+        const count = await this.dao.resetStuckJobs(this.config.visibilityTimeout);
 
-        const stuck = await this.db
-            .update(queueJobs)
-            .set({
-                status: 'pending',
-                processingAt: null,
-                updatedAt: nowMs(),
-            })
-            .where(
-                sql`${queueJobs.status} = 'processing' AND ${queueJobs.processingAt} IS NOT NULL AND ${queueJobs.processingAt} <= ${cutoff}`,
-            );
-
-        if (stuck.changes > 0) {
-            logger.warn('Reset stuck processing jobs', { count: stuck.changes });
+        if (count > 0) {
+            logger.warn('Reset stuck processing jobs', { count });
         }
     }
 
     // ── Batch processing ─────────────────────────────────────────────────
 
     private async processBatch(): Promise<void> {
-        const now = nowMs();
-
-        // Fetch pending jobs that are ready (nextRetryAt <= now)
-        const pending = await this.db
-            .select()
-            .from(queueJobs)
-            .where(
-                or(
-                    sql`${queueJobs.status} = 'pending' AND ${queueJobs.nextRetryAt} IS NULL`,
-                    sql`${queueJobs.status} = 'pending' AND ${queueJobs.nextRetryAt} <= ${now}`,
-                ),
-            )
-            .orderBy(queueJobs.createdAt)
-            .limit(this.config.batchSize);
+        const pending = await this.dao.findPending(this.config.batchSize);
 
         if (pending.length === 0) return;
 
         // Mark as processing
         const ids = pending.map((j) => j.id);
-        await this.db
-            .update(queueJobs)
-            .set({
-                status: 'processing',
-                processingAt: now,
-                updatedAt: now,
-            })
-            .where(sql`${queueJobs.id} IN (${ids.join(', ')})`);
+        await this.dao.markProcessing(ids);
 
         // Process each job
         for (const row of pending) {
@@ -189,7 +152,7 @@ export class DBQueueConsumer implements QueueConsumer {
 
     // ── Single job processing ────────────────────────────────────────────
 
-    private async processJob(row: typeof queueJobs.$inferSelect): Promise<void> {
+    private async processJob(row: QueueJobRecord): Promise<void> {
         const handler = this.handlers.get(row.type);
 
         if (!handler) {
@@ -214,7 +177,7 @@ export class DBQueueConsumer implements QueueConsumer {
 
         try {
             await handler(job);
-            await this.completeJob(row.id);
+            await this.dao.markCompleted(row.id);
             logger.debug('Job completed', { jobId: row.id, type: row.type });
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -225,60 +188,20 @@ export class DBQueueConsumer implements QueueConsumer {
 
     // ── Job state transitions ────────────────────────────────────────────
 
-    private async completeJob(id: string): Promise<void> {
-        await this.db
-            .update(queueJobs)
-            .set({
-                status: 'completed',
-                updatedAt: nowMs(),
-                processingAt: null,
-            })
-            .where(eq(queueJobs.id, id));
+    private async failJob(row: QueueJobRecord, error: Error): Promise<void> {
+        await this.dao.markFailed(row.id, row.attempts, error.message);
     }
 
-    private async failJob(row: typeof queueJobs.$inferSelect, error: Error): Promise<void> {
-        await this.db
-            .update(queueJobs)
-            .set({
-                status: 'failed',
-                attempts: row.attempts,
-                lastError: error.message,
-                updatedAt: nowMs(),
-                processingAt: null,
-            })
-            .where(eq(queueJobs.id, row.id));
-    }
-
-    private async retryOrFailJob(row: typeof queueJobs.$inferSelect, errorMessage: string): Promise<void> {
+    private async retryOrFailJob(row: QueueJobRecord, errorMessage: string): Promise<void> {
         const attempts = row.attempts + 1;
 
         if (attempts >= row.maxRetries) {
-            await this.db
-                .update(queueJobs)
-                .set({
-                    status: 'failed',
-                    attempts,
-                    lastError: errorMessage,
-                    updatedAt: nowMs(),
-                    processingAt: null,
-                })
-                .where(eq(queueJobs.id, row.id));
+            await this.dao.markFailed(row.id, attempts, errorMessage);
             return;
         }
 
         const nextRetryAt = nowMs() + this.calculateBackoff(attempts);
-
-        await this.db
-            .update(queueJobs)
-            .set({
-                status: 'pending',
-                attempts,
-                lastError: errorMessage,
-                nextRetryAt,
-                updatedAt: nowMs(),
-                processingAt: null,
-            })
-            .where(eq(queueJobs.id, row.id));
+        await this.dao.markForRetry(row.id, attempts, errorMessage, nextRetryAt);
     }
 
     // ── Backoff ──────────────────────────────────────────────────────────
