@@ -37,14 +37,14 @@ export type PKColumn = SQLiteColumn;
  *
  * @example
  * ```ts
- * export class SkillsDao extends EntityDao<typeof skills, typeof skills.id> {
+ * export class UsersDao extends EntityDao<typeof users, typeof users.id> {
  *     constructor(db: DbClient) {
- *         super(db, skills, skills.id, 'skills');
+ *         super(db, users, users.id, 'users');
  *     }
  *
  *     // Add entity-specific methods here
- *     async findByName(name: string) {
- *         return this.findBy(skills.name, name);
+ *     async findByEmail(email: string) {
+ *         return this.findBy(users.email, email);
  *     }
  * }
  * ```
