@@ -48,8 +48,6 @@ export {
 } from './db/columns';
 export { EntityDao, type EntityTable, type PKColumn, type SoftDeletableTable } from './db/entity-dao';
 export { QueueJobDao, type QueueJobRecord } from './db/queue-job-dao';
-export type { CreateSkillInput, SkillRecord } from './db/skills-dao';
-export { SkillsDao } from './db/skills-dao';
 export type { ErrorCode } from './errors';
 export {
     AppError,
