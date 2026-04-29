@@ -66,7 +66,7 @@ describe('createBrowserApiClient', () => {
             });
 
         const api = createBrowserApiClient('https://example.com');
-        const response = await api.get('/api/skills');
+        const response = await api.get('/api/items');
 
         expect(response.status).toBe(401);
         expect(response.data).toBeUndefined();
@@ -82,7 +82,7 @@ describe('createBrowserApiClient', () => {
             });
 
         const api = createBrowserApiClient('https://example.com');
-        const response = await api.get('/api/skills');
+        const response = await api.get('/api/items');
 
         expect(response.status).toBe(500);
         expect(response.error).toBe('Internal Server Error');
@@ -108,7 +108,7 @@ describe('createBrowserApiClient', () => {
         };
 
         const api = createBrowserApiClient('https://example.com');
-        const response = await api.get('/api/skills');
+        const response = await api.get('/api/items');
 
         expect(response.status).toBe(0);
         expect(response.error).toBe('socket hang up');
@@ -126,18 +126,18 @@ describe('createBrowserApiClient', () => {
 
         const api = createBrowserApiClient('https://example.com');
 
-        await api.post('/api/skills', { name: 'post-skill' });
-        await api.put('/api/skills/1', { name: 'put-skill' });
-        await api.delete('/api/skills/1');
+        await api.post('/api/items', { name: 'post-skill' });
+        await api.put('/api/items/1', { name: 'put-skill' });
+        await api.delete('/api/items/1');
 
         expect(requests).toHaveLength(3);
-        expect(requests[0]?.input).toBe('https://example.com/api/skills');
+        expect(requests[0]?.input).toBe('https://example.com/api/items');
         expect(requests[0]?.init?.method).toBe('POST');
         expect(requests[0]?.init?.body).toBe(JSON.stringify({ name: 'post-skill' }));
-        expect(requests[1]?.input).toBe('https://example.com/api/skills/1');
+        expect(requests[1]?.input).toBe('https://example.com/api/items/1');
         expect(requests[1]?.init?.method).toBe('PUT');
         expect(requests[1]?.init?.body).toBe(JSON.stringify({ name: 'put-skill' }));
-        expect(requests[2]?.input).toBe('https://example.com/api/skills/1');
+        expect(requests[2]?.input).toBe('https://example.com/api/items/1');
         expect(requests[2]?.init?.method).toBe('DELETE');
         expect(requests[2]?.init?.body).toBeUndefined();
 
