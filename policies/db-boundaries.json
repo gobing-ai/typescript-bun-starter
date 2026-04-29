@@ -8,7 +8,9 @@
     ],
     "notes": [
         "This policy replaces the check-db-boundaries.ts script.",
-        "Only packages/core/src/db/* and packages/core/tests/db/* are allowed to import database primitives."
+        "Only packages/core/src/db/* and packages/core/tests/db/* are allowed to import database primitives.",
+        "Table schema definitions must live in packages/core/src/db/schema.ts to keep the drizzle-kit generate source of truth in one place.",
+        "All entity tables must spread standardColumns or standardColumnsWithSoftDelete to ensure consistent createdAt/updatedAt semantics."
     ],
     "targets": ["apps/**/*.ts", "packages/**/*.ts", "scripts/**/*.ts"],
     "rules": [
@@ -54,6 +56,45 @@
             "match": {
                 "kind": "rg",
                 "pattern": "this\\.db\\.(insert|select|update|delete)\\("
+            }
+        },
+        {
+            "id": "no-sqlite-table-outside-schema",
+            "engine": "rg",
+            "message": "sqliteTable() definitions must live in packages/core/src/db/schema.ts. Add new tables there so drizzle-kit generate picks them up.",
+            "severity": "error",
+            "allow": ["packages/core/src/db/schema.ts", "packages/core/src/db/columns.ts"],
+            "match": {
+                "kind": "rg",
+                "pattern": "sqliteTable\\("
+            }
+        },
+        {
+            "id": "no-inline-ddl-outside-drizzle",
+            "engine": "rg",
+            "message": "DDL statements (CREATE TABLE, ALTER TABLE, DROP TABLE) outside drizzle/ migrations risk schema drift. Use drizzle-kit generate instead.",
+            "severity": "warning",
+            "allow": ["drizzle/**", "packages/core/tests/**", "apps/*/tests/**"],
+            "match": {
+                "kind": "rg",
+                "pattern": "(CREATE TABLE|ALTER TABLE|DROP TABLE)",
+                "flags": "i"
+            }
+        },
+        {
+            "id": "no-ad-hoc-db-init",
+            "engine": "rg",
+            "message": "Database initialization (PRAGMA, .run(), .exec()) must go through DbAdapter. Direct Database method calls bypass telemetry instrumentation.",
+            "severity": "error",
+            "allow": [
+                "packages/core/src/db/adapters/**",
+                "packages/core/src/db/span-context.ts",
+                "packages/core/tests/**",
+                "apps/*/tests/**"
+            ],
+            "match": {
+                "kind": "rg",
+                "pattern": "\\.(run|exec|pragma)\\s*\\("
             }
         }
     ]
