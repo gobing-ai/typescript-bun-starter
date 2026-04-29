@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { D1Adapter } from '../../src/db/adapters/d1';
 import { BaseDao } from '../../src/db/base-dao';
-import { skills } from '../../src/db/schema';
+import { queueJobs } from '../../src/db/schema';
 import { runWithDbSpan } from '../../src/db/span-context';
 import { _resetTelemetry } from '../../src/telemetry/sdk';
 import { traceAsync } from '../../src/telemetry/tracing';
@@ -77,14 +77,15 @@ function createMockD1Binding() {
 
 class TestD1Dao extends BaseDao {
     async doInsert() {
-        return this.withMetrics('insert', 'skills', async () => {
+        return this.withMetrics('insert', 'queue_jobs', async () => {
             const now = Date.now();
-            return await this.db.insert(skills).values({
-                id: 'skill-1',
-                name: 'trace-test',
-                description: null,
-                version: 1,
-                config: null,
+            return await this.db.insert(queueJobs).values({
+                id: 'job-1',
+                type: 'trace-test',
+                payload: '{}',
+                status: 'pending',
+                attempts: 0,
+                maxRetries: 3,
                 createdAt: now,
                 updatedAt: now,
             });
@@ -92,8 +93,8 @@ class TestD1Dao extends BaseDao {
     }
 
     async doSelect() {
-        return this.withMetrics('select', 'skills', async () => {
-            return await this.db.select().from(skills);
+        return this.withMetrics('select', 'queue_jobs', async () => {
+            return await this.db.select().from(queueJobs);
         });
     }
 }
@@ -115,7 +116,7 @@ describe('D1 adapter tracing', () => {
             await dao.doInsert();
             await provider.forceFlush();
 
-            const span = exporter.getFinishedSpans().find((candidate) => candidate.name === 'db.skills.insert');
+            const span = exporter.getFinishedSpans().find((candidate) => candidate.name === 'db.queue_jobs.insert');
             expect(span).toBeDefined();
             expect(span?.attributes['db.statement']).toBeDefined();
             expect(String(span?.attributes['db.statement']).toUpperCase()).toContain('INSERT');
@@ -139,7 +140,7 @@ describe('D1 adapter tracing', () => {
             await traceAsync('db.d1.query-first', async (span) => {
                 span.setAttributes({
                     'db.system': 'sqlite',
-                    'db.collection': 'skills',
+                    'db.collection': 'queue_jobs',
                     'db.operation': 'select',
                 });
                 return await runWithDbSpan(
@@ -173,7 +174,7 @@ describe('D1 adapter tracing', () => {
             await dao.doSelect();
             await provider.forceFlush();
 
-            const span = exporter.getFinishedSpans().find((candidate) => candidate.name === 'db.skills.select');
+            const span = exporter.getFinishedSpans().find((candidate) => candidate.name === 'db.queue_jobs.select');
             expect(span).toBeDefined();
             expect(span?.attributes['db.statement']).toBeDefined();
             expect(span?.attributes['db.statement.operation']).toBe('SELECT');
@@ -195,11 +196,11 @@ describe('D1 adapter tracing', () => {
             await traceAsync('db.d1.manual-all', async (span) => {
                 span.setAttributes({
                     'db.system': 'sqlite',
-                    'db.collection': 'skills',
+                    'db.collection': 'queue_jobs',
                     'db.operation': 'select',
                 });
                 await runWithDbSpan(span, async () => {
-                    const prepared = binding.prepare('select 1 from skills');
+                    const prepared = binding.prepare('select 1 from queue_jobs');
                     await prepared.bind().all();
                     await prepared.bind().first?.();
                 });
@@ -209,7 +210,7 @@ describe('D1 adapter tracing', () => {
 
             const span = exporter.getFinishedSpans().find((candidate) => candidate.name === 'db.d1.manual-all');
             expect(span).toBeDefined();
-            expect(span?.attributes['db.statement']).toBe('select ? from skills');
+            expect(span?.attributes['db.statement']).toBe('select ? from queue_jobs');
             expect(span?.attributes['db.statement.operation']).toBe('SELECT');
             expect(span?.attributes['db.row_count']).toBe(1);
         } finally {
