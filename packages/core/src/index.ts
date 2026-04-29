@@ -37,6 +37,16 @@ export type { DbAdapter, DbAdapterConfig, DbClient, DbTable } from './db/adapter
 export { createDbAdapter } from './db/adapter';
 export { BaseDao } from './db/base-dao';
 export { _resetAdapter, getDb, getDefaultAdapter } from './db/client';
+export {
+    buildStandardColumns,
+    buildStandardColumnsWithSoftDelete,
+    nowTimestamp,
+    type StandardColumns,
+    type StandardColumnsWithSoftDelete,
+    standardColumns,
+    standardColumnsWithSoftDelete,
+} from './db/columns';
+export { EntityDao, type EntityTable, type PKColumn, type SoftDeletableTable } from './db/entity-dao';
 export type { CreateSkillInput, SkillRecord } from './db/skills-dao';
 export { SkillsDao } from './db/skills-dao';
 export type { ErrorCode } from './errors';
