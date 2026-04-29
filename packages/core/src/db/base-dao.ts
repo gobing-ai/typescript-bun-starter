@@ -8,10 +8,10 @@ import { runWithDbSpan } from './span-context';
  * DB span naming convention: `db.{collection}.{operation}`
  *
  * Examples:
- * - `db.skills.insert`
- * - `db.skills.select`
- * - `db.skills.update`
- * - `db.skills.delete`
+ * - `db.queue_jobs.insert`
+ * - `db.queue_jobs.select`
+ * - `db.queue_jobs.update`
+ * - `db.queue_jobs.delete`
  */
 function buildDbSpanName(collection: string, operation: string): string {
     return `db.${collection}.${operation}`;
@@ -52,7 +52,7 @@ export abstract class BaseDao {
      * Span naming follows the convention: `db.{collection}.{operation}`
      *
      * @param operation - Logical operation name (e.g. `'insert'`, `'select'`).
-     * @param collection - Logical table/collection name (e.g. `'skills'`).
+     * @param collection - Logical table/collection name (e.g. `'queue_jobs'`).
      * @param fn - The DB operation to execute.
      */
     protected async withMetrics<T>(operation: string, collection: string, fn: () => Promise<T>): Promise<T> {
