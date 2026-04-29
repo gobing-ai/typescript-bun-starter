@@ -9,18 +9,37 @@ type DbInsertBuilder<TTable extends DbTable<unknown, unknown>> = {
     values(values: TTable['$inferInsert'] | TTable['$inferInsert'][]): PromiseLike<unknown>;
 };
 
-type DbSelectFromResult<TTable extends DbTable<unknown, unknown>> = PromiseLike<TTable['$inferSelect'][]> & {
-    limit(value: number): DbSelectFromResult<TTable>;
-    offset(value: number): DbSelectFromResult<TTable>;
+interface DbSelectWhereResult<TTable extends DbTable<unknown, unknown>> extends PromiseLike<TTable['$inferSelect'][]> {
+    limit(value: number): DbSelectWhereResult<TTable>;
+    offset(value: number): DbSelectWhereResult<TTable>;
+    orderBy(column: unknown): DbSelectWhereResult<TTable>;
+}
+
+type DbSelectFromResult<TTable extends DbTable<unknown, unknown>> = DbSelectWhereResult<TTable> & {
+    where(condition: unknown): DbSelectWhereResult<TTable>;
 };
 
 type DbSelectBuilder = {
     from<TTable extends DbTable<unknown, unknown>>(table: TTable): DbSelectFromResult<TTable>;
 };
 
+interface DbUpdateResult {
+    changes: number;
+}
+
+interface DbUpdateBuilder<TTable extends DbTable<unknown, unknown>> {
+    set(values: Partial<TTable['$inferInsert']>): { where(condition: unknown): PromiseLike<DbUpdateResult> };
+}
+
 export interface DbClient {
     insert<TTable extends DbTable<unknown, unknown>>(table: TTable): DbInsertBuilder<TTable>;
     select(): DbSelectBuilder;
+    update<TTable extends DbTable<unknown, unknown>>(table: TTable): DbUpdateBuilder<TTable>;
+    delete<TTable extends DbTable<unknown, unknown>>(
+        table: TTable,
+    ): {
+        where(condition: unknown): PromiseLike<DbUpdateResult>;
+    };
 }
 
 export interface DbAdapter {
