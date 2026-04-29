@@ -1,21 +1,40 @@
 import { describe, expect, test } from 'bun:test';
-import { SkillsDao } from '../../src';
-import { skills } from '../../src/db/schema';
+import { EntityDao } from '../../src/db/entity-dao';
+import { queueJobs } from '../../src/db/schema';
 import { createTestDb } from '../test-db';
 
-describe('EntityDao (via SkillsDao)', () => {
+/**
+ * Minimal concrete DAO for testing EntityDao generics.
+ * Uses the real `queue_jobs` table — no demo fixtures.
+ */
+class TestJobDao extends EntityDao<typeof queueJobs, typeof queueJobs.id> {
+    constructor(db: Parameters<typeof EntityDao.prototype.constructor>[0]) {
+        super(db, queueJobs, queueJobs.id, 'queue_jobs');
+    }
+}
+
+function makeJob(overrides: Record<string, unknown> = {}) {
+    return {
+        id: crypto.randomUUID(),
+        type: 'test-job',
+        payload: '{}',
+        status: 'pending',
+        attempts: 0,
+        maxRetries: 3,
+        ...overrides,
+    };
+}
+
+describe('EntityDao (via TestJobDao on queue_jobs)', () => {
     test('create inserts a record with auto-filled timestamps', async () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            const record = await dao.create({
-                id: 'test-1',
-                name: 'entity-skill',
-            });
+            const dao = new TestJobDao(db);
+            const record = await dao.create(makeJob({ id: 'test-1' }));
 
             expect(record.id).toBe('test-1');
-            expect(record.name).toBe('entity-skill');
+            expect(record.type).toBe('test-job');
             expect(record.createdAt).toBeNumber();
             expect(record.updatedAt).toBeNumber();
             expect(record.createdAt).toBe(record.updatedAt);
@@ -28,13 +47,12 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            await dao.create({ id: 'find-1', name: 'findable' });
+            const dao = new TestJobDao(db);
+            await dao.create(makeJob({ id: 'find-1' }));
 
             const found = await dao.findById('find-1');
             expect(found).toBeDefined();
             expect(found?.id).toBe('find-1');
-            expect(found?.name).toBe('findable');
         } finally {
             adapter.close();
         }
@@ -44,7 +62,7 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
+            const dao = new TestJobDao(db);
             const found = await dao.findById('nonexistent');
             expect(found).toBeUndefined();
         } finally {
@@ -56,9 +74,9 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            await dao.create({ id: 'all-1', name: 'first' });
-            await dao.create({ id: 'all-2', name: 'second' });
+            const dao = new TestJobDao(db);
+            await dao.create(makeJob({ id: 'all-1' }));
+            await dao.create(makeJob({ id: 'all-2' }));
 
             const all = await dao.findAll();
             expect(all).toHaveLength(2);
@@ -71,12 +89,12 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            await dao.create({ id: 'upd-1', name: 'original' });
+            const dao = new TestJobDao(db);
+            await dao.create(makeJob({ id: 'upd-1' }));
 
-            const updated = await dao.update('upd-1', { name: 'modified' });
+            const updated = await dao.update('upd-1', { status: 'processing' });
             expect(updated).toBeDefined();
-            expect(updated?.name).toBe('modified');
+            expect(updated?.status).toBe('processing');
             expect(updated?.updatedAt).toBeNumber();
         } finally {
             adapter.close();
@@ -87,8 +105,8 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            await dao.create({ id: 'del-1', name: 'deletable' });
+            const dao = new TestJobDao(db);
+            await dao.create(makeJob({ id: 'del-1' }));
 
             await dao.delete('del-1', false);
 
@@ -103,10 +121,10 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            await dao.create({ id: 'by-1', name: 'matchable' });
+            const dao = new TestJobDao(db);
+            await dao.create(makeJob({ id: 'by-1', type: 'matchable' }));
 
-            const found = await dao.findBy(skills.name, 'matchable');
+            const found = await dao.findBy(queueJobs.type, 'matchable');
             expect(found).toBeDefined();
             expect(found?.id).toBe('by-1');
         } finally {
@@ -118,8 +136,8 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            const found = await dao.findBy(skills.name, 'nonexistent');
+            const dao = new TestJobDao(db);
+            const found = await dao.findBy(queueJobs.type, 'nonexistent');
             expect(found).toBeUndefined();
         } finally {
             adapter.close();
@@ -130,12 +148,12 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            await dao.create({ id: 'byall-1', name: 'dup-name' });
-            await dao.create({ id: 'byall-2', name: 'dup-name' });
-            await dao.create({ id: 'byall-3', name: 'other' });
+            const dao = new TestJobDao(db);
+            await dao.create(makeJob({ id: 'byall-1', type: 'dup-type' }));
+            await dao.create(makeJob({ id: 'byall-2', type: 'dup-type' }));
+            await dao.create(makeJob({ id: 'byall-3', type: 'other' }));
 
-            const found = await dao.findAllBy(skills.name, 'dup-name');
+            const found = await dao.findAllBy(queueJobs.type, 'dup-type');
             expect(found).toHaveLength(2);
         } finally {
             adapter.close();
@@ -146,9 +164,9 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
+            const dao = new TestJobDao(db);
             for (let i = 0; i < 5; i++) {
-                await dao.create({ id: `list-${i}`, name: `skill-${i}` });
+                await dao.create(makeJob({ id: `list-${i}`, type: `job-${i}` }));
             }
 
             const page1 = await dao.list({ limit: 2, offset: 0 });
@@ -167,9 +185,9 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
-            await dao.create({ id: 'cnt-1', name: 'a' });
-            await dao.create({ id: 'cnt-2', name: 'b' });
+            const dao = new TestJobDao(db);
+            await dao.create(makeJob({ id: 'cnt-1' }));
+            await dao.create(makeJob({ id: 'cnt-2' }));
 
             const count = await dao.count();
             expect(count).toBe(2);
@@ -182,31 +200,19 @@ describe('EntityDao (via SkillsDao)', () => {
         const { adapter, db } = await createTestDb();
 
         try {
-            const dao = new SkillsDao(db);
+            const dao = new TestJobDao(db);
 
-            // Use the protected withTransaction via a subclass
-            class TestDao extends SkillsDao {
-                async createInTransaction() {
-                    return this.withTransaction(async (tx) => {
-                        // Insert via the transaction client
-                        await tx.insert(skills).values({
-                            id: 'tx-1',
-                            name: 'in-tx',
-                            createdAt: Date.now(),
-                            updatedAt: Date.now(),
-                        });
-                        return 'done';
-                    });
-                }
-            }
-
-            const testDao = new TestDao(db);
-            const result = await testDao.createInTransaction();
+            const result = await (
+                dao as unknown as { withTransaction: (fn: (tx: typeof db) => Promise<string>) => Promise<string> }
+            ).withTransaction(async (tx) => {
+                await tx.insert(queueJobs).values(makeJob({ id: 'tx-1' }));
+                return 'done';
+            });
             expect(result).toBe('done');
 
             const found = await dao.findById('tx-1');
             expect(found).toBeDefined();
-            expect(found?.name).toBe('in-tx');
+            expect(found?.type).toBe('test-job');
         } finally {
             adapter.close();
         }
