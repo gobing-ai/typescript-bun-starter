@@ -21,6 +21,10 @@
         "@opentelemetry/semantic-conventions": "1.40.0",
         "@starter/contracts": "workspace:*",
         "drizzle-orm": "^0.45.0",
+        "node-cron": "4.2.1",
         "zod": "^4.3.0"
+    },
+    "devDependencies": {
+        "@types/node-cron": "3.0.11"
     }
 }
