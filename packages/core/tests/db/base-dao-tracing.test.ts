@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { BaseDao } from '../../src/db/base-dao';
-import { skills } from '../../src/db/schema';
+import { queueJobs } from '../../src/db/schema';
 import { getTelemetryConfig } from '../../src/telemetry/config';
 import { extractSqlOperation, sanitizeSql } from '../../src/telemetry/db-sanitize';
 import { _resetTelemetry } from '../../src/telemetry/sdk';
@@ -12,7 +12,7 @@ import { createTestDb } from '../test-db';
 class TestDao extends BaseDao {
     async doSelect() {
         return this.withMetrics('select', 'test_table', async () => {
-            return this.db.select().from(skills).limit(1);
+            return this.db.select().from(queueJobs).limit(1);
         });
     }
 
@@ -20,12 +20,13 @@ class TestDao extends BaseDao {
         return this.withMetrics('insert', 'test_table', async () => {
             const now = this.now();
             const id = crypto.randomUUID();
-            await this.db.insert(skills).values({
+            await this.db.insert(queueJobs).values({
                 id,
-                name: 'trace-test',
-                description: null,
-                version: 1,
-                config: null,
+                type: 'trace-test',
+                payload: '{}',
+                status: 'pending',
+                attempts: 0,
+                maxRetries: 3,
                 createdAt: now,
                 updatedAt: now,
             });
@@ -204,8 +205,8 @@ describe('BaseDao tracing', () => {
 
 describe('Span naming conventions', () => {
     test('DB spans follow `db.{collection}.{operation}` pattern', () => {
-        expect('db.skills.insert').toMatch(/^db\.[a-z_]+\.[a-z]+$/);
-        expect('db.skills.select').toMatch(/^db\.[a-z_]+\.[a-z]+$/);
+        expect('db.queue_jobs.insert').toMatch(/^db\.[a-z_]+\.[a-z]+$/);
+        expect('db.queue_jobs.select').toMatch(/^db\.[a-z_]+\.[a-z]+$/);
         expect('db.users.delete').toMatch(/^db\.[a-z_]+\.[a-z]+$/);
         expect('db.users.update').toMatch(/^db\.[a-z_]+\.[a-z]+$/);
     });
