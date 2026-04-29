@@ -25,6 +25,24 @@ export abstract class BaseDao {
     }
 
     /**
+     * Execute a function within a database transaction.
+     *
+     * Works uniformly on both D1 (async) and bun:sqlite (sync wrapped in promise).
+     * The callback receives a transaction-scoped DbClient.
+     *
+     * @param fn - Function to execute within the transaction.
+     * @returns The return value of `fn`.
+     */
+    protected async withTransaction<T>(fn: (tx: DbClient) => Promise<T>): Promise<T> {
+        // Drizzle's .transaction() works on both backends:
+        // - bun:sqlite: sync wrapped in a promise
+        // - D1: native async
+        return (this.db as unknown as { transaction: (fn: unknown) => Promise<T> }).transaction(async (tx: DbClient) =>
+            fn(tx),
+        );
+    }
+
+    /**
      * Run a DB operation with baseline metrics and tracing instrumentation.
      *
      * Records operation count, duration, errors, and a trace span on the
