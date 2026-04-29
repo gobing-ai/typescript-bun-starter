@@ -131,8 +131,8 @@ describe('output', () => {
 
         it('should write multi-word messages', () => {
             const { stream, output } = createCollector();
-            writeSuccess(stream, false, 'Feature skills removed successfully');
-            expect(output[0]).toBe('Feature skills removed successfully\n');
+            writeSuccess(stream, false, 'Feature server removed successfully');
+            expect(output[0]).toBe('Feature server removed successfully\n');
         });
     });
 });
