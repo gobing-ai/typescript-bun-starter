@@ -6,7 +6,6 @@ import { Writable } from 'node:stream';
 import { swaggerUI } from '@hono/swagger-ui';
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
-import { ErrorResponseSchema, PaginationSchema } from '@starter/contracts';
 import type { DbAdapter, DbAdapterConfig, DbClient } from '@starter/core';
 import {
     createDbAdapter,
@@ -16,11 +15,9 @@ import {
     getHttpServerRequestTotal,
     getLoggerConfig,
     initMetrics,
-    SkillsDao,
     successResponse,
     traceAsync,
 } from '@starter/core';
-import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error';
 import { initServerTelemetry } from './telemetry';
 
@@ -61,8 +58,6 @@ const STATIC_ASSET_EXTENSIONS = new Set([
     '.xml',
 ]);
 
-const errorResponseSchema = z.object(ErrorResponseSchema.shape).openapi('ErrorResponse');
-
 const healthResponseSchema = z
     .object({
         status: z.enum(['ok', 'error']),
@@ -81,28 +76,6 @@ const successEnvelopeSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
 
 const healthEnvelopeSchema = successEnvelopeSchema(healthResponseSchema).openapi('HealthEnvelope');
 
-const skillSchema = z
-    .object({
-        id: z.string(),
-        name: z.string(),
-        description: z.string().nullable(),
-        version: z.number(),
-        config: z.string().nullable(),
-        createdAt: z.number(),
-        updatedAt: z.number(),
-    })
-    .openapi('Skill');
-
-const skillListEnvelopeSchema = successEnvelopeSchema(z.array(skillSchema)).openapi('SkillListEnvelope');
-
-const createSkillBodySchema = z
-    .object({
-        name: z.string().min(1),
-    })
-    .openapi('CreateSkillRequest');
-
-const createSkillEnvelopeSchema = successEnvelopeSchema(z.object({ name: z.string() })).openapi('CreateSkillEnvelope');
-
 const apiHealthRoute = createRoute({
     method: 'get',
     path: '/api/health',
@@ -114,75 +87,6 @@ const apiHealthRoute = createRoute({
                 },
             },
             description: 'Returns the API health status.',
-        },
-    },
-});
-
-const listSkillsQuerySchema = z.object(PaginationSchema.shape).openapi('ListSkillsQuery');
-
-const listSkillsRoute = createRoute({
-    method: 'get',
-    path: '/api/skills',
-    request: {
-        query: listSkillsQuerySchema,
-    },
-    responses: {
-        200: {
-            content: {
-                'application/json': {
-                    schema: skillListEnvelopeSchema,
-                },
-            },
-            description: 'Returns the persisted skills.',
-        },
-        400: {
-            content: {
-                'application/json': {
-                    schema: errorResponseSchema,
-                },
-            },
-            description: 'Invalid query parameters.',
-        },
-    },
-});
-
-const createSkillRoute = createRoute({
-    method: 'post',
-    path: '/api/skills',
-    request: {
-        body: {
-            content: {
-                'application/json': {
-                    schema: createSkillBodySchema,
-                },
-            },
-            required: true,
-        },
-    },
-    responses: {
-        201: {
-            content: {
-                'application/json': {
-                    schema: createSkillEnvelopeSchema,
-                },
-            },
-            description: 'Creates a skill record.',
-        },
-        400: {
-            content: {
-                'application/json': {
-                    schema: errorResponseSchema,
-                },
-            },
-            description: 'Invalid request payload.',
-        },
-        500: {
-            content: {
-                'application/json': {
-                    schema: errorResponseSchema,
-                },
-            },
-            description: 'Unexpected server error.',
         },
     },
 });
@@ -309,25 +213,6 @@ export function createApp(localDb?: DbClient) {
             }),
             200,
         );
-    });
-
-    // ── Auth middleware for protected API routes ─────────────────────────
-    app.use('/api/skills/*', authMiddleware());
-
-    // ── Skill CRUD ───────────────────────────────────────────────────────
-    app.openapi(createSkillRoute, async (c) => {
-        const skillsDao = new SkillsDao(c.get('db'));
-        const body = c.req.valid('json');
-        const created = await skillsDao.createSkill({ name: body.name });
-
-        return c.json(successResponse({ name: created.name }, 'Skill created'), 201);
-    });
-
-    app.openapi(listSkillsRoute, async (c) => {
-        const skillsDao = new SkillsDao(c.get('db'));
-        const { limit, offset } = c.req.valid('query');
-        const rows = await skillsDao.listSkills({ limit, offset });
-        return c.json(successResponse(rows), 200);
     });
 
     // ── Swagger UI ───────────────────────────────────────────────────────
