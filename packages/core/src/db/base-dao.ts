@@ -1,3 +1,4 @@
+import { nowMs } from '../date';
 import { getDbOperationDuration, getDbOperationErrors, getDbOperationTotal } from '../telemetry/metrics';
 import { traceAsync } from '../telemetry/tracing';
 import type { DbClient } from './adapter';
@@ -20,7 +21,7 @@ export abstract class BaseDao {
     protected constructor(protected readonly db: DbClient) {}
 
     protected now(): number {
-        return Date.now();
+        return nowMs();
     }
 
     /**
