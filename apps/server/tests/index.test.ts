@@ -2,15 +2,7 @@ import { afterEach, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import {
-    _resetMetrics,
-    _resetTelemetry,
-    createDbAdapter,
-    initTelemetry,
-    shutdownMetrics,
-    shutdownTelemetry,
-} from '@starter/core';
-import { createTestMetricsProvider, flushAndCollect } from '@starter/core/tests/telemetry/metrics-test-helpers';
+import { _resetTelemetry, createDbAdapter, initTelemetry, shutdownTelemetry } from '@starter/core';
 import { createTestDb } from '@starter/core/tests/test-db';
 import serverEntry, { createApp, resetIndexHtmlCache, WEB_DIST_PATH } from '../src/index';
 
@@ -91,7 +83,6 @@ describe('server entry', () => {
         expect(body.openapi).toBe('3.0.0');
         expect(body.info.title).toBe('TypeScript Bun Starter API');
         expect(body.paths['/api/health']).toBeDefined();
-        expect(body.paths['/api/skills']).toBeDefined();
     });
 
     test('GET /swagger returns Swagger UI HTML', async () => {
@@ -105,36 +96,10 @@ describe('server entry', () => {
         expect(html).toContain('swagger');
     });
 
-    test('serves skill routes using the app-scoped database resolver', async () => {
-        const app = await makeApp();
-
-        const res = await app.request('/api/skills', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'entrypoint-skill' }),
-        });
-
-        expect(res.status).toBe(201);
-
-        const body = (await res.json()) as ApiEnvelope<{ name: string }>;
-        expect(body.data.name).toBe('entrypoint-skill');
-    });
-
     test('reuses the local Bun SQLite adapter across requests', async () => {
         const originalDbUrl = process.env.DATABASE_URL;
         const dbPath = resolve(process.cwd(), `.tmp/test-${crypto.randomUUID()}.sqlite`);
         const bootstrapAdapter = await createDbAdapter({ driver: 'bun-sqlite', url: dbPath });
-        await bootstrapAdapter.exec(`
-            CREATE TABLE IF NOT EXISTS skills (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                description TEXT,
-                version INTEGER NOT NULL DEFAULT 1,
-                config TEXT,
-                created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL
-            )
-        `);
         bootstrapAdapter.close();
 
         process.env.DATABASE_URL = dbPath;
@@ -149,18 +114,11 @@ describe('server entry', () => {
 
         const app = createApp();
 
-        const createRes = await app.request('/api/skills', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'reused-adapter-skill' }),
-        });
-        expect(createRes.status).toBe(201);
+        const res = await app.request('/api/health');
+        expect(res.status).toBe(200);
 
-        const listRes = await app.request('/api/skills');
-        expect(listRes.status).toBe(200);
-
-        const body = (await listRes.json()) as ApiEnvelope<Array<{ name: string }>>;
-        expect(body.data).toContainEqual(expect.objectContaining({ name: 'reused-adapter-skill' }));
+        const body = (await res.json()) as ApiEnvelope<{ status: string; timestamp: string }>;
+        expect(body.data.status).toBe('ok');
     });
 
     test('uses request D1 binding when available', async () => {
@@ -206,8 +164,8 @@ describe('server entry', () => {
 
     test('SPA fallback skips API routes', async () => {
         const app = await makeApp();
-        // /api routes should be handled by the skills router, not SPA fallback
-        const res = await app.request('/api/skills');
+        // /api routes should be handled by the API router, not SPA fallback
+        const res = await app.request('/api/health');
         expect(res.status).toBe(200);
     });
 
@@ -244,35 +202,6 @@ describe('server entry', () => {
         const body = await second.text();
         expect(body).toContain('spa fixture');
         expect(body).not.toContain('changed');
-    });
-
-    test('GET /api/skills accepts limit/offset query params', async () => {
-        const app = await makeApp();
-
-        for (let i = 0; i < 3; i++) {
-            const create = await app.request('/api/skills', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: `paged-${i}` }),
-            });
-            expect(create.status).toBe(201);
-        }
-
-        const limited = await app.request('/api/skills?limit=2');
-        expect(limited.status).toBe(200);
-        const limitedBody = (await limited.json()) as ApiEnvelope<Array<{ name: string }>>;
-        expect(limitedBody.data).toHaveLength(2);
-
-        const offset = await app.request('/api/skills?limit=2&offset=2');
-        expect(offset.status).toBe(200);
-        const offsetBody = (await offset.json()) as ApiEnvelope<Array<{ name: string }>>;
-        expect(offsetBody.data).toHaveLength(1);
-    });
-
-    test('GET /api/skills rejects out-of-range limit', async () => {
-        const app = await makeApp();
-        const res = await app.request('/api/skills?limit=10000');
-        expect(res.status).toBe(400);
     });
 
     test('default export lazily creates and reuses the local app', async () => {
@@ -348,26 +277,5 @@ describe('server entry', () => {
         expect(res.status).toBe(200);
 
         await shutdownTelemetry();
-    });
-
-    test('records request metrics for validation failures', async () => {
-        _resetMetrics();
-        const { reader } = createTestMetricsProvider();
-
-        const app = await makeApp();
-        const res = await app.request('/api/skills', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: '{',
-        });
-
-        expect(res.status).toBe(400);
-
-        const counts = await flushAndCollect(reader);
-        expect(counts.get('http.server.request.total')).toBe(1);
-        expect(counts.get('http.server.request.duration')).toBe(1);
-        expect(counts.get('http.server.request.errors')).toBeUndefined();
-
-        await shutdownMetrics();
     });
 });
