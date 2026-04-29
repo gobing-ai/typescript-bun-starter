@@ -1,0 +1,206 @@
+import { sql } from 'drizzle-orm';
+import { nowMs } from '../date';
+import type { DbClient } from './adapter';
+import { EntityDao } from './entity-dao';
+import { queueJobs } from './schema';
+
+export type QueueJobRecord = typeof queueJobs.$inferSelect;
+
+/**
+ * DAO for the queue_jobs table.
+ *
+ * Extends EntityDao for generic CRUD operations. Adds queue-specific
+ * methods for job lifecycle management (enqueue, process, retry, fail).
+ */
+export class QueueJobDao extends EntityDao<typeof queueJobs, typeof queueJobs.id> {
+    constructor(db: DbClient) {
+        super(db, queueJobs, queueJobs.id, 'queue_jobs');
+    }
+
+    /**
+     * Enqueue a new job.
+     */
+    async enqueue(type: string, payload: unknown, options?: { maxRetries?: number; delay?: number }): Promise<string> {
+        const now = nowMs();
+        const id = crypto.randomUUID();
+
+        await this.create({
+            id,
+            type,
+            payload: JSON.stringify(payload),
+            status: 'pending',
+            attempts: 0,
+            maxRetries: options?.maxRetries ?? 3,
+            nextRetryAt: options?.delay !== undefined ? now + options.delay : now,
+        });
+
+        return id;
+    }
+
+    /**
+     * Enqueue multiple jobs in a single batch.
+     */
+    async enqueueBatch(
+        jobs: Array<{ type: string; payload: unknown } & { maxRetries?: number; delay?: number }>,
+    ): Promise<string[]> {
+        const now = nowMs();
+        const ids: string[] = [];
+
+        const rows = jobs.map((job) => {
+            const id = crypto.randomUUID();
+            ids.push(id);
+
+            return {
+                id,
+                type: job.type,
+                payload: JSON.stringify(job.payload),
+                status: 'pending' as const,
+                attempts: 0,
+                maxRetries: job.maxRetries ?? 3,
+                nextRetryAt: job.delay !== undefined ? now + job.delay : now,
+            };
+        });
+
+        if (rows.length > 0) {
+            await this.withTransaction(async (tx) => {
+                for (const row of rows) {
+                    await tx.insert(queueJobs).values(row);
+                }
+            });
+        }
+
+        return ids;
+    }
+
+    /**
+     * Get a job by ID.
+     */
+    async getById(id: string): Promise<QueueJobRecord | undefined> {
+        return this.findBy(queueJobs.id, id);
+    }
+
+    /**
+     * Count jobs by status.
+     */
+    async countByStatus(status: string): Promise<number> {
+        return this.withMetrics('select', 'queue_jobs', async () => {
+            const result = await (
+                this.db as unknown as {
+                    select: (fn: unknown) => { from: (t: unknown) => { where: (w: unknown) => Promise<unknown[]> } };
+                }
+            )
+                .select({ value: sql`count(*)` })
+                .from(queueJobs)
+                .where(sql`${queueJobs.status} = ${status}`);
+
+            return (result as { value: number }[])[0]?.value ?? 0;
+        });
+    }
+
+    /**
+     * Find pending jobs that are ready for processing (nextRetryAt <= now).
+     */
+    async findPending(batchSize: number): Promise<QueueJobRecord[]> {
+        const now = nowMs();
+
+        return this.withMetrics('select', 'queue_jobs', async () => {
+            const result = await (
+                this.db as unknown as {
+                    select: () => {
+                        from: (t: unknown) => {
+                            where: (w: unknown) => {
+                                orderBy: (o: unknown) => { limit: (l: number) => Promise<unknown[]> };
+                            };
+                        };
+                    };
+                }
+            )
+                .select()
+                .from(queueJobs)
+                .where(
+                    sql`${queueJobs.status} = 'pending' AND (${queueJobs.nextRetryAt} IS NULL OR ${queueJobs.nextRetryAt} <= ${now})`,
+                )
+                .orderBy(queueJobs.createdAt)
+                .limit(batchSize);
+
+            return result as QueueJobRecord[];
+        });
+    }
+
+    /**
+     * Mark jobs as processing.
+     */
+    async markProcessing(ids: string[]): Promise<void> {
+        const now = nowMs();
+
+        await this.withMetrics('update', 'queue_jobs', async () => {
+            await (
+                this.db as unknown as {
+                    update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => Promise<unknown> } };
+                }
+            )
+                .update(queueJobs)
+                .set({ status: 'processing', processingAt: now, updatedAt: now })
+                .where(sql`${queueJobs.id} IN (${ids.join(', ')})`);
+        });
+    }
+
+    /**
+     * Mark a job as completed.
+     */
+    async markCompleted(id: string): Promise<void> {
+        await this.update(id, {
+            status: 'completed',
+            processingAt: null,
+        });
+    }
+
+    /**
+     * Mark a job as failed.
+     */
+    async markFailed(id: string, attempts: number, error: string): Promise<void> {
+        await this.update(id, {
+            status: 'failed',
+            attempts,
+            lastError: error,
+            processingAt: null,
+        });
+    }
+
+    /**
+     * Reset a job to pending for retry with backoff.
+     */
+    async markForRetry(id: string, attempts: number, errorMessage: string, nextRetryAt: number): Promise<void> {
+        await this.update(id, {
+            status: 'pending',
+            attempts,
+            lastError: errorMessage,
+            nextRetryAt,
+            processingAt: null,
+        });
+    }
+
+    /**
+     * Reset stuck processing jobs (processing beyond visibility timeout).
+     */
+    async resetStuckJobs(visibilityTimeout: number): Promise<number> {
+        const cutoff = nowMs() - visibilityTimeout;
+
+        return this.withMetrics('update', 'queue_jobs', async () => {
+            const result = await (
+                this.db as unknown as {
+                    update: (t: unknown) => {
+                        set: (v: unknown) => { where: (w: unknown) => Promise<{ changes: number }> };
+                    };
+                }
+            )
+                .update(queueJobs)
+                .set({ status: 'pending', processingAt: null, updatedAt: nowMs() })
+                .where(
+                    sql`${queueJobs.status} = 'processing' AND ${queueJobs.processingAt} IS NOT NULL AND ${queueJobs.processingAt} <= ${cutoff}`,
+                );
+
+            return (result as { changes: number }).changes;
+        });
+    }
+}
