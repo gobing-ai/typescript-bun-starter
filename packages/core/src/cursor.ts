@@ -1,3 +1,5 @@
+import { toMs } from './date';
+
 /**
  * Pagination cursor utilities.
  *
@@ -14,7 +16,10 @@ export interface CursorData {
 export function createCursor(id: string, createdAt?: Date | number, offset?: number): CursorData {
     const cursor: CursorData = { id };
     if (createdAt !== undefined) {
-        cursor.createdAt = typeof createdAt === 'number' ? createdAt : createdAt.getTime();
+        const ms = toMs(createdAt);
+        if (ms !== null) {
+            cursor.createdAt = ms;
+        }
     }
     if (offset !== undefined) {
         cursor.offset = offset;
