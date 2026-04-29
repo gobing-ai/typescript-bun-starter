@@ -21,7 +21,9 @@
             "Bash(rtk cat *)",
             "Bash(rtk find *)",
             "Bash(rtk grep *)",
-            "Bash(rtk wc *)"
+            "Bash(rtk wc *)",
+            "Bash(npx biome *)",
+            "Bash(tsc --noEmit)"
         ]
     }
 }
