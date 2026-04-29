@@ -48,11 +48,32 @@ export {
     NotFoundError,
     ValidationError,
 } from './errors';
+export {
+    DBJobQueue,
+    DBQueueConsumer,
+    type EnqueueOptions,
+    type Job,
+    type JobHandler,
+    type JobQueue,
+    type QueueConsumer,
+    type QueueConsumerConfig,
+    type QueueStats,
+} from './job-queue';
 export { logger } from './logger';
 export { createLoggerSinks, getLoggerConfig } from './logging';
 export { getValidatedOrigin, isAllowedOrigin, matchOriginPattern } from './origin';
 export type { WriteTarget } from './output';
 export { echo, echoError } from './output';
+export type { SchedulerOptions } from './scheduler';
+export {
+    CloudflareSchedulerAdapter,
+    initScheduler,
+    NodeSchedulerAdapter,
+    NoOpSchedulerAdapter,
+    type ScheduledJob,
+    type ScheduledJobHandler,
+    type SchedulerAdapter,
+} from './scheduler';
 export type { Span, SpanOptions, TelemetryConfig, Tracer } from './telemetry';
 export {
     _resetMetrics,
