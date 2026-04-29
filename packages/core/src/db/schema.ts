@@ -1,4 +1,5 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { standardColumns } from './columns';
 
 export const skills = sqliteTable('skills', {
     id: text('id').primaryKey(),
@@ -6,8 +7,7 @@ export const skills = sqliteTable('skills', {
     description: text('description'),
     version: integer('version').notNull().default(1),
     config: text('config'),
-    createdAt: integer('created_at').notNull(),
-    updatedAt: integer('updated_at').notNull(),
+    ...standardColumns,
 });
 
 export const queueJobs = sqliteTable('queue_jobs', {
@@ -17,8 +17,7 @@ export const queueJobs = sqliteTable('queue_jobs', {
     status: text('status').notNull().default('pending'),
     attempts: integer('attempts').notNull().default(0),
     maxRetries: integer('max_retries').notNull().default(3),
-    createdAt: integer('created_at').notNull(),
-    updatedAt: integer('updated_at').notNull(),
+    ...standardColumns,
     nextRetryAt: integer('next_retry_at'),
     lastError: text('last_error'),
     processingAt: integer('processing_at'),
