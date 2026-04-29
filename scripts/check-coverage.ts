@@ -30,6 +30,9 @@ const NO_TEST_REQUIRED = new Set([
     'packages/core/src/schemas/skill.ts', // Zod schema definitions
     'packages/core/src/index.ts', // barrel exports
     'packages/core/src/logger.ts', // single getLogger call
+    'packages/core/src/db/query-helpers.ts', // pure re-export from drizzle-orm
+    'packages/core/src/job-queue/index.ts', // barrel exports
+    'packages/core/src/scheduler/index.ts', // barrel exports
     // apps/cli
     'apps/cli/src/index.ts', // entry point (CLI wiring + LogTape config)
     'apps/cli/src/config.ts', // pure as-const constants
