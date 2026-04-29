@@ -75,9 +75,10 @@
         "// ── Generate ──": "",
         "generate:instructions": "bun run scripts/generate-instructions.ts",
         "// ── Database ──": "",
-        "db:push": "drizzle-kit push",
-        "db:generate": "drizzle-kit generate",
-        "db:migrate": "drizzle-kit migrate",
+        "db:push": "bun drizzle-kit push",
+        "db:generate": "bun drizzle-kit generate",
+        "db:migrate": "bun drizzle-kit migrate",
+        "db": "bun drizzle-kit",
         "migrate:analyze": "bun run scripts/apply-migration.ts --analyze",
         "migrate:apply": "bun run scripts/apply-migration.ts --apply",
         "// ── Development ──": "",
@@ -104,7 +105,6 @@
         "@logtape/logtape": "2.0.5",
         "@opentelemetry/sdk-trace-base": "2.7.0",
         "@types/bun": "1.3.13",
-        "better-sqlite3": "12.9.0",
         "drizzle-kit": "0.31.10",
         "typescript": "6.0.3"
     }
