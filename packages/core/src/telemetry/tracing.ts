@@ -10,7 +10,7 @@
  *
  * const result = await traceAsync('db.query', async (span) => {
  *     addSpanAttributes({ 'db.system': 'sqlite', 'db.operation': 'SELECT' });
- *     return db.select().from(skills);
+ *     return db.select().from(queueJobs);
  * });
  * ```
  */
