@@ -44,6 +44,17 @@
                 "kind": "rg",
                 "pattern": "export.*from ['\"]\\.\\.?/db/schema['\"]"
             }
+        },
+        {
+            "id": "no-raw-db-client-queries",
+            "engine": "rg",
+            "message": "Raw DbClient query methods (this.db.insert/select/update/delete) must not be used outside DAOs. Use EntityDao or a concrete DAO instead.",
+            "severity": "error",
+            "allow": ["packages/core/src/db/**", "packages/core/tests/db/**"],
+            "match": {
+                "kind": "rg",
+                "pattern": "this\\.db\\.(insert|select|update|delete)\\("
+            }
         }
     ]
 }
