@@ -179,8 +179,8 @@ describe('DB metrics', () => {
     test('operation total counter increments', async () => {
         const { reader } = createTestMetricsProvider();
 
-        getDbOperationTotal().add(1, { 'db.operation': 'insert', 'db.collection': 'skills' });
-        getDbOperationTotal().add(1, { 'db.operation': 'select', 'db.collection': 'skills' });
+        getDbOperationTotal().add(1, { 'db.operation': 'insert', 'db.collection': 'queue_jobs' });
+        getDbOperationTotal().add(1, { 'db.operation': 'select', 'db.collection': 'queue_jobs' });
 
         const counts = await flushAndCollect(reader);
         expect(counts.get('db.client.operation.total')).toBe(2);
@@ -189,7 +189,7 @@ describe('DB metrics', () => {
     test('operation duration histogram records values', async () => {
         const { reader } = createTestMetricsProvider();
 
-        getDbOperationDuration().record(25, { 'db.operation': 'insert', 'db.collection': 'skills' });
+        getDbOperationDuration().record(25, { 'db.operation': 'insert', 'db.collection': 'queue_jobs' });
 
         const counts = await flushAndCollect(reader);
         expect(counts.get('db.client.operation.duration')).toBe(1);
@@ -198,7 +198,11 @@ describe('DB metrics', () => {
     test('error counter increments', async () => {
         const { reader } = createTestMetricsProvider();
 
-        getDbOperationErrors().add(1, { 'db.operation': 'insert', 'db.collection': 'skills', 'error.type': 'Error' });
+        getDbOperationErrors().add(1, {
+            'db.operation': 'insert',
+            'db.collection': 'queue_jobs',
+            'error.type': 'Error',
+        });
 
         const counts = await flushAndCollect(reader);
         expect(counts.get('db.client.operation.errors')).toBe(1);
@@ -214,13 +218,17 @@ describe('noop behavior without provider', () => {
         // No createTestMetricsProvider() — using global noop
         getHttpServerRequestTotal().add(1, { 'http.request.method': 'GET', 'http.response.status_code': 200 });
         getHttpClientRequestTotal().add(1, { 'http.request.method': 'GET', 'http.response.status_code': 200 });
-        getDbOperationTotal().add(1, { 'db.operation': 'insert', 'db.collection': 'skills' });
+        getDbOperationTotal().add(1, { 'db.operation': 'insert', 'db.collection': 'queue_jobs' });
         getHttpServerRequestDuration().record(50, { 'http.request.method': 'GET', 'http.response.status_code': 200 });
         getHttpClientRequestDuration().record(50, { 'http.request.method': 'GET', 'http.response.status_code': 200 });
-        getDbOperationDuration().record(50, { 'db.operation': 'insert', 'db.collection': 'skills' });
+        getDbOperationDuration().record(50, { 'db.operation': 'insert', 'db.collection': 'queue_jobs' });
         getHttpServerRequestErrors().add(1, { 'http.request.method': 'GET', 'http.response.status_code': 500 });
         getHttpClientRequestErrors().add(1, { 'http.request.method': 'GET', 'error.type': 'APIError' });
-        getDbOperationErrors().add(1, { 'db.operation': 'insert', 'db.collection': 'skills', 'error.type': 'Error' });
+        getDbOperationErrors().add(1, {
+            'db.operation': 'insert',
+            'db.collection': 'queue_jobs',
+            'error.type': 'Error',
+        });
         // If we get here without throwing, noop behavior works
         expect(true).toBe(true);
     });
