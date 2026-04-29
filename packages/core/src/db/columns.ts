@@ -1,15 +1,20 @@
 import { integer } from 'drizzle-orm/sqlite-core';
+import { nowMs } from '../date';
 
 /**
- * Returns the current date.
+ * Returns the current timestamp in milliseconds.
  * Extracted for testability and V8 coverage tracking.
  */
-export function nowTimestamp(): Date {
-    return new Date();
+export function nowTimestamp(): number {
+    return nowMs();
 }
 
 /**
  * Standard columns shared across all entity tables.
+ *
+ * Uses plain `integer` (returns `number`) to match the existing codebase
+ * convention where `nowMs()` returns `number` and all timestamp comparisons
+ * use numeric operators.
  *
  * Usage in schema definitions:
  * ```ts
@@ -24,8 +29,8 @@ export function nowTimestamp(): Date {
  */
 export function buildStandardColumns() {
     return {
-        createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowTimestamp),
-        updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowTimestamp),
+        createdAt: integer('created_at').notNull().$defaultFn(nowTimestamp),
+        updatedAt: integer('updated_at').notNull().$defaultFn(nowTimestamp),
     };
 }
 
