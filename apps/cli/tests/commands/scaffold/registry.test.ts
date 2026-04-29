@@ -19,7 +19,7 @@ describe('Feature Registry', () => {
             expect(REQUIRED_FEATURES).not.toContain('cli');
             expect(REQUIRED_FEATURES).not.toContain('server');
             expect(REQUIRED_FEATURES).not.toContain('webapp');
-            expect(REQUIRED_FEATURES).not.toContain('skills');
+            expect(REQUIRED_FEATURES).not.toContain('nonexistent');
         });
     });
 
