@@ -8,8 +8,8 @@ import {
 } from '../../src';
 
 describe('columns', () => {
-    test('nowTimestamp returns a Date', () => {
-        expect(nowTimestamp()).toBeInstanceOf(Date);
+    test('nowTimestamp returns a number', () => {
+        expect(nowTimestamp()).toBeNumber();
     });
 
     test('buildStandardColumns returns createdAt and updatedAt', () => {
