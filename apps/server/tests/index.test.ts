@@ -14,6 +14,8 @@ import { createTestMetricsProvider, flushAndCollect } from '@starter/core/tests/
 import { createTestDb } from '@starter/core/tests/test-db';
 import serverEntry, { createApp, resetIndexHtmlCache, WEB_DIST_PATH } from '../src/index';
 
+type ApiEnvelope<T> = { code: number; message: string; result: string; data: T };
+
 beforeAll(() => {
     // Auth middleware now requires API_KEY or explicit AUTH_DISABLED in non-prod.
     // Tests that exercise auth set/unset API_KEY locally; everything else opts out.
@@ -68,9 +70,7 @@ describe('server entry', () => {
 
         expect(res.status).toBe(200);
 
-        const body = (await res.json()) as {
-            data: { status: string; timestamp: string; version?: string };
-        };
+        const body = (await res.json()) as ApiEnvelope<{ status: string; timestamp: string; version?: string }>;
         expect(body.data.status).toBe('ok');
         expect(body.data.timestamp).toBeString();
 
@@ -116,7 +116,7 @@ describe('server entry', () => {
 
         expect(res.status).toBe(201);
 
-        const body = (await res.json()) as { data: { name: string } };
+        const body = (await res.json()) as ApiEnvelope<{ name: string }>;
         expect(body.data.name).toBe('entrypoint-skill');
     });
 
@@ -159,7 +159,7 @@ describe('server entry', () => {
         const listRes = await app.request('/api/skills');
         expect(listRes.status).toBe(200);
 
-        const body = (await listRes.json()) as { data: Array<{ name: string }> };
+        const body = (await listRes.json()) as ApiEnvelope<Array<{ name: string }>>;
         expect(body.data).toContainEqual(expect.objectContaining({ name: 'reused-adapter-skill' }));
     });
 
@@ -260,12 +260,12 @@ describe('server entry', () => {
 
         const limited = await app.request('/api/skills?limit=2');
         expect(limited.status).toBe(200);
-        const limitedBody = (await limited.json()) as { data: Array<{ name: string }> };
+        const limitedBody = (await limited.json()) as ApiEnvelope<Array<{ name: string }>>;
         expect(limitedBody.data).toHaveLength(2);
 
         const offset = await app.request('/api/skills?limit=2&offset=2');
         expect(offset.status).toBe(200);
-        const offsetBody = (await offset.json()) as { data: Array<{ name: string }> };
+        const offsetBody = (await offset.json()) as ApiEnvelope<Array<{ name: string }>>;
         expect(offsetBody.data).toHaveLength(1);
     });
 
@@ -295,7 +295,7 @@ describe('server entry', () => {
         const second = await serverEntry.fetch(new Request('http://localhost/api/health'));
         expect(second.status).toBe(200);
 
-        const secondBody = (await second.json()) as { data: { status: string } };
+        const secondBody = (await second.json()) as ApiEnvelope<{ status: string }>;
         expect(secondBody.data.status).toBe('ok');
     });
 
