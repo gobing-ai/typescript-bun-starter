@@ -1,5 +1,5 @@
 import type { DbClient } from './adapter';
-import { BaseDao } from './base-dao';
+import { EntityDao } from './entity-dao';
 import { skills } from './schema';
 
 export interface CreateSkillInput {
@@ -23,28 +23,28 @@ export const MAX_LIST_SKILLS_LIMIT = 500;
 
 export type SkillRecord = typeof skills.$inferSelect;
 
-export class SkillsDao extends BaseDao {
+/**
+ * DAO for the skills table.
+ *
+ * Extends EntityDao for generic CRUD operations (create, findById, findAll,
+ * update, delete, list, count). Adds skill-specific methods below.
+ */
+export class SkillsDao extends EntityDao<typeof skills, typeof skills.id> {
     constructor(db: DbClient) {
-        super(db);
+        super(db, skills, skills.id, 'skills');
     }
 
+    /**
+     * Create a new skill record.
+     */
     async createSkill(input: CreateSkillInput): Promise<SkillRecord> {
-        return this.withMetrics('insert', 'skills', async () => {
-            const now = this.now();
-            const record: SkillRecord = {
-                id: crypto.randomUUID(),
-                name: input.name,
-                description: input.description ?? null,
-                version: input.version ?? 1,
-                config: input.config ?? null,
-                createdAt: now,
-                updatedAt: now,
-            };
-
-            await this.db.insert(skills).values(record);
-
-            return record;
-        });
+        return this.create({
+            id: crypto.randomUUID(),
+            name: input.name,
+            description: input.description ?? null,
+            version: input.version ?? 1,
+            config: input.config ?? null,
+        }) as Promise<SkillRecord>;
     }
 
     /**
@@ -56,9 +56,7 @@ export class SkillsDao extends BaseDao {
         const limit = clampLimit(options.limit);
         const offset = clampOffset(options.offset);
 
-        return this.withMetrics('select', 'skills', async () => {
-            return this.db.select().from(skills).limit(limit).offset(offset);
-        });
+        return this.list({ limit, offset }) as Promise<SkillRecord[]>;
     }
 }
 
