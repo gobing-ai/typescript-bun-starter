@@ -24,7 +24,7 @@ Key types:
 This is deliberate:
 
 - app code must not import Drizzle database types
-- public barrels must not re-export `packages/core/src/db/schema.ts`
+- public barrels must not re-export schema files
 - browser-safe and transport code should never know which DB driver is underneath
 
 ## 3. Layering Rules
@@ -34,9 +34,12 @@ This is deliberate:
 - `packages/core/src/db/adapter.ts`
 - `packages/core/src/db/client.ts`
 - `packages/core/src/db/adapters/*`
-- `packages/core/src/db/schema.ts`
+- `packages/core/src/db/schema/**`
+- `packages/core/src/db/columns.ts` (re-exports from `schema/common.ts`)
 - `packages/core/src/db/base-dao.ts`
+- `packages/core/src/db/entity-dao.ts`
 - `packages/core/src/db/*-dao.ts`
+- `packages/core/src/db/migrate.ts`
 - targeted DB tests under `packages/core/tests/db/**`
 
 ### Forbidden outside the DB boundary
@@ -45,10 +48,10 @@ This is deliberate:
 - importing `drizzle-orm/bun-sqlite`
 - importing `drizzle-orm/d1`
 - importing generic `drizzle-orm*` packages for application behavior
-- re-exporting `packages/core/src/db/schema.ts`
+- re-exporting schema files (schema re-export leaks)
 - exposing Drizzle database types through public APIs
 
-Enforcement:
+Enforcement is via the `db-boundaries` policy:
 
 ```bash
 bun run check:db-boundaries
@@ -59,6 +62,8 @@ That check is also part of:
 ```bash
 bun run check
 ```
+
+The policy prevents schema re-export leaks and enforces that all DB primitives stay within the boundary.
 
 ## 4. Runtime Structure
 
@@ -80,20 +85,143 @@ These files may use driver-specific imports and keep those details internal.
 
 ### DAO layer
 
-DAO classes live in `packages/core/src/db/` and extend `BaseDao`.
+DAO classes live in `packages/core/src/db/` and extend `EntityDao` (which extends `BaseDao`).
 
-Current example:
+`EntityDao` provides generic CRUD operations (create, findById, findAll, update, delete, list, count) with automatic soft-delete filtering.
 
-- `SkillsDao`
+Concrete DAOs add domain-specific methods:
 
-Application code should call DAO methods such as:
+```ts
+export class QueueJobDao extends EntityDao<typeof queueJobs, typeof queueJobs.id> {
+    constructor(db: DbClient) {
+        super(db, queueJobs, queueJobs.id, 'queue_jobs');
+    }
 
-- `createSkill(...)`
-- `listSkills()`
+    async enqueue(type: string, payload: unknown) { /* ... */ }
+    async findPending(batchSize: number) { /* ... */ }
+}
+```
 
-not raw query builders.
+## 5. Schema Organization
 
-## 5. How Application Code Uses the Database
+Table definitions live in `packages/core/src/db/schema/`:
+
+```
+schema/
+├── index.ts          ← barrel re-exporting all tables and column helpers
+├── common.ts         ← standardColumns, standardColumnsWithSoftDelete
+└── queue-jobs.ts     ← queueJobs table definition
+```
+
+### Adding a new table
+
+1. Create a new file in `packages/core/src/db/schema/` (e.g., `users.ts`)
+2. Define the table using `sqliteTable()` from `drizzle-orm/sqlite-core`
+3. Spread `...standardColumns` (or `...standardColumnsWithSoftDelete`) for consistent timestamps
+4. Re-export from `schema/index.ts`
+5. Run `bun run db:generate` to create the migration
+6. Commit the migration files in `drizzle/`
+
+```ts
+// packages/core/src/db/schema/users.ts
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { standardColumns } from './common';
+
+export const users = sqliteTable('users', {
+    id: text('id').primaryKey(),
+    email: text('email').notNull().unique(),
+    name: text('name').notNull(),
+    ...standardColumns,
+});
+```
+
+```ts
+// packages/core/src/db/schema/index.ts
+export * from './common';
+export * from './queue-jobs';
+export * from './users';   // ← add this
+```
+
+### Column helpers
+
+`standardColumns` and `standardColumnsWithSoftDelete` are defined in `schema/common.ts` and provide:
+
+| Helper | Columns |
+|--------|---------|
+| `standardColumns` | `createdAt`, `updatedAt` (integer ms) |
+| `standardColumnsWithSoftDelete` | `createdAt`, `updatedAt`, `inUsed` (1=active, 0=deleted) |
+
+`EntityDao` automatically filters by `inUsed = 1` when the table has the `inUsed` column.
+
+## 6. Migration Workflow
+
+### Drizzle config
+
+`drizzle.config.ts` points to the schema directory with a glob:
+
+```ts
+schema: './packages/core/src/db/schema/**/*.ts'
+```
+
+### Commands
+
+| Command | Purpose |
+|---------|---------|
+| `bun run db:push` | Rapid dev — push schema changes directly to DB (no migration files) |
+| `bun run db:generate` | Generate versioned migration SQL files from schema diff |
+| `bun run db:migrate` | Apply generated migration files to the database |
+| `bun run db:check-drift` | Verify schema and migrations are in sync (used in CI) |
+| `bun run db <cmd>` | Pass-through to any drizzle-kit command (`studio`, `check`, `drop`, `up`, `introspect`, `export`) |
+
+### Development workflow
+
+**Rapid iteration (local dev):**
+```bash
+bun run db:push    # push schema directly, skip migration files
+```
+
+**Production-ready (commit migrations):**
+```bash
+bun run db:generate          # creates drizzle/NNNN_name.sql + snapshot
+bun run db:migrate           # applies to local DB
+git add drizzle/             # commit migration files
+```
+
+**CI drift detection:**
+```bash
+bun run db:check-drift       # fails if schema changed without new migration
+```
+
+This is included in `bun run check` and catches the exact scenario where a table is added to the schema but `db:generate` is never run.
+
+### In-app migrations
+
+The server supports automatic migrations at startup via the `AUTO_MIGRATE` env var:
+
+```bash
+AUTO_MIGRATE=1 bun run dev:server
+```
+
+This calls `applyMigrations()` from `@starter/core` before serving requests. Only works with `bun-sqlite` adapter — D1 migrations should use `wrangler d1 migrations apply` instead.
+
+Default: **off**. Production should run migrations as a deliberate deployment step.
+
+### Migration history management
+
+**Remove a bad migration (before applying):**
+```bash
+bun run db drop              # removes the latest migration file from disk
+```
+
+**Squash migrations (early-stage projects):**
+1. Delete all files in `drizzle/` and `drizzle/meta/`
+2. Run `bun run db:generate --name=init`
+3. Commit the fresh single migration
+
+**Point-in-time recovery:**
+Migration rollback is not supported by drizzle-kit. If you need to undo an applied migration, write corrective SQL as a new forward migration.
+
+## 7. How Application Code Uses the Database
 
 ### Server and service code
 
@@ -101,11 +229,11 @@ Use `DbClient` injection and DAO construction:
 
 ```ts
 import type { DbClient } from '@starter/core';
-import { SkillsDao } from '@starter/core';
+import { QueueJobDao } from '@starter/core';
 
 export function createHandler(db: DbClient) {
-    const skillsDao = new SkillsDao(db);
-    return skillsDao.listSkills();
+    const dao = new QueueJobDao(db);
+    return dao.findPending(10);
 }
 ```
 
@@ -115,7 +243,7 @@ Do not do this in application code:
 
 ```ts
 import { drizzle } from 'drizzle-orm/d1';
-import { skills } from '@starter/core';
+import { queueJobs } from '@starter/core/db/schema';
 ```
 
 Do not do this either:
@@ -126,67 +254,57 @@ import { Database } from 'bun:sqlite';
 
 Those imports belong to DB infrastructure only.
 
-## 6. How To Add a New DAO
+## 8. How To Add a New DAO
 
 When adding a new database-backed feature:
 
-1. Add or update the table in `packages/core/src/db/schema.ts`
-2. Create a DAO in `packages/core/src/db/<domain>-dao.ts`
-3. Extend `BaseDao`
-4. Expose domain-named methods instead of generic query-builder-shaped methods
-5. Inject `DbClient` from callers
-6. Add unit tests under `packages/core/tests/db/`
-7. Run `bun run check:db-boundaries`
+1. Add or update the table in `packages/core/src/db/schema/<domain>.ts`
+2. Re-export from `packages/core/src/db/schema/index.ts`
+3. Create a DAO in `packages/core/src/db/<domain>-dao.ts`
+4. Extend `EntityDao<typeof table, typeof table.id>`
+5. Expose domain-named methods
+6. Inject `DbClient` from callers
+7. Add unit tests under `packages/core/tests/db/`
 8. Run `bun run check`
 
 Example skeleton:
 
 ```ts
 import type { DbClient } from './adapter';
-import { BaseDao } from './base-dao';
-import { widgets } from './schema';
+import { EntityDao } from './entity-dao';
+import { users } from './schema';
 
-export class WidgetsDao extends BaseDao {
+export class UsersDao extends EntityDao<typeof users, typeof users.id> {
     constructor(db: DbClient) {
-        super(db);
+        super(db, users, users.id, 'users');
     }
 
-    async createWidget(input: { name: string }) {
-        const now = this.now();
-        return this.db.insert(widgets).values({
-            id: crypto.randomUUID(),
-            name: input.name,
-            createdAt: now,
-            updatedAt: now,
-        });
-    }
-
-    async listWidgets() {
-        return this.db.select().from(widgets);
+    async findByEmail(email: string) {
+        return this.findBy(users.email, email);
     }
 }
 ```
 
-## 7. Shared DAO Helpers
+## 9. Shared DAO Helpers
 
-`BaseDao` should stay thin.
-
-Good `BaseDao` responsibilities:
-
+`BaseDao` provides:
 - `DbClient` storage
-- timestamp helpers like `now()`
-- small table-agnostic guards if repeated across multiple DAOs
+- `now()` timestamp helper
+- `withTransaction(fn)` — works on both D1 and bun:sqlite
+- `withMetrics(operation, collection, fn)` — OTel span + metrics
 
-Bad `BaseDao` responsibilities:
+`EntityDao` extends `BaseDao` with generic CRUD:
+- `create(data)` — auto-fills `createdAt`/`updatedAt`
+- `findById(id)` — by primary key
+- `findAll()` — all records
+- `findBy(column, value)` — first match
+- `findAllBy(column, value)` — all matches
+- `update(id, data)` — auto-updates `updatedAt`
+- `delete(id, soft?)` — hard or soft delete
+- `list({ limit, offset })` — paginated
+- `count()` — record count
 
-- mandatory universal CRUD
-- feature-flagged repository behavior
-- driver branching
-- hiding non-trivial query intent behind generic helper names
-
-If multiple DAOs later repeat the same table-level access pattern, an optional `TableDao<TTable>` may be added under `packages/core/src/db/`, but it must stay narrow and internal to the DB layer.
-
-## 8. Raw SQL
+## 10. Raw SQL
 
 Raw SQL support exists only at the adapter seam:
 
@@ -195,21 +313,17 @@ Raw SQL support exists only at the adapter seam:
 
 Use that only when infrastructure or test setup genuinely needs it.
 
-Do not push raw SQL into route handlers or general application code just because the seam exists.
-
-## 9. Verification Checklist
+## 11. Verification Checklist
 
 Before closing DB-access changes:
 
 ```bash
-bun run check:db-boundaries
-bun run test
 bun run check
 ```
 
-If the change touches DAO behavior, also verify:
-
-- route handlers remain thin
-- DAO methods stay domain-named
-- no schema re-export leaks were introduced
-- no Drizzle or `bun:sqlite` imports escaped the DB boundary
+This runs:
+- Biome lint + format
+- Policy checks (including `db-boundaries`)
+- Schema drift detection (`db:check-drift`)
+- TypeScript type checking
+- Full test suite with coverage
