@@ -57,7 +57,6 @@
         "scaffold:validate": "bun run apps/cli/src/index.ts scaffold validate",
         "scaffold:list": "bun run apps/cli/src/index.ts scaffold list",
         "bootstrap": "bun run apps/cli/src/index.ts scaffold init",
-        "clean-demo": "bun run apps/cli/src/index.ts scaffold remove skills",
         "// ── Quality ──": "",
         "check": "biome check . --error-on-warnings && bun run scaffold:validate && bun run check:docs && bun run check:policy && bun run db:check-drift && bun run typecheck && bun run test:coverage",
         "check:contracts": "bun run scaffold:validate",
