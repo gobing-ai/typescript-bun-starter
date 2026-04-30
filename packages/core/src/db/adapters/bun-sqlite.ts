@@ -128,6 +128,11 @@ export class BunSqliteAdapter implements DbAdapter {
         return this.drizzleDb as unknown as DbClient;
     }
 
+    /** Returns the underlying drizzle instance for migration operations. */
+    getDrizzleDb(): BunSQLiteDatabase<typeof schema> {
+        return this.drizzleDb;
+    }
+
     async exec(sql: string): Promise<void> {
         // Route through the instrumented prepare path so DDL/raw statements
         // emit the same span enrichment as ORM-issued queries. Database.run
