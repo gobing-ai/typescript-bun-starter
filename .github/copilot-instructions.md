@@ -57,6 +57,7 @@ bun run check is the definition-of-done gate for this starter. It must cover lin
 - Do not introduce app business logic into CLI, server, or web transport layers.
 - Prefer thin handlers and commands that delegate to @starter/core.
 - Keep generated or vendor-specific instructions aligned with this contract.
+- NEVER add entries to the NO_TEST_REQUIRED Set in scripts/check-coverage.ts. Only humans may add coverage exemptions. When a source file lacks test coverage, write real tests for it instead of bypassing the coverage gate.
 
 ## Change Approval Boundaries
 
