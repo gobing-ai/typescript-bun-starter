@@ -1,10 +1,10 @@
 ---
 name: replace clipanion with commander-js with extra-typings and figlet
 description: replace clipanion with commander-js with extra-typings and figlet
-status: Backlog
+status: Done
 profile: standard
 created_at: 2026-04-27T00:40:36.170Z
-updated_at: 2026-04-27T00:40:36.170Z
+updated_at: 2026-04-30T00:04:14.174Z
 folder: docs/tasks
 type: task
 impl_progress:
