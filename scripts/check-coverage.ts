@@ -21,34 +21,7 @@ const COVERAGE_FILE = resolve(import.meta.dir, '..', 'coverage', 'lcov.info');
 const THRESHOLD = 90;
 
 /** Source files that are exempt from both test and coverage checks. */
-const NO_TEST_REQUIRED = new Set([
-    // packages/core
-    'packages/core/src/db/schema.ts', // pure Drizzle table definition
-    'packages/core/src/db/client.ts', // lazy singleton adapter (Bun-only convenience)
-    'packages/core/src/db/adapters/d1.ts', // D1 adapter (needs Workers runtime)
-    'packages/core/src/types/result.ts', // type-only definition
-    'packages/core/src/index.ts', // barrel exports
-    'packages/core/src/logger.ts', // single getLogger call
-    'packages/core/src/db/query-helpers.ts', // pure re-export from drizzle-orm
-    'packages/core/src/job-queue/index.ts', // barrel exports
-    'packages/core/src/scheduler/index.ts', // barrel exports
-    // apps/cli
-    'apps/cli/src/index.ts', // entry point (CLI wiring + LogTape config)
-    'apps/cli/src/config.ts', // pure as-const constants
-    // apps/cli/scaffold (commander.js commands — action handlers need integration env)
-    'apps/cli/src/commands/scaffold/index.ts', // registration hub (barrel)
-    'apps/cli/src/commands/scaffold/scaffold-add.ts', // scaffold add command
-    'apps/cli/src/commands/scaffold/scaffold-init.ts', // scaffold init command
-    'apps/cli/src/commands/scaffold/scaffold-list.ts', // scaffold list command
-    'apps/cli/src/commands/scaffold/scaffold-remove.ts', // scaffold remove command
-    'apps/cli/src/commands/scaffold/scaffold-validate.ts', // scaffold validate command
-    'apps/cli/src/commands/scaffold/types/scaffold.ts', // type-only definitions
-    'apps/cli/src/commands/scaffold/services/scaffold-service.ts', // scaffold service (file operations)
-    'apps/cli/src/commands/scaffold/features/registry.ts', // feature registry (static data)
-    // apps/server
-    'apps/server/src/index.ts', // entry point (Hono wiring + LogTape config)
-    'apps/server/src/config.ts', // pure as-const constants
-]);
+const NO_TEST_REQUIRED = new Set<string>([]);
 
 // Directories to scan for source files (relative to project root).
 const SRC_DIRS = ['packages/core/src', 'apps/cli/src', 'apps/server/src'];
