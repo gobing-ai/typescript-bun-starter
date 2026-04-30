@@ -63,7 +63,7 @@
             "engine": "rg",
             "message": "sqliteTable() definitions must live in packages/core/src/db/schema.ts. Add new tables there so drizzle-kit generate picks them up.",
             "severity": "error",
-            "allow": ["packages/core/src/db/schema.ts", "packages/core/src/db/columns.ts"],
+            "allow": ["packages/core/src/db/schema/**", "packages/core/src/db/columns.ts"],
             "match": {
                 "kind": "rg",
                 "pattern": "sqliteTable\\("
