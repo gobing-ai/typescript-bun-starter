@@ -133,16 +133,12 @@ export class DBQueueConsumer implements QueueConsumer {
     // ── Batch processing ─────────────────────────────────────────────────
 
     private async processBatch(): Promise<void> {
-        const pending = await this.dao.findPending(this.config.batchSize);
+        const claimed = await this.dao.claimReady(this.config.batchSize);
 
-        if (pending.length === 0) return;
-
-        // Mark as processing
-        const ids = pending.map((j) => j.id);
-        await this.dao.markProcessing(ids);
+        if (claimed.length === 0) return;
 
         // Process each job
-        for (const row of pending) {
+        for (const row of claimed) {
             this._inFlight++;
             void this.processJob(row).finally(() => {
                 this._inFlight--;
