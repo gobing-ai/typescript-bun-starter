@@ -218,88 +218,31 @@ When `API_KEY` is set, all `/api/*` endpoints require authentication via the `X-
 ```bash
 # With auth
 API_KEY=sk-secret bun run dev:server
-curl -H "X-API-Key: sk-secret" http://localhost:3000/api/skills
+curl -H "X-API-Key: sk-secret" http://localhost:3000/api/health
 
 # Dev mode (no auth)
 unset API_KEY
-curl http://localhost:3000/api/skills
+curl http://localhost:3000/api/health
 ```
 
 ### 5.3 Endpoints
 
-#### `GET /api/skills`
+#### `GET /`
 
-List all skills. Supports pagination via `?limit=N&offset=M`.
-
-```bash
-curl http://localhost:3000/api/skills
-curl "http://localhost:3000/api/skills?limit=10&offset=0"
-```
-
-**Response (200):**
-
-```json
-{
-  "data": [
-    {
-      "id": "abc-123",
-      "name": "web-search",
-      "description": "Search the web",
-      "version": 1,
-      "config": null,
-      "createdAt": 1712345678000,
-      "updatedAt": 1712345678000
-    }
-  ]
-}
-```
-
-#### `POST /api/skills`
-
-Create a new skill.
+Root health check (no auth required).
 
 ```bash
-curl -X POST http://localhost:3000/api/skills \
-  -H "Content-Type: application/json" \
-  -d '{"name": "web-search"}'
+curl http://localhost:3000/
+# → {"status":"ok","timestamp":"2026-04-29T..."}
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Skill name (1-100 characters) |
+#### `GET /api/health`
 
-**Response (201):**
-
-```json
-{ "data": { "name": "web-search" } }
-```
-
-#### `GET /api/skills/:id`
-
-Get a skill by ID.
+API health check with envelope response (no auth required).
 
 ```bash
-curl http://localhost:3000/api/skills/abc-123
-```
-
-**Response (404):**
-
-```json
-{ "error": "Skill not found: nonexistent" }
-```
-
-#### `DELETE /api/skills/:id`
-
-Delete a skill by ID.
-
-```bash
-curl -X DELETE http://localhost:3000/api/skills/abc-123
-```
-
-**Response (200):**
-
-```json
-{ "data": null }
+curl http://localhost:3000/api/health
+# → {"code":0,"message":"ok","result":"success","data":{"status":"ok","timestamp":"..."}}
 ```
 
 ### 5.4 OpenAPI Documentation
@@ -310,16 +253,6 @@ curl -X DELETE http://localhost:3000/api/skills/abc-123
 | `http://localhost:3000/swagger` | Swagger UI (interactive) |
 
 The OpenAPI spec can be imported into Postman, used as OpenAI custom actions, or consumed as Claude MCP tool definitions.
-
-### 5.5 Health Check
-
-```bash
-curl http://localhost:3000/
-# → {"status":"ok","timestamp":"2026-04-27T..."}
-
-curl http://localhost:3000/api/health
-# → {"data":{"status":"ok","timestamp":"2026-04-27T..."}}
-```
 
 ## 6. Configuration
 
@@ -343,12 +276,109 @@ Default: SQLite file at `data/app.db`, created automatically on first use.
 ```bash
 # Custom path
 DATABASE_URL=/path/to/custom.db bun run dev:server
-
-# Push schema changes after code changes
-bun run db:push
 ```
 
-The `data/` directory is gitignored. For Cloudflare D1 deployments, see the [Database Access Guide](docs/05_DATABASE_ACCESS.md).
+The `data/` directory is gitignored. For full architecture details, see the [Database Access Guide](docs/05_DATABASE_ACCESS.md).
+
+#### Defining Table Schemas
+
+Table definitions live in `packages/core/src/db/schema/`. Each domain gets its own file.
+
+```ts
+// packages/core/src/db/schema/users.ts
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { standardColumns } from './common';
+
+export const users = sqliteTable('users', {
+    id: text('id').primaryKey(),
+    email: text('email').notNull().unique(),
+    name: text('name').notNull(),
+    ...standardColumns,  // adds createdAt + updatedAt
+});
+```
+
+Re-export from the barrel:
+
+```ts
+// packages/core/src/db/schema/index.ts
+export * from './common';
+export * from './queue-jobs';
+export * from './users';   // ← add this
+```
+
+Column helpers:
+
+| Helper | Columns |
+|--------|---------|
+| `standardColumns` | `createdAt`, `updatedAt` (integer ms) |
+| `standardColumnsWithSoftDelete` | `createdAt`, `updatedAt`, `inUsed` (1=active, 0=deleted) |
+
+#### Creating a DAO
+
+DAOs extend `EntityDao` for generic CRUD and add domain-specific methods:
+
+```ts
+// packages/core/src/db/users-dao.ts
+import type { DbClient } from './adapter';
+import { EntityDao } from './entity-dao';
+import { users } from './schema';
+
+export class UsersDao extends EntityDao<typeof users, typeof users.id> {
+    constructor(db: DbClient) {
+        super(db, users, users.id, 'users');
+    }
+
+    async findByEmail(email: string) {
+        return this.findBy(users.email, email);
+    }
+}
+```
+
+`EntityDao` provides: `create`, `findById`, `findAll`, `findBy`, `findAllBy`, `update`, `delete`, `list`, `count`.
+
+Use DAOs in server handlers:
+
+```ts
+import type { DbClient } from '@starter/core';
+import { UsersDao } from '@starter/core';
+
+const dao = new UsersDao(db);
+const user = await dao.findByEmail('alice@example.com');
+```
+
+#### Database Migration Commands
+
+| Command | Purpose |
+|---------|---------|
+| `bun run db:push` | Rapid dev — push schema changes directly to DB |
+| `bun run db:generate` | Generate versioned migration SQL files |
+| `bun run db:migrate` | Apply generated migrations to the database |
+| `bun run db:check-drift` | Verify schema and migrations are in sync |
+| `bun run db <cmd>` | Pass-through to drizzle-kit (`studio`, `check`, `drop`, etc.) |
+
+**Development workflow:**
+
+```bash
+# Option A: Rapid iteration (no migration files)
+bun run db:push
+
+# Option B: Production-ready (commit migrations)
+bun run db:generate      # creates drizzle/NNNN_name.sql
+bun run db:migrate        # applies to local DB
+git add drizzle/          # commit migration files
+```
+
+**Automatic migrations at startup:**
+
+```bash
+AUTO_MIGRATE=1 bun run dev:server
+```
+
+When `AUTO_MIGRATE=1`, the server applies pending migrations before serving requests. Only works with bun:sqlite. Default: off.
+
+**CI drift detection:**
+
+`bun run check` includes `db:check-drift` which verifies the schema matches the migration files. If you add a table but forget to run `db:generate`, CI will fail with instructions.
 
 ## 7. Policy Enforcement
 
@@ -498,7 +528,7 @@ docker run -p 3000:3000 -e API_KEY=sk-secret typescript-bun-starter
 
 ```bash
 bun install                     # install dependencies
-bun run check                   # full gate: lint, typecheck, tests, contract, docs
+bun run check                   # full gate: lint, typecheck, tests, contract, docs, drift
 bun run check:policy            # policy enforcement only
 bun run test                    # test suite with coverage
 bun run typecheck               # TypeScript type checking
@@ -508,7 +538,11 @@ bun run dev:cli                 # CLI development
 bun run dev:server              # API server development (port 3000)
 bun run dev:web                 # Web app development (port 4321)
 bun run dev:all                 # Server + Web together
-bun run db:push                 # Push Drizzle schema to SQLite
+bun run db:push                 # Push schema to SQLite (rapid dev)
+bun run db:generate             # Generate migration SQL files
+bun run db:migrate              # Apply migrations
+bun run db:check-drift          # Verify schema/migration sync
+bun run db studio               # Visual database inspector
 ```
 
 ## 12. Troubleshooting
@@ -526,6 +560,7 @@ The database is created automatically on first use. If data is missing:
 
 - Check `DATABASE_URL` points to the correct file
 - Run `bun run db:push` to ensure the schema is up to date
+- Run `bun run db:check-drift` to verify migrations match the schema
 
 ### Scaffold validate fails
 
