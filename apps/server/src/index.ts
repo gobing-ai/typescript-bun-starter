@@ -8,6 +8,7 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { configure, getStreamSink } from '@logtape/logtape';
 import type { DbAdapter, DbAdapterConfig, DbClient } from '@starter/core';
 import {
+    applyMigrations,
     createDbAdapter,
     createLoggerSinks,
     getHttpServerRequestDuration,
@@ -15,6 +16,7 @@ import {
     getHttpServerRequestTotal,
     getLoggerConfig,
     initMetrics,
+    logger,
     successResponse,
     traceAsync,
 } from '@starter/core';
@@ -194,6 +196,18 @@ export function createApp(localDb?: DbClient) {
                 throw error;
             });
             const adapter = await localAdapterPromise;
+
+            if (process.env.AUTO_MIGRATE === '1') {
+                try {
+                    applyMigrations(adapter);
+                } catch (error) {
+                    // Log but don't crash — let the server start so operators can
+                    // diagnose via health endpoints instead of a hard failure.
+                    const message = error instanceof Error ? error.message : String(error);
+                    logger.error('[AUTO_MIGRATE] Migration failed: {message}', { message });
+                }
+            }
+
             c.set('db', adapter.getDb());
         }
         await next();
