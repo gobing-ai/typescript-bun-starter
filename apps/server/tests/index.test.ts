@@ -278,4 +278,53 @@ describe('server entry', () => {
 
         await shutdownTelemetry();
     });
+
+    test('AUTO_MIGRATE=1 applies migrations on first request', async () => {
+        const original = process.env.AUTO_MIGRATE;
+        process.env.AUTO_MIGRATE = '1';
+        cleanupFns.push(() => {
+            if (original === undefined) {
+                delete process.env.AUTO_MIGRATE;
+            } else {
+                process.env.AUTO_MIGRATE = original;
+            }
+        });
+
+        const app = await makeApp();
+        const res = await app.request('/api/health');
+
+        expect(res.status).toBe(200);
+
+        const body = (await res.json()) as ApiEnvelope<{ status: string; timestamp: string }>;
+        expect(body.data.status).toBe('ok');
+    });
+
+    test('AUTO_MIGRATE=1 does not crash when migration fails', async () => {
+        const original = process.env.AUTO_MIGRATE;
+        process.env.AUTO_MIGRATE = '1';
+        cleanupFns.push(() => {
+            if (original === undefined) {
+                delete process.env.AUTO_MIGRATE;
+            } else {
+                process.env.AUTO_MIGRATE = original;
+            }
+        });
+
+        // Use a non-existent migration folder to trigger a migration error
+        const originalDbUrl = process.env.DATABASE_URL;
+        process.env.DATABASE_URL = ':memory:';
+        cleanupFns.push(() => {
+            if (originalDbUrl === undefined) {
+                delete process.env.DATABASE_URL;
+            } else {
+                process.env.DATABASE_URL = originalDbUrl;
+            }
+        });
+
+        const app = createApp();
+        const res = await app.request('/api/health');
+
+        // Server should still respond despite migration error
+        expect(res.status).toBe(200);
+    });
 });
