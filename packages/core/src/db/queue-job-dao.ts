@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { nowMs } from '../date';
 import type { DbClient } from './adapter';
 import { EntityDao } from './entity-dao';
@@ -128,9 +128,54 @@ export class QueueJobDao extends EntityDao<typeof queueJobs, typeof queueJobs.id
     }
 
     /**
+     * Atomically claim ready pending jobs for processing.
+     *
+     * The update and selection happen in one SQLite statement so competing
+     * consumers only receive rows they actually transitioned to processing.
+     */
+    async claimReady(batchSize: number): Promise<QueueJobRecord[]> {
+        const limit = Math.floor(batchSize);
+        if (limit <= 0) return [];
+
+        const now = nowMs();
+
+        return this.withMetrics('update', 'queue_jobs', async () => {
+            const result = await (
+                this.db as unknown as {
+                    update: (t: unknown) => {
+                        set: (v: unknown) => {
+                            where: (w: unknown) => {
+                                returning: () => Promise<unknown[]>;
+                            };
+                        };
+                    };
+                }
+            )
+                .update(queueJobs)
+                .set({ status: 'processing', processingAt: now, updatedAt: now })
+                .where(
+                    sql`${queueJobs.id} IN (
+                        SELECT id
+                        FROM queue_jobs
+                        WHERE status = 'pending'
+                          AND (next_retry_at IS NULL OR next_retry_at <= ${now})
+                        ORDER BY created_at
+                        LIMIT ${limit}
+                    )
+                    AND ${queueJobs.status} = 'pending'`,
+                )
+                .returning();
+
+            return result as QueueJobRecord[];
+        });
+    }
+
+    /**
      * Mark jobs as processing.
      */
     async markProcessing(ids: string[]): Promise<void> {
+        if (ids.length === 0) return;
+
         const now = nowMs();
 
         await this.withMetrics('update', 'queue_jobs', async () => {
@@ -141,7 +186,7 @@ export class QueueJobDao extends EntityDao<typeof queueJobs, typeof queueJobs.id
             )
                 .update(queueJobs)
                 .set({ status: 'processing', processingAt: now, updatedAt: now })
-                .where(sql`${queueJobs.id} IN (${ids.join(', ')})`);
+                .where(and(inArray(queueJobs.id, ids), eq(queueJobs.status, 'pending')));
         });
     }
 
