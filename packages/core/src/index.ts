@@ -47,6 +47,7 @@ export {
     standardColumnsWithSoftDelete,
 } from './db/columns';
 export { EntityDao, type EntityTable, type PKColumn, type SoftDeletableTable } from './db/entity-dao';
+export { applyMigrations, type MigrationOptions } from './db/migrate';
 export { QueueJobDao, type QueueJobRecord } from './db/queue-job-dao';
 export type { ErrorCode } from './errors';
 export {
