@@ -17,6 +17,7 @@ import {
     getLoggerConfig,
     initMetrics,
     logger,
+    QueueJobDao,
     successResponse,
     traceAsync,
 } from '@starter/core';
@@ -78,6 +79,17 @@ const successEnvelopeSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
 
 const healthEnvelopeSchema = successEnvelopeSchema(healthResponseSchema).openapi('HealthEnvelope');
 
+const queueStatsSchema = z
+    .object({
+        pending: z.number().openapi({ example: 0 }),
+        processing: z.number().openapi({ example: 0 }),
+        completed: z.number().openapi({ example: 0 }),
+        failed: z.number().openapi({ example: 0 }),
+    })
+    .openapi('QueueStats');
+
+const queueEnvelopeSchema = successEnvelopeSchema(queueStatsSchema).openapi('QueueStatsEnvelope');
+
 const apiHealthRoute = createRoute({
     method: 'get',
     path: '/api/health',
@@ -89,6 +101,21 @@ const apiHealthRoute = createRoute({
                 },
             },
             description: 'Returns the API health status.',
+        },
+    },
+});
+
+const apiHealthQueueRoute = createRoute({
+    method: 'get',
+    path: '/api/health/queue',
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: queueEnvelopeSchema,
+                },
+            },
+            description: 'Returns queue job counts by status.',
         },
     },
 });
@@ -227,6 +254,13 @@ export function createApp(localDb?: DbClient) {
             }),
             200,
         );
+    });
+
+    // ── Health (Queue, no auth required) ────────────────────────────────
+    app.openapi(apiHealthQueueRoute, async (c) => {
+        const dao = new QueueJobDao(c.var.db);
+        const stats = await dao.getStats();
+        return c.json(successResponse(stats), 200);
     });
 
     // ── Swagger UI ───────────────────────────────────────────────────────
