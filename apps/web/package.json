@@ -6,7 +6,9 @@
     "scripts": {
         "dev": "astro dev",
         "build": "astro build",
-        "preview": "astro preview"
+        "preview": "astro preview",
+        "deploy": "astro build && wrangler pages deploy dist/",
+        "preview:cf": "wrangler pages dev dist/"
     },
     "dependencies": {
         "@astrojs/cloudflare": "^13.2.0",
@@ -20,6 +22,7 @@
     },
     "devDependencies": {
         "@types/react": "^19.0.0",
-        "@types/react-dom": "^19.0.0"
+        "@types/react-dom": "^19.0.0",
+        "wrangler": "^4.0.0"
     }
 }

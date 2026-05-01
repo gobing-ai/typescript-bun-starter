@@ -1,0 +1,15 @@
+# ── Cloudflare Pages: @{{PROJECT_NAME}}/web ───────────────────────────
+#
+# Deploy with:  bun run deploy:web
+# Preview:      bun run preview:web:cf
+#
+# The output directory is controlled by astro.config.mjs.
+# Defaults to static output; switch output to 'server' for SSR.
+
+name = "{{PROJECT_NAME}}-web"
+compatibility_date = "2025-04-01"
+
+pages_build_output_dir = "dist"
+
+[env.production]
+[env.staging]

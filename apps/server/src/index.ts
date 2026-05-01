@@ -303,6 +303,11 @@ function getOrCreateApp() {
     return app;
 }
 
+// Re-export the Cloudflare Workers `scheduled` handler.
+// Only invoked in CF Workers deployments when cron triggers fire.
+// CF Workers support both named exports and default-export-object patterns.
+export { scheduled } from './scheduled';
+
 export default {
     fetch: (request: Request, env?: Record<string, unknown>) => {
         const app = getOrCreateApp();

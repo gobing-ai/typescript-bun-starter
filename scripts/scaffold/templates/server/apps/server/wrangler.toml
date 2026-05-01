@@ -1,0 +1,40 @@
+# ── Cloudflare Worker: @{{PROJECT_NAME}}/server ──────────────────────────
+#
+# Deploy with:  bun run deploy:server
+# Local dev:    bun run dev:server:cf
+#
+# Replace the placeholder bindings below with your actual Cloudflare
+# resource IDs after creating the D1 database and KV namespace.
+
+name = "{{PROJECT_NAME}}-server"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+# ── Bindings ────────────────────────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "{{PROJECT_NAME}}-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[[kv_namespaces]]
+binding = "SESSION"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# ── Cron Triggers ───────────────────────────────────────────────────────
+# Uncomment and adjust cron expressions for your scheduled jobs.
+#
+# [[triggers]]
+# crons = ["0 0 * * *"]
+
+# ── Observability ───────────────────────────────────────────────────────
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[env.production]
+[env.production.observability]
+enabled = true
+
+[env.staging]
+[env.staging.observability]
+enabled = true

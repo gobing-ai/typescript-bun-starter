@@ -1,0 +1,20 @@
+# ── Cloudflare Pages: @starter/web ──────────────────────────────────
+#
+# Deploy with:  bun run deploy:web
+# Preview:      bun run preview:web:cf
+#
+# This config supports both static (default) and SSR modes.
+# See astro.config.mjs for the output adapter setting.
+
+name = "starter-web"
+compatibility_date = "2025-04-01"
+
+# Pages-specific settings.
+pages_build_output_dir = "dist"
+
+# ── Environment-specific overrides ────────────────────────────────────
+[env.production]
+# Production branch is typically deployed via the CF dashboard or CI.
+
+[env.staging]
+# Staging can use branch previews via `wrangler pages deploy dist/ --branch=staging`.

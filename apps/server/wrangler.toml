@@ -1,0 +1,52 @@
+# ── Cloudflare Worker: @starter/server ──────────────────────────────────
+#
+# Deploy with:  bun run deploy:server
+# Local dev:    bun run dev:server:cf
+#
+# This Worker serves the Hono-based REST API and (when built) the Astro
+# web frontend as static assets via SPA fallback.
+
+name = "starter-server"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+# ── Bindings ────────────────────────────────────────────────────────────
+# D1 database — matches the binding used by the D1 db adapter.
+[[d1_databases]]
+binding = "DB"
+database_name = "starter-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# KV namespace for session storage.
+[[kv_namespaces]]
+binding = "SESSION"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# ── Cron Triggers ───────────────────────────────────────────────────────
+# Uncomment and adjust cron expressions for your scheduled jobs.
+# Each trigger fires the `scheduled` export in src/scheduled.ts.
+#
+# [[triggers]]
+# crons = ["0 0 * * *"]   # Daily midnight cleanup
+#
+# [[triggers]]
+# crons = ["*/30 * * * *"] # Every 30 minutes
+
+# ── Observability ───────────────────────────────────────────────────────
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# ── Environment-specific overrides ──────────────────────────────────────
+[env.production]
+# Production D1 — usually a dedicated database.
+# [[env.production.d1_databases]]
+# binding = "DB"
+# database_id = "PRODUCTION_D1_DATABASE_ID"
+[env.production.observability]
+enabled = true
+
+[env.staging]
+# Staging can share the dev database or use a dedicated clone.
+[env.staging.observability]
+enabled = true

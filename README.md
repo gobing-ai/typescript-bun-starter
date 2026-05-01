@@ -93,6 +93,46 @@ bun run dev:web
 bun run dev:all
 ```
 
+## Cloudflare Deployment
+
+The starter supports deploying the server as a Cloudflare Worker and the web tier as Cloudflare Pages.
+
+### Prerequisites
+
+1. Install [wrangler](https://developers.cloudflare.com/workers/wrangler/) and log in:
+   ```bash
+   npx wrangler login
+   ```
+2. Create a D1 database and KV namespace in your Cloudflare dashboard.
+3. Update `apps/server/wrangler.toml` with your D1 `database_id` and KV namespace `id`.
+
+### Server → Cloudflare Workers
+
+```bash
+# Local development with Cloudflare runtime
+bun run dev:server:cf
+
+# Deploy to Cloudflare Workers
+bun run deploy:server
+```
+
+The server runs as a [Hono-based Worker](https://hono.dev/docs/getting-started/cloudflare-workers). Cron triggers
+(defined in `wrangler.toml`) dispatch to the `scheduled` export in `apps/server/src/scheduled.ts`. Register jobs
+via `scheduler.register(...)` and define matching cron expressions in `wrangler.toml`.
+
+### Web → Cloudflare Pages
+
+```bash
+# Build and preview locally
+bun run preview:web:cf
+
+# Deploy to Cloudflare Pages
+bun run deploy:web
+```
+
+The web tier uses `@astrojs/cloudflare` with static output by default. Switch `output` to `'server'` in
+`apps/web/astro.config.mjs` for SSR on Cloudflare Pages.
+
 ## Verification
 
 ```bash

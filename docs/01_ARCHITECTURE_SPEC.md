@@ -58,6 +58,23 @@ repository rules across naming, imports, DB boundaries, logger usage, and extern
 - Styling: Tailwind CSS v4
 - API access: browser-safe client helpers live under `apps/web/src/lib`
 
+### Cloudflare Deployment
+
+**Server → Cloudflare Workers**
+
+- Config: `apps/server/wrangler.toml` — Worker name, D1 binding, KV (SESSION) binding, cron triggers, environment sections
+- The existing Hono `fetch` export is already CF Worker-compatible; the `scheduled` export (from `apps/server/src/scheduled.ts`) is only invoked on CF cron triggers
+- Cron dispatch: `scheduled(event)` uses `CloudflareSchedulerAdapter.getJobByCron(event.cron)` to find and invoke the matching job at runtime
+- Scripts: `bun run deploy:server` (wrangler deploy), `bun run dev:server:cf` (wrangler dev)
+- Dual-mode: the same entry point works with `bun --hot run` locally and `wrangler deploy` for production; no code branching required
+
+**Web → Cloudflare Pages**
+
+- Config: `apps/web/wrangler.toml` — Pages project name, output directory
+- Adapter: `@astrojs/cloudflare` with `output: 'static'` (default); switch to `output: 'server'` for SSR
+- CF Pages routing: `public/_headers` (security headers, cache policies) and `public/_routes.json` (route inclusion/exclusion)
+- Scripts: `bun run deploy:web` (build + wrangler pages deploy), `bun run preview:web:cf` (wrangler pages dev)
+
 ### Policy Driver
 
 - Entry point: `scripts/policy-check.ts`
