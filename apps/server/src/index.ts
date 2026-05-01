@@ -303,6 +303,8 @@ function getOrCreateApp() {
     return app;
 }
 
+export { scheduled } from './scheduled';
+
 export default {
     fetch: (request: Request, env?: Record<string, unknown>) => {
         const app = getOrCreateApp();
