@@ -58,6 +58,31 @@ repository rules across naming, imports, DB boundaries, logger usage, and extern
 - Styling: Tailwind CSS v4
 - API access: browser-safe client helpers live under `apps/web/src/lib`
 
+### Cloudflare Deployment
+
+The project supports Cloudflare as a first-class deployment target for both server and web tiers.
+
+**Server → Cloudflare Workers**
+- Config: `apps/server/wrangler.toml` — Worker definition with D1 binding, KV (SESSION) binding, and cron triggers
+- Entry: `apps/server/src/index.ts` exports both `fetch` (Hono request handler) and `scheduled` (cron trigger handler)
+- Scheduler: `apps/server/src/scheduled.ts` registers cron jobs via `CloudflareSchedulerAdapter` and dispatches on `scheduled(event)`
+- Scheduler selection: `APP_MODE=cloudflare` uses the registry adapter; `APP_MODE=node` (default) uses in-process `node-cron`
+- Deploy: `bun run deploy:server` (alias for `wrangler deploy`)
+- Local dev: `bun run dev:server:cf` (`wrangler dev`)
+
+**Web → Cloudflare Pages**
+- Config: `apps/web/wrangler.toml` — Pages definition with build output directory
+- Astro adapter: `@astrojs/cloudflare` configured in `astro.config.mjs`
+- Output: `static` (HTML + assets served from Pages CDN). For SSR on Pages Functions, switch to `output: 'server'` and the Astro CF adapter auto-generates the Worker `wrangler.json`.
+- Routing: `apps/web/public/_headers` (security headers + cache policy) and `apps/web/public/_routes.json` (Pages routing rules)
+- Deploy: `bun run deploy:web` (builds Astro + deploys to Pages)
+- Preview: `bun run preview:web:cf` (local Pages dev server)
+
+**Database → Cloudflare D1**
+- Adapter: `packages/core/src/db/adapters/d1.ts` — selected via `createDbAdapter({ driver: 'd1', binding })`
+- The server's DB middleware auto-detects a D1 binding from the Worker environment and creates the D1 adapter
+- When running locally with `wrangler dev`, D1 is simulated via Miniflare
+
 ### Policy Driver
 
 - Entry point: `scripts/policy-check.ts`
