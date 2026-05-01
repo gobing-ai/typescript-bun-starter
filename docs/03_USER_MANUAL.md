@@ -245,6 +245,18 @@ curl http://localhost:3000/api/health
 # → {"code":0,"message":"ok","result":"success","data":{"status":"ok","timestamp":"..."}}
 ```
 
+#### `GET /api/health/queue`
+
+Queue health check — returns job counts by status (no auth required).
+
+```bash
+curl http://localhost:3000/api/health/queue
+# → {"code":0,"message":"ok","result":"success","data":{"pending":5,"processing":1,"completed":42,"failed":2}}
+```
+
+Useful for monitoring async job processing pipelines. The queue consumer (`DBQueueConsumer`) manages these
+status transitions; the endpoint is a read-only window into queue health.
+
 ### 5.4 OpenAPI Documentation
 
 | URL | Description |
@@ -524,7 +536,156 @@ docker build -t typescript-bun-starter .
 docker run -p 3000:3000 -e API_KEY=sk-secret typescript-bun-starter
 ```
 
-## 11. Daily Development Commands
+## 11. Cloudflare Deployment
+
+The project supports Cloudflare Workers (API server) and Cloudflare Pages (web app) as first-class deployment targets.
+
+### 11.1 Prerequisites
+
+```bash
+# Install Wrangler CLI (already a devDependency — no extra install needed)
+# Authenticate with Cloudflare
+npx wrangler login
+
+# Create D1 database (one-time)
+npx wrangler d1 create starter-db
+# → Copy the database_id from output into apps/server/wrangler.toml
+
+# Create KV namespace for sessions (one-time)
+npx wrangler kv:namespace create SESSION
+# → Copy the id into apps/server/wrangler.toml
+```
+
+### 11.2 Deploy the API Server (Workers)
+
+```bash
+# 1. Edit apps/server/wrangler.toml — replace placeholder IDs
+#    - [[d1_databases]].database_id
+#    - [[kv_namespaces]].id
+
+# 2. Deploy
+bun run deploy:server
+
+# 3. Local dev with Miniflare (simulates D1 + KV locally)
+bun run dev:server:cf
+```
+
+The server runs as a Cloudflare Worker. The `APP_MODE=cloudflare` env var selects the Cloudflare scheduler adapter (registry pattern). `APP_MODE=node` (default) uses in-process `node-cron`.
+
+### 11.3 Deploy the Web App (Pages)
+
+```bash
+# Build and deploy as static site
+bun run deploy:web
+
+# Preview locally with Pages dev server
+bun run preview:web:cf
+```
+
+The web app deploys as a static site. The `astro.config.mjs` is pre-configured with `@astrojs/cloudflare`.
+
+**Switching to SSR on Pages Functions:**
+
+```js
+// apps/web/astro.config.mjs
+export default defineConfig({
+-    output: 'static',
++    output: 'server',
+     adapter: cloudflare({ ... }),
+});
+```
+
+When `output: 'server'`, the Astro CF adapter auto-generates a Worker `wrangler.json` in `dist/server/`. Add any required D1/KV bindings to `apps/web/wrangler.toml` and deploy.
+
+### 11.4 Environment-Specific Configuration
+
+`wrangler.toml` supports `[env.staging]` and `[env.production]` sections. Each can override the Worker name, D1 database, and KV namespace:
+
+```bash
+# Deploy to staging
+npx wrangler deploy --env staging
+
+# Deploy to production
+npx wrangler deploy --env production
+```
+
+### 11.5 Secrets Management
+
+Use Wrangler secrets for sensitive values (API keys, tokens):
+
+```bash
+npx wrangler secret put API_KEY
+# → Enter the secret value at the prompt
+```
+
+Do NOT hardcode secrets in `wrangler.toml` — the policy driver enforces this.
+
+## 12. Scheduled Jobs (Cron)
+
+The starter ships with a cross-environment scheduler abstraction. Jobs are registered once; the runtime selects the correct adapter automatically.
+
+### 12.1 Architecture
+
+| Environment | Adapter | How it works |
+|-------------|---------|-------------|
+| Node.js / VPS | `NodeSchedulerAdapter` | In-process `node-cron` — runs jobs inside the Bun process |
+| Cloudflare Workers | `CloudflareSchedulerAdapter` | Registry pattern — `scheduled(event)` handler dispatches by cron expression |
+| Disabled | `NoOpSchedulerAdapter` | Tracks job names for introspection, never executes |
+
+Selection is automatic via `APP_MODE` env var (default: `node`).
+
+### 12.2 Registering a Cron Job
+
+Add your job to `apps/server/src/scheduled.ts`:
+
+```ts
+// apps/server/src/scheduled.ts
+import { getScheduler } from './scheduled';
+
+getScheduler().then((scheduler) => {
+    scheduler.register({
+        name: 'daily-cleanup',
+        schedule: '0 0 * * *',        // midnight UTC
+        timezone: 'UTC',               // optional, defaults to UTC
+        handler: async (scheduledTime, cron) => {
+            // Your cleanup logic here
+            console.log('Running daily cleanup');
+        },
+    });
+});
+```
+
+### 12.3 Cloudflare Cron Triggers
+
+For Cloudflare Workers, match each cron expression to a `[[triggers]]` entry in `apps/server/wrangler.toml`:
+
+```toml
+# apps/server/wrangler.toml
+[[triggers]]
+crons = ["0 0 * * *"]
+```
+
+The Worker runtime calls `scheduled(event)` automatically. The adapter finds the matching job by `event.cron`.
+
+### 12.4 Node.js (node-cron)
+
+No extra config needed. Set `APP_MODE=node` (or leave it unset) and jobs run in-process via `node-cron`. Start the server normally:
+
+```bash
+bun run dev:server
+```
+
+The scheduler starts automatically when the module loads.
+
+### 12.5 Disabling the Scheduler
+
+```bash
+SCHEDULER_ENABLED=false bun run dev:server
+```
+
+Useful for stateless deployments, tests, or environments where cron is handled externally.
+
+## 13. Daily Development Commands
 
 ```bash
 bun install                     # install dependencies
@@ -545,7 +706,7 @@ bun run db:check-drift          # Verify schema/migration sync
 bun run db studio               # Visual database inspector
 ```
 
-## 12. Troubleshooting
+## 14. Troubleshooting
 
 ### `{"error":"Unauthorized"}`
 
