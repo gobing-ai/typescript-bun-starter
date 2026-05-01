@@ -96,6 +96,11 @@
         "build:web": "bun run --filter @starter/web build && rm -rf dist/web && cp -r apps/web/dist dist/web",
         "build:server": "bun build apps/server/src/index.ts --outdir dist/server --target bun --splitting",
         "build:server:bundle": "bun build apps/server/src/index.ts --outfile dist/tbs-server.js --target bun --format esm",
+        "// ── Deploy (Cloudflare) ──": "",
+        "deploy:server": "bun run --filter @starter/server deploy",
+        "deploy:web": "bun run --filter @starter/web deploy",
+        "dev:server:cf": "bun run --filter @starter/server dev:cf",
+        "preview:web:cf": "bun run --filter @starter/web preview:cf",
         "// ── Utility ──": "",
         "tree": "tree . -a -I 'node_modules|.git|coverage'",
         "publish": "npm whoami >/dev/null 2>&1 || { echo 'Error: not logged in to npm. Run `npm login` first.'; exit 1; } && npm publish --access public"
