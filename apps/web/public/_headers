@@ -1,0 +1,16 @@
+# Cloudflare Pages — HTTP Security Headers
+# See: https://developers.cloudflare.com/pages/configuration/headers/
+
+# ── Default security headers for all routes ──────────────────────────────
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# ── Cache policy for hashed assets ───────────────────────────────────────
+# Hashed filenames under _assets/ are immutable — cache aggressively.
+
+/_assets/*
+  Cache-Control: public, max-age=31536000, immutable

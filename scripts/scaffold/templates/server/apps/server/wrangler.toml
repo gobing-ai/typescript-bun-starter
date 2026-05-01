@@ -1,0 +1,55 @@
+# ── starter-server — Cloudflare Worker ───────────────────────────────────
+# Deploy: bun run deploy:server
+# Local:  bun run dev:server:cf
+
+name = "starter-server"
+main = "src/index.ts"
+compatibility_date = "2026-04-15"
+
+# ── Bindings ────────────────────────────────────────────────────────────
+
+[[d1_databases]]
+binding = "DB"
+database_name = "starter-db"
+database_id = "replace-with-your-database-id"
+
+[[kv_namespaces]]
+binding = "SESSION"
+id = "replace-with-your-kv-namespace-id"
+
+# ── Cron Triggers ───────────────────────────────────────────────────────
+# Register jobs in apps/server/src/scheduled.ts.
+# Each trigger below maps to a ScheduledJob registered via initScheduler().
+# Uncomment and configure as needed.
+
+# [[triggers]]
+# crons = ["0 0 * * *"]
+#
+
+# ── Environment-specific overrides ───────────────────────────────────────
+# These inherit all bindings from the top-level section.
+# Each env typically points to a different D1 database and KV namespace.
+
+# [env.staging]
+# name = "starter-server-staging"
+#
+# [[env.staging.d1_databases]]
+# binding = "DB"
+# database_name = "starter-db-staging"
+# database_id = "replace-with-staging-database-id"
+#
+# [[env.staging.kv_namespaces]]
+# binding = "SESSION"
+# id = "replace-with-staging-kv-namespace-id"
+
+# [env.production]
+# name = "starter-server-production"
+#
+# [[env.production.d1_databases]]
+# binding = "DB"
+# database_name = "starter-db-production"
+# database_id = "replace-with-production-database-id"
+#
+# [[env.production.kv_namespaces]]
+# binding = "SESSION"
+# id = "replace-with-production-kv-namespace-id"

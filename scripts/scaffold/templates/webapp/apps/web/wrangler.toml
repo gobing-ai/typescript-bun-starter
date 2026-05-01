@@ -1,0 +1,39 @@
+# ── starter-web — Cloudflare Pages ──────────────────────────────────────
+# Deploy: bun run deploy:web
+# Preview: bun run preview:web:cf
+#
+# This config is for explicit Pages deployment via wrangler CLI.
+# The Astro @astrojs/cloudflare adapter auto-generates a wrangler.json
+# in dist/server/ for the Worker SSR path. This file covers the static
+# Pages deployment path and local dev.
+
+name = "starter-web"
+compatibility_date = "2026-04-15"
+
+# Pages uses the Astro build output directory.
+# Defaults to dist/client/ for static, dist/server/ for SSR.
+pages_build_output_dir = "dist/client"
+
+# ── Environment-specific overrides ───────────────────────────────────────
+
+# [env.staging]
+# name = "starter-web-staging"
+# pages_build_output_dir = "dist/client"
+#
+# [[env.staging.kv_namespaces]]
+# binding = "SESSION"
+# id = "replace-with-staging-kv-namespace-id"
+
+# [env.production]
+# name = "starter-web-production"
+# pages_build_output_dir = "dist/client"
+#
+# [[env.production.kv_namespaces]]
+# binding = "SESSION"
+# id = "replace-with-production-kv-namespace-id"
+
+# ── SSR on Pages Functions ──────────────────────────────────────────────
+# To switch from static to SSR (Pages Functions), change Astro output mode:
+#   astro.config.mjs: output: 'server'
+# Then set pages_build_output_dir to "dist/server" and add any required
+# bindings (D1, KV) here. The Astro CF adapter handles the rest.
