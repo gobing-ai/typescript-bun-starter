@@ -104,6 +104,54 @@ bun run smoke:generated
 - `bun run check:policy` runs the repository policy driver across all policy documents under `policies/`
 - `bun run smoke:generated` copies the repo into a temp project and exercises the full-stack, CLI + API, and CLI-only generated profiles
 
+## Cloudflare Deployment
+
+The project supports Cloudflare as a deployment target out of the box.
+
+### Prerequisites
+
+- [Cloudflare account](https://dash.cloudflare.com/)
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) (installed as devDependency)
+- D1 database created: `wrangler d1 create starter-db`
+- KV namespace created: `wrangler kv:namespace create SESSION`
+
+### Deploy the API server (Workers)
+
+```bash
+# Update wrangler.toml with your D1 database_id and KV namespace id
+# from the output of wrangler d1 create and wrangler kv:namespace create
+
+bun run deploy:server
+```
+
+### Deploy the web app (Pages)
+
+```bash
+bun run deploy:web
+```
+
+The web app deploys as a static site to Cloudflare Pages. For SSR on Pages
+Functions, change `output` in `apps/web/astro.config.mjs` from `'static'` to
+`'server'` — the Astro CF adapter auto-generates the Worker config.
+
+### Local development with Wrangler
+
+```bash
+# Run the API server with Miniflare (D1 + KV simulation)
+bun run dev:server:cf
+
+# Preview the web app locally with Pages dev server
+bun run preview:web:cf
+```
+
+### Scheduler (Cron Triggers)
+
+Register cron jobs in `apps/server/src/scheduled.ts` and add matching
+`[[triggers]]` entries in `apps/server/wrangler.toml`. The Cloudflare
+Workers runtime invokes the `scheduled(event)` handler automatically.
+For local/VPS deployments, the scheduler defaults to `node-cron` via
+`APP_MODE=node`.
+
 ## HTTP Client Boundaries
 
 - **`packages/core/src/api-client.ts`**: use this for generic outbound HTTP access in shared or server-side code. It includes timeout handling, OpenTelemetry spans, and throws `APIError` for non-2xx responses.
