@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { nowMs } from '../date';
+import type { QueueStats } from '../job-queue/types';
 import type { DbClient } from './adapter';
 import { EntityDao } from './entity-dao';
 import { queueJobs } from './schema';
@@ -77,6 +78,35 @@ export class QueueJobDao extends EntityDao<typeof queueJobs, typeof queueJobs.id
      */
     async getById(id: string): Promise<QueueJobRecord | undefined> {
         return this.findBy(queueJobs.id, id);
+    }
+
+    /**
+     * Get aggregate job counts by status.
+     */
+    async getStats(): Promise<QueueStats> {
+        return this.withMetrics('select', 'queue_jobs', async () => {
+            const result = await (
+                this.db as unknown as {
+                    select: (fn: unknown) => { from: (t: unknown) => { groupBy: (g: unknown) => Promise<unknown[]> } };
+                }
+            )
+                .select({
+                    status: queueJobs.status,
+                    count: sql`count(*)`,
+                })
+                .from(queueJobs)
+                .groupBy(queueJobs.status);
+
+            const rows = result as { status: string; count: unknown }[];
+            const map = Object.fromEntries(rows.map((r) => [r.status, Number(r.count ?? 0)]));
+
+            return {
+                pending: map.pending ?? 0,
+                processing: map.processing ?? 0,
+                completed: map.completed ?? 0,
+                failed: map.failed ?? 0,
+            };
+        });
     }
 
     /**
